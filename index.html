@@ -131,6 +131,7 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
   <div class="lab-row"><label for="cornerRange">Corner radius</label><output id="cornerOut">9px</output><input id="cornerRange" type="range" min="2" max="22" step="1" value="9"></div>
   <div class="lab-row"><label for="gapRange">Gap & border</label><output id="gapOut">4px</output><input id="gapRange" type="range" min="1" max="10" step="1" value="4"></div>
   <div class="lab-row"><label for="springRange">Snap spring</label><output id="springOut">180ms</output><input id="springRange" type="range" min="80" max="450" step="10" value="180"></div>
+  <div class="lab-row"><label for="magnetRange">Magnetic reach</label><output id="magnetOut">55%</output><input id="magnetRange" type="range" min="0" max="110" step="5" value="55"></div>
   <div class="lab-foot"><button id="resetLab">Restore defaults</button><button id="closeLab2">Done</button></div>
 </div>
 <div id="rotate">
@@ -157,7 +158,7 @@ const LEVELS=[
     {axis:'h',u:.30,v:.80,tiles:[[10,3],[11,3],[12,3]]}
   ],hand:[[5,1],[5,2]]}
 ];
-const defaults={tile:58,corner:9,gap:4,spring:180};
+const defaults={tile:58,corner:9,gap:4,spring:180,magnet:55};
 let settings={...defaults};
 try {const saved=JSON.parse(localStorage.getItem('remixaLab')||'null'); if(saved) settings={...settings,...saved};}catch(_){}
 const board=$('board'), rack=$('handTiles'), groupsLayer=$('groupLayer'), tilesLayer=$('tileLayer'), dragLayer=$('dragLayer');
@@ -315,9 +316,16 @@ function getHover(clientX,clientY) {
     const box=geometry(g,false);
     const along=g.axis==='h'?x-box.x:y-box.y;
     const across=g.axis==='h'?y-box.y:x-box.x;
-    const maxAlong=(g.tiles.length-1)*box.step/2+actualTile*1.05;
-    if(Math.abs(along)>maxAlong||Math.abs(across)>actualTile*(g.tiles.length===1?1.17:.82))continue;
-    const dist=Math.abs(across)*1.1+Math.max(0,Math.abs(along)-(g.tiles.length-1)*box.step/2)*.3;
+    // Connect a tile when it approaches the end of a group, even if invalid.
+    const reach=actualTile*settings.magnet/100;
+    const end=(g.tiles.length-1)*box.step/2;
+    const maxAlong=end+box.step+reach;
+    const maxAcross=actualTile*.70+reach*.35;
+    if(Math.abs(along)>maxAlong||Math.abs(across)>maxAcross)continue;
+    const overshoot=Math.max(0,Math.abs(along)-end-box.step);
+    const normalGap=Math.max(0,Math.abs(across)-actualTile/2);
+    const dist=normalGap*1.5+overshoot*1.2+
+               Math.abs(across)*.18+Math.max(0,Math.abs(along)-end)*.08;
     if(dist<bestDist) {
       const index=clamp(Math.round(along/box.step+g.tiles.length/2),0,g.tiles.length);
       best={id:g.id,index};bestDist=dist;
@@ -427,17 +435,17 @@ $('prev').addEventListener('click',()=>loadLevel(level-1));
 $('next').addEventListener('click',()=>loadLevel(level+1));
 $('nextWin').addEventListener('click',()=>loadLevel(level+1));
 function applySettings() {
-  for(const key of ['tile','corner','gap','spring']){
+  for(const key of ['tile','corner','gap','spring','magnet']){
     $(key+'Range').value=settings[key];
-    $(key+'Out').textContent=settings[key]+(key==='spring'?'ms':'px');
+    $(key+'Out').textContent=settings[key]+(key==='spring'?'ms':key==='magnet'?'%':'px');
   }
   try{localStorage.setItem('remixaLab',JSON.stringify(settings));}catch(_){}
   layout();
 }
-for(const key of ['tile','corner','gap','spring'])
+for(const key of ['tile','corner','gap','spring','magnet'])
   $(key+'Range').addEventListener('input',e=>{
     settings[key]=Number(e.target.value);
-    $(key+'Out').textContent=settings[key]+(key==='spring'?'ms':'px');
+    $(key+'Out').textContent=settings[key]+(key==='spring'?'ms':key==='magnet'?'%':'px');
     applySettings();
   });
 const lab=$('lab');
