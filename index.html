@@ -26,16 +26,16 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 .header-controls {display:flex;align-items:center;gap:8px;}
 .icon-btn {height:35px;min-width:37px;border:1px solid #4a6966;border-radius:11px;background:#24474a;color:#e7eee8;display:grid;place-items:center;font-size:19px;line-height:1;transition:background .12s;}
 .icon-btn:active {background:#3b696b;}
-#play {display:grid;grid-template-columns:minmax(0,1fr) clamp(174px,24vw,252px);gap:11px;min-height:0;flex:1;padding:0 11px 11px;}
-#board {position:relative;min-height:0;min-width:0;overflow:hidden;border-radius:17px;height:100%;background:linear-gradient(145deg,#254b4b,#1d3f42 90%);border:1px solid #456766;isolation:isolate;}
+#play {display:flex;width:100%;min-width:0;min-height:0;flex:1;padding:0 9px 9px;}
+#board {position:relative;flex:1;width:100%;min-height:0;min-width:0;overflow:hidden;border-radius:17px;height:100%;background:linear-gradient(145deg,#254b4b,#1d3f42 90%);border:1px solid #456766;isolation:isolate;}
 
 #board::before {content:"";pointer-events:none;position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 59px,#ffffff04 60px 61px);opacity:.45;}
 #groupLayer,#homeGroupLayer,#tileLayer,#homeTiles {position:absolute;inset:0;pointer-events:none;}
 #groupLayer {z-index:1;} #homeBase {z-index:1;} #homeGroupLayer {z-index:2;} #tileLayer {z-index:3;} #homeTiles {z-index:4;}
-#homeBase {position:absolute;left:50%;bottom:8px;transform:translateX(-50%);width:min(300px,38vw);height:min(112px,24vh);border-radius:180px 180px 0 0;background:radial-gradient(ellipse at 50% 100%,#153338 0%,#10282c 70%,#0f262a 100%);border:1px solid #375457;opacity:.9;pointer-events:none;}
-#boardControls {position:absolute;right:12px;bottom:12px;display:flex;justify-content:center;gap:7px;width:min(240px,32vw);z-index:10;}
+#homeBase {position:absolute;left:50%;bottom:1px;transform:translateX(-50%);width:min(265px,40vw);height:min(88px,25vh);border-radius:200px 200px 0 0;background:radial-gradient(ellipse at 50% 100%,#a5c8bb14 0%,#a5c8bb02 78%);border:1px solid #89bcb533;border-bottom:none;pointer-events:none;}
+.header-small-btn {height:35px;min-width:54px;padding:0 9px;background:#24474a;border-radius:11px;border:1px solid #4a6966;color:#e7eee8;font-size:11px;font-weight:750;letter-spacing:.045em;}
+.header-small-btn:active {background:#3b696b;} .header-small-btn:disabled {opacity:.33;}
 #homeTiles,#homeGroupLayer {inset:0;}
-#handTiles::before {content:"";position:absolute;inset:4px 12px 10px;background:linear-gradient(#0b2327,#102b2d);border-radius:14px;}
 .home-group {position:absolute;top:0;left:0;box-sizing:border-box;border:var(--border) solid var(--red);background:var(--red);border-radius:calc(var(--corner) + var(--gap));pointer-events:none;transition:transform var(--snap-ms) cubic-bezier(.19,.95,.33,1),opacity .15s;}
 .small-btn {height:36px;min-width:0;flex:1;background:#294b50;border-radius:10px;border:1px solid #49696b;color:#e9f0e9;font-size:12px;font-weight:750;letter-spacing:.05em;}
 .small-btn:active {background:#3b6765;} .small-btn:disabled {opacity:.35;}
@@ -78,8 +78,20 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 @media(max-height:440px) {
   #header {height:43px;min-height:43px;}
   .brand {font-size:24px;}
-  .small-btn {height:32px;}
+  .header-small-btn {height:30px;}
   #lab {top:47px;max-height:calc(100dvh - 53px);overflow:auto;}
+}
+
+@media(max-width:760px) and (orientation:landscape) {
+  #header {padding:0 9px;gap:6px;}
+  .brand {font-size:21px;}
+  .header-center {gap:5px;font-size:11px;}
+  .header-controls {gap:5px;}
+  .icon-btn {height:31px;min-width:31px;border-radius:9px;}
+  .header-small-btn {height:31px;min-width:46px;padding:0 5px;font-size:10px;border-radius:9px;}
+}
+@media(max-width:600px) and (orientation:landscape) {
+  #levelName {display:none;}
 }
 @media(prefers-reduced-motion:reduce) {
  .tile,.group,#win,.win-card {transition-duration:.01ms!important;}
@@ -94,6 +106,8 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
     <div class="header-controls">
       <button class="icon-btn" id="prev" aria-label="Previous puzzle">‹</button>
       <button class="icon-btn" id="next" aria-label="Next puzzle">›</button>
+      <button class="header-small-btn" id="undo" aria-label="Undo last move">UNDO</button>
+      <button class="header-small-btn" id="reset" aria-label="Restart current puzzle">RESET</button>
       <button class="icon-btn" id="settings" aria-label="Tuning panel">⚙</button>
     </div>
   </header>
@@ -104,10 +118,6 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
       <div id="homeGroupLayer" aria-hidden="true"></div>
       <div id="tileLayer"></div>
       <div id="homeTiles" aria-label="Your tiles"></div>
-      <div id="boardControls">
-        <button class="small-btn" id="undo">UNDO</button>
-        <button class="small-btn" id="reset">RESET</button>
-      </div>
     </section>
   </main>
 </div>
@@ -142,16 +152,16 @@ const LEVELS=[
   {name:'First Fit',groups:[
     {axis:'h',u:.26,v:.28,tiles:[[3,0],[4,0],[5,0]]},
     {axis:'v',u:.77,v:.45,tiles:[[7,1],[7,2],[7,3]]},
-    {axis:'h',u:.29,v:.75,tiles:[[2,4],[3,4],[4,4]]}
+    {axis:'h',u:.22,v:.72,tiles:[[2,4],[3,4],[4,4]]}
   ],hand:[[6,0],[5,4]]},
   {name:'Borrow a Tile',groups:[
     {axis:'h',u:.27,v:.26,tiles:[[2,0],[3,0],[4,0],[5,0]]},
     {axis:'h',u:.78,v:.28,tiles:[[8,3],[9,3],[10,3]]},
-    {axis:'h',u:.33,v:.74,tiles:[[2,4],[3,4],[4,4]]}
+    {axis:'h',u:.22,v:.72,tiles:[[2,4],[3,4],[4,4]]}
   ],hand:[[5,1],[5,2]]},
   {name:'Split the Run',groups:[
     {axis:'h',u:.50,v:.32,tiles:[[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[8,0],[9,0]]},
-    {axis:'h',u:.30,v:.80,tiles:[[10,3],[11,3],[12,3]]}
+    {axis:'h',u:.20,v:.72,tiles:[[10,3],[11,3],[12,3]]}
   ],hand:[[5,1],[5,2]]}
 ];
 const defaults={tile:58,corner:9,gap:4,spring:180,magnet:55};
@@ -222,6 +232,7 @@ function loadLevel(i) {
   level=(i+LEVELS.length)%LEVELS.length;
   for(const t of tiles)t.el.remove();
   for(const g of groups)g.el.remove();
+  homeGroupLayer.replaceChildren(); // prevent red home backplates from previous levels lingering
   tiles=[];groups=[];hand=[];hover=null;active=null;history=[];won=false;nextID=1;nextGroup=1;
   const source=LEVELS[level];
   groups=source.groups.map(g=>groupNew(g.tiles.map(v=>tileNew(...v)),g.axis,g.u,g.v));
