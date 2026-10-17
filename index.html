@@ -229,6 +229,7 @@ function loadLevel(i) {
   $('levelLabel').textContent=`${String(level+1).padStart(2,'0')} / ${String(LEVELS.length).padStart(2,'0')}`;
   $('levelName').textContent=source.name;
   $('win').classList.remove('show');
+  reflowGroups();
   layout(true);
 }
 function maxSequence(){return Math.max(...groups.filter(g=>g.axis==='h').map(g=>g.tiles.length),3);}
@@ -254,6 +255,66 @@ function geometry(g,extra=false) {
   const y=clamp(g.v*boardH,h/2+3,boardH-h/2-3);
   return {n,step,w,h,x,y,left:x-w/2,top:y-h/2};
 }
+
+// Keep each linked group collision-free. The edited group has priority;
+// other groups smoothly find the nearest available space on the board.
+function reflowGroups(preferredId=null) {
+  measure();
+  const clearance=Math.max(7,settings.gap*1.6);
+  const objects=groups.filter(g=>g.tiles.length).map(g=>{
+    const n=g.tiles.length,step=actualTile+settings.gap;
+    const w=(g.axis==='h'?(n-1)*step+actualTile:actualTile)+settings.gap*2;
+    const h=(g.axis==='v'?(n-1)*step+actualTile:actualTile)+settings.gap*2;
+    return {g,w,h,
+      x:clamp(g.u*boardW,w/2+3,boardW-w/2-3),
+      y:clamp(g.v*boardH,h/2+3,boardH-h/2-3)};
+  });
+  const priority=objects.find(p=>p.g.id===preferredId);
+  const order=priority
+    ? [priority,...objects.filter(p=>p!==priority)]
+    : objects;
+  const placed=[];
+  for(const item of order) {
+    const {w,h}=item,halfW=w/2,halfH=h/2;
+    const minX=halfW+3,maxX=boardW-halfW-3;
+    const minY=halfH+3,maxY=boardH-halfH-3;
+    const x0=clamp(item.x,minX,maxX),y0=clamp(item.y,minY,maxY);
+    // Edge aligned candidate placements minimize how far a group moves.
+    const xs=[x0],ys=[y0];
+    for(const p of placed) {
+      const dx=halfW+p.w/2+clearance;
+      const dy=halfH+p.h/2+clearance;
+      xs.push(p.x-dx,p.x+dx);
+      ys.push(p.y-dy,p.y+dy);
+    }
+    let choice=null,score=Infinity;
+    const consider=(x,y)=>{
+      if(x<minX-.01||x>maxX+.01||y<minY-.01||y>maxY+.01)return;
+      if(placed.some(p=>Math.abs(x-p.x)<(w+p.w)/2+clearance-.01 &&
+                        Math.abs(y-p.y)<(h+p.h)/2+clearance-.01))return;
+      const distance=(x-x0)**2+(y-y0)**2;
+      if(distance<score){score=distance;choice={x,y};}
+    };
+    for(const x of xs)for(const y of ys)consider(x,y);
+    // Fallback scan for narrow spaces/crowded layouts.
+    if(!choice) {
+      const stride=Math.max(8,Math.floor(actualTile/4));
+      for(let y=minY;y<=maxY+stride;y+=stride)
+        for(let x=minX;x<=maxX+stride;x+=stride)
+          consider(Math.min(x,maxX),Math.min(y,maxY));
+    }
+    // If everything is packed, reject the change rather than leave an overlap.
+    if(!choice)return false;
+    item.x=choice.x;item.y=choice.y;
+    placed.push(item);
+  }
+  for(const item of placed) {
+    item.g.u=item.x/Math.max(boardW,1);
+    item.g.v=item.y/Math.max(boardH,1);
+  }
+  return true;
+}
+
 function layout(initial=false) {
   measure();
   // Border panels sit behind tiles and leave an equal-width coloured channel.
@@ -413,9 +474,13 @@ function pointerUp(e) {
     g=groupNew([t],'h',clamp((x-br.left)/boardW,0,1),clamp((y-br.top)/boardH,0,1));
     groups.push(g);
   }
-  history.push(a.before);
   t.el.classList.remove('dragging');
   active=null;hover=null;
+  if(!reflowGroups(g.id)) {
+    restore(a.before);
+    return;
+  }
+  history.push(a.before);
   layout();
   checkWin();
 }
@@ -440,6 +505,7 @@ function applySettings() {
     $(key+'Out').textContent=settings[key]+(key==='spring'?'ms':key==='magnet'?'%':'px');
   }
   try{localStorage.setItem('remixaLab',JSON.stringify(settings));}catch(_){}
+  reflowGroups();
   layout();
 }
 for(const key of ['tile','corner','gap','spring','magnet'])
@@ -454,7 +520,7 @@ $('settings').addEventListener('click',()=>lab.classList.toggle('show'));
 $('closeLab').addEventListener('click',hideLab);
 $('closeLab2').addEventListener('click',hideLab);
 $('resetLab').addEventListener('click',()=>{settings={...defaults};applySettings();});
-window.addEventListener('resize',()=>layout(true));
+window.addEventListener('resize',()=>{reflowGroups();layout(true);});
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape')hideLab();
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}
