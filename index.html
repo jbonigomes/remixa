@@ -27,21 +27,21 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 .icon-btn {height:35px;min-width:37px;border:1px solid #4a6966;border-radius:11px;background:#24474a;color:#e7eee8;display:grid;place-items:center;font-size:19px;line-height:1;transition:background .12s;}
 .icon-btn:active {background:#3b696b;}
 #play {display:grid;grid-template-columns:minmax(0,1fr) clamp(174px,24vw,252px);gap:11px;min-height:0;flex:1;padding:0 11px 11px;}
-#board,#hand {position:relative;min-height:0;min-width:0;overflow:hidden;border-radius:17px;}
-#board {background:linear-gradient(145deg,#254b4b,#1d3f42 90%);border:1px solid #456766;isolation:isolate;}
+#board {position:relative;min-height:0;min-width:0;overflow:hidden;border-radius:17px;height:100%;background:linear-gradient(145deg,#254b4b,#1d3f42 90%);border:1px solid #456766;isolation:isolate;}
+
 #board::before {content:"";pointer-events:none;position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 59px,#ffffff04 60px 61px);opacity:.45;}
-#groupLayer,#tileLayer,#handTiles {position:absolute;inset:0;pointer-events:none;}
-#groupLayer {z-index:1;} #tileLayer {z-index:2;}
-#hand {background:linear-gradient(150deg,#133238,#163039);border:1px solid #416062;display:flex;flex-direction:column;align-items:center;}
-.hand-title {padding:20px 0 0;font-size:12px;font-weight:800;letter-spacing:.2em;color:#d9c587;}
-#handTiles {inset:43px 0 69px;}
+#groupLayer,#homeGroupLayer,#tileLayer,#homeTiles {position:absolute;inset:0;pointer-events:none;}
+#groupLayer {z-index:1;} #homeBase {z-index:1;} #homeGroupLayer {z-index:2;} #tileLayer {z-index:3;} #homeTiles {z-index:4;}
+#homeBase {position:absolute;left:50%;bottom:8px;transform:translateX(-50%);width:min(300px,38vw);height:min(112px,24vh);border-radius:180px 180px 0 0;background:radial-gradient(ellipse at 50% 100%,#153338 0%,#10282c 70%,#0f262a 100%);border:1px solid #375457;opacity:.9;pointer-events:none;}
+#boardControls {position:absolute;right:12px;bottom:12px;display:flex;justify-content:center;gap:7px;width:min(240px,32vw);z-index:10;}
+#homeTiles,#homeGroupLayer {inset:0;}
 #handTiles::before {content:"";position:absolute;inset:4px 12px 10px;background:linear-gradient(#0b2327,#102b2d);border-radius:14px;}
-.hand-bottom {position:absolute;bottom:12px;display:flex;justify-content:center;gap:7px;width:100%;padding:0 9px;z-index:3;}
+.home-group {position:absolute;top:0;left:0;box-sizing:border-box;border:var(--border) solid var(--red);background:var(--red);border-radius:calc(var(--corner) + var(--gap));pointer-events:none;transition:transform var(--snap-ms) cubic-bezier(.19,.95,.33,1),opacity .15s;}
 .small-btn {height:36px;min-width:0;flex:1;background:#294b50;border-radius:10px;border:1px solid #49696b;color:#e9f0e9;font-size:12px;font-weight:750;letter-spacing:.05em;}
 .small-btn:active {background:#3b6765;} .small-btn:disabled {opacity:.35;}
 .group {position:absolute;top:0;left:0;box-sizing:border-box;transform-origin:center center;pointer-events:none;border:var(--border) solid var(--green);background:#145244;border-radius:calc(var(--corner) + var(--border));will-change:transform;transition:transform var(--snap-ms) cubic-bezier(.19,.95,.33,1),width var(--snap-ms) cubic-bezier(.19,.95,.33,1),height var(--snap-ms) cubic-bezier(.19,.95,.33,1),border-color .18s,background-color .18s;}
 .group.valid {border-color:var(--green);background:var(--green);}
-.group.incomplete {border-color:var(--amber);background:var(--amber);}
+.group.incomplete {border-color:var(--red);background:var(--red);}
 .group.invalid {border-color:var(--red);background:var(--red);}
 .group .slot {position:absolute;width:var(--tile);height:var(--tile);left:0;top:0;border-radius:var(--corner);background:#d0ffe92e;outline:1px solid #ffffff3a;opacity:0;pointer-events:none;transition:opacity .12s,transform var(--snap-ms);}
 .group.has-slot .slot {opacity:1;}
@@ -78,9 +78,6 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 @media(max-height:440px) {
   #header {height:43px;min-height:43px;}
   .brand {font-size:24px;}
-  .hand-title {padding-top:10px;}
-  #handTiles {inset:29px 0 57px;}
-  .hand-bottom {bottom:8px;}
   .small-btn {height:32px;}
   #lab {top:47px;max-height:calc(100dvh - 53px);overflow:auto;}
 }
@@ -103,16 +100,15 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
   <main id="play">
     <section id="board" aria-label="Puzzle board">
       <div id="groupLayer"></div>
+      <div id="homeBase" aria-hidden="true"></div>
+      <div id="homeGroupLayer" aria-hidden="true"></div>
       <div id="tileLayer"></div>
-    </section>
-    <aside id="hand" aria-label="Your tiles">
-      <div class="hand-title">YOUR HAND</div>
-      <div id="handTiles"></div>
-      <div class="hand-bottom">
+      <div id="homeTiles" aria-label="Your tiles"></div>
+      <div id="boardControls">
         <button class="small-btn" id="undo">UNDO</button>
         <button class="small-btn" id="reset">RESET</button>
       </div>
-    </aside>
+    </section>
   </main>
 </div>
 <div id="dragLayer"></div>
@@ -161,9 +157,9 @@ const LEVELS=[
 const defaults={tile:58,corner:9,gap:4,spring:180,magnet:55};
 let settings={...defaults};
 try {const saved=JSON.parse(localStorage.getItem('remixaLab')||'null'); if(saved) settings={...settings,...saved};}catch(_){}
-const board=$('board'), rack=$('handTiles'), groupsLayer=$('groupLayer'), tilesLayer=$('tileLayer'), dragLayer=$('dragLayer');
+const board=$('board'), rack=$('homeTiles'), homeGroupLayer=$('homeGroupLayer'), groupsLayer=$('groupLayer'), tilesLayer=$('tileLayer'), dragLayer=$('dragLayer');
 let tiles=[],groups=[],hand=[],active=null,hover=null,history=[],level=0,won=false,nextID=1,nextGroup=1;
-let actualTile=58,boardW=1,boardH=1,rackW=1,rackH=1;
+let actualTile=58,boardW=1,boardH=1;
 // A purely visual collision preview; puzzle positions remain untouched until drop.
 let projected=null,previewFrame=0,previewPoint=null;
 
@@ -239,12 +235,10 @@ function loadLevel(i) {
 function maxSequence(){return Math.max(...groups.filter(g=>g.axis==='h').map(g=>g.tiles.length),3);}
 function measure() {
   boardW=board.clientWidth;boardH=board.clientHeight;
-  rackW=rack.clientWidth;rackH=rack.clientHeight;
   const longest=Math.max(3, maxSequence());
-  const maxByW=(boardW-30-2*settings.gap-(longest-1)*settings.gap)/longest;
-  const maxByH=(boardH-24-2*settings.gap-3*settings.gap)/4;
-  const maxRack=(rackW-26-3*settings.gap)/2;
-  actualTile=Math.max(21,Math.floor(Math.min(settings.tile,maxByW,maxByH,maxRack)));
+  const maxByW=(boardW-32-2*settings.gap-(longest-1)*settings.gap)/longest;
+  const maxByH=(boardH-34-2*settings.gap-3*settings.gap)/4;
+  actualTile=Math.max(21,Math.floor(Math.min(settings.tile,maxByW,maxByH)));
   document.documentElement.style.setProperty('--tile',`${actualTile}px`);
   document.documentElement.style.setProperty('--gap',`${settings.gap}px`);
   document.documentElement.style.setProperty('--border',`${settings.gap}px`);
@@ -392,18 +386,36 @@ function layout(initial=false,skipMeasure=false) {
       posStyle(g.slot,ix-geom.left-settings.gap,iy-geom.top-settings.gap);
     }
   }
-  const cols=2,spacing=actualTile+Math.max(settings.gap*3,10);
-  const count=hand.length,rows=Math.ceil(count/cols);
-  const sy=Math.min(spacing, (rackH-20)/Math.max(2,rows));
+  const count=hand.length;
+  const spread=Math.min(boardW*.34, Math.max(actualTile*1.25, (count-1)*(actualTile*.78)));
+  const centerX=boardW/2;
+  const baseY=boardH-actualTile*1.08-settings.gap*2;
+  const amp=Math.min(actualTile*.48, boardH*.055);
   hand.forEach((t,i)=>{
     used.add(t.id);
-    if(t===active?.tile)return;
+    if(!t.homeBg){
+      const bg=document.createElement('div');
+      bg.className='home-group';
+      homeGroupLayer.appendChild(bg);
+      t.homeBg=bg;
+    }
+    if(t===active?.tile){
+      t.homeBg.style.opacity='0';
+      return;
+    }
     if(t.el.parentNode!==rack)rack.appendChild(t.el);
-    const col=i%cols,row=Math.floor(i/cols);
-    const x=rackW/2+(col-.5)*spacing-actualTile/2;
-    const y=24 + (rackH-38)/2 +(row-(rows-1)/2)*sy-actualTile/2;
+    const pct=count<=1?0:(i/(count-1)-.5);
+    const x=centerX + (count<=1?0:pct*spread) - actualTile/2;
+    const y=baseY + (1-Math.cos(pct*Math.PI))*amp - actualTile/2;
+    posStyle(t.homeBg, x-settings.gap, y-settings.gap);
+    t.homeBg.style.width=`${actualTile+settings.gap*2}px`;
+    t.homeBg.style.height=`${actualTile+settings.gap*2}px`;
+    t.homeBg.style.opacity='1';
     posStyle(t.el,x,y);
   });
+  for(const t of tiles){
+    if(!used.has(t.id) && t.homeBg) t.homeBg.style.opacity='0';
+  }
   $('undo').disabled=!history.length;
   if(initial) {
     for(const t of tiles)t.el.style.transition='none';
