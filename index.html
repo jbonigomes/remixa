@@ -164,6 +164,8 @@ try {const saved=JSON.parse(localStorage.getItem('remixaLab')||'null'); if(saved
 const board=$('board'), rack=$('handTiles'), groupsLayer=$('groupLayer'), tilesLayer=$('tileLayer'), dragLayer=$('dragLayer');
 let tiles=[],groups=[],hand=[],active=null,hover=null,history=[],level=0,won=false,nextID=1,nextGroup=1;
 let actualTile=58,boardW=1,boardH=1,rackW=1,rackH=1;
+// A purely visual collision preview; puzzle positions remain untouched until drop.
+let projected=null,previewFrame=0,previewPoint=null;
 
 const clamp=(v,a,b)=>Math.min(Math.max(v,a),Math.max(a,b));
 const colorAt=c=>COLORS[c%COLORS.length];
@@ -209,6 +211,7 @@ function snapshot() {
   return {groups:groups.map(g=>({id:g.id,axis:g.axis,u:g.u,v:g.v,ids:g.tiles.map(t=>t.id)})),hand:hand.map(t=>t.id)};
 }
 function restore(s) {
+  clearLivePreview();
   active=null;hover=null;won=false;$('win').classList.remove('show');
   for(const g of groups)g.el.remove();
   const map=new Map(tiles.map(t=>[t.id,t]));
@@ -219,6 +222,7 @@ function restore(s) {
 }
 function loadLevel(i) {
   if(active)cancelDrag();
+  clearLivePreview();
   level=(i+LEVELS.length)%LEVELS.length;
   for(const t of tiles)t.el.remove();
   for(const g of groups)g.el.remove();
@@ -256,30 +260,19 @@ function geometry(g,extra=false) {
   return {n,step,w,h,x,y,left:x-w/2,top:y-h/2};
 }
 
-// Keep each linked group collision-free. The edited group has priority;
-// other groups smoothly find the nearest available space on the board.
-function reflowGroups(preferredId=null) {
-  measure();
+// Solve rectangular linked-group collisions without DOM reads or mutations.
+// The preferred group (or finger-sized ghost) gets first choice of position.
+function solveSpaces(items,preferredId=null) {
   const clearance=Math.max(7,settings.gap*1.6);
-  const objects=groups.filter(g=>g.tiles.length).map(g=>{
-    const n=g.tiles.length,step=actualTile+settings.gap;
-    const w=(g.axis==='h'?(n-1)*step+actualTile:actualTile)+settings.gap*2;
-    const h=(g.axis==='v'?(n-1)*step+actualTile:actualTile)+settings.gap*2;
-    return {g,w,h,
-      x:clamp(g.u*boardW,w/2+3,boardW-w/2-3),
-      y:clamp(g.v*boardH,h/2+3,boardH-h/2-3)};
-  });
-  const priority=objects.find(p=>p.g.id===preferredId);
-  const order=priority
-    ? [priority,...objects.filter(p=>p!==priority)]
-    : objects;
+  const leader=items.find(p=>p.id===preferredId);
+  const order=leader?[leader,...items.filter(p=>p!==leader)]:items;
   const placed=[];
   for(const item of order) {
     const {w,h}=item,halfW=w/2,halfH=h/2;
     const minX=halfW+3,maxX=boardW-halfW-3;
     const minY=halfH+3,maxY=boardH-halfH-3;
+    if(minX>maxX||minY>maxY)return null;
     const x0=clamp(item.x,minX,maxX),y0=clamp(item.y,minY,maxY);
-    // Edge aligned candidate placements minimize how far a group moves.
     const xs=[x0],ys=[y0];
     for(const p of placed) {
       const dx=halfW+p.w/2+clearance;
@@ -296,27 +289,75 @@ function reflowGroups(preferredId=null) {
       if(distance<score){score=distance;choice={x,y};}
     };
     for(const x of xs)for(const y of ys)consider(x,y);
-    // Fallback scan for narrow spaces/crowded layouts.
     if(!choice) {
       const stride=Math.max(8,Math.floor(actualTile/4));
       for(let y=minY;y<=maxY+stride;y+=stride)
         for(let x=minX;x<=maxX+stride;x+=stride)
           consider(Math.min(x,maxX),Math.min(y,maxY));
     }
-    // If everything is packed, reject the change rather than leave an overlap.
-    if(!choice)return false;
-    item.x=choice.x;item.y=choice.y;
-    placed.push(item);
+    if(!choice)return null;
+    placed.push({...item,x:choice.x,y:choice.y});
   }
-  for(const item of placed) {
+  return placed;
+}
+function spaceItems(extraFor=null) {
+  return groups.filter(g=>g.tiles.length).map(g=>{
+    const n=g.tiles.length+(g.id===extraFor?1:0),step=actualTile+settings.gap;
+    const w=(g.axis==='h'?(n-1)*step+actualTile:actualTile)+settings.gap*2;
+    const h=(g.axis==='v'?(n-1)*step+actualTile:actualTile)+settings.gap*2;
+    return {id:g.id,g,w,h,x:g.u*boardW,y:g.v*boardH};
+  });
+}
+// Permanent reflow happens only on drop or setup.
+function reflowGroups(preferredId=null) {
+  measure();
+  const result=solveSpaces(spaceItems(),preferredId);
+  if(!result)return false;
+  for(const item of result) {
     item.g.u=item.x/Math.max(boardW,1);
     item.g.v=item.y/Math.max(boardH,1);
   }
   return true;
 }
-
-function layout(initial=false) {
-  measure();
+// During dragging, reserve space either for the hovered insertion or for
+// the free tile beneath the finger. Neighbours spring aside provisionally.
+function calculateLivePreview(clientX,clientY) {
+  if(!active)return null;
+  const br=board.getBoundingClientRect();
+  const x=clientX-br.left,y=clientY-br.top;
+  if(x<0||x>boardW||y<0||y>boardH)return null;
+  const hoveredId=hover?.id??null;
+  const items=spaceItems(hoveredId);
+  if(hoveredId!==null) {
+    const result=solveSpaces(items,hoveredId);
+    return result?new Map(result.map(({id,x,y})=>[id,{x,y}])):null;
+  }
+  // Treat the dragged tile like a temporary, collision-producing group.
+  const fingerItem={id:'finger',g:null,
+    w:actualTile+settings.gap*2,h:actualTile+settings.gap*2,
+    x,y};
+  const result=solveSpaces([fingerItem,...items],'finger');
+  return result?new Map(result.filter(p=>p.g).map(({id,x,y})=>[id,{x,y}])):null;
+}
+function clearLivePreview() {
+  if(previewFrame)cancelAnimationFrame(previewFrame);
+  previewFrame=0;previewPoint=null;projected=null;
+}
+function scheduleLivePreview(x,y) {
+  previewPoint={x,y};
+  if(previewFrame)return;
+  previewFrame=requestAnimationFrame(()=>{
+    previewFrame=0;
+    if(!active||!previewPoint)return;
+    const p=previewPoint;
+    projected=calculateLivePreview(p.x,p.y);
+    layout(false,true);
+  });
+}
+function layout(initial=false,skipMeasure=false) {
+  // During drag previews geometry is unchanged: avoid re-measuring and
+  // rewriting CSS variables on every pointer animation frame.
+  if(!skipMeasure)measure();
   // Border panels sit behind tiles and leave an equal-width coloured channel.
   const used=new Set();
   for(let i=0;i<groups.length;i++) {
@@ -325,6 +366,12 @@ function layout(initial=false) {
     if(!g.el.isConnected)groupsLayer.appendChild(g.el);
     const pv=hover?.id===g.id?hover:null;
     const geom=geometry(g,!!pv);
+    // Render projected positions only, never alter the actual puzzle state.
+    const live=projected?.get(g.id);
+    if(live) {
+      geom.x=live.x;geom.y=live.y;
+      geom.left=live.x-geom.w/2;geom.top=live.y-geom.h/2;
+    }
     g.el.classList.remove('valid','invalid','incomplete','has-slot');
     g.el.classList.add(isValid(g)?'valid':active||isCompatible(g)?'incomplete':'invalid');
     if(pv)g.el.classList.add('has-slot');
@@ -423,6 +470,7 @@ function pointerDown(e,t) {
     dy:rect.top+rect.height/2-e.clientY,
     before:old, fromHand
   };
+  clearLivePreview();
   hover=null;
   dragLayer.appendChild(t.el);
   t.el.classList.add('dragging');
@@ -444,12 +492,14 @@ function moveDrag(e) {
   }
   posStyle(a.tile.el,x-actualTile/2,y-actualTile/2,1.035);
   const next=getHover(x,y);
-  if(next?.id!==hover?.id||next?.index!==hover?.index){
-    hover=next;layout();
-  }
+  hover=next;
+  // Coalesce pointermove events into one collision/layout update per frame.
+  // The held tile itself tracks the finger directly above, without a spring.
+  scheduleLivePreview(x,y);
 }
 function cancelDrag() {
   if(!active)return;
+  clearLivePreview();
   const s=active.before;
   active.tile.el.classList.remove('dragging');
   active=null;hover=null;
@@ -475,6 +525,7 @@ function pointerUp(e) {
     groups.push(g);
   }
   t.el.classList.remove('dragging');
+  clearLivePreview();
   active=null;hover=null;
   if(!reflowGroups(g.id)) {
     restore(a.before);
@@ -505,7 +556,8 @@ function applySettings() {
     $(key+'Out').textContent=settings[key]+(key==='spring'?'ms':key==='magnet'?'%':'px');
   }
   try{localStorage.setItem('remixaLab',JSON.stringify(settings));}catch(_){}
-  reflowGroups();
+  if(!active)reflowGroups();
+  else if(previewPoint)scheduleLivePreview(previewPoint.x,previewPoint.y);
   layout();
 }
 for(const key of ['tile','corner','gap','spring','magnet'])
@@ -520,7 +572,11 @@ $('settings').addEventListener('click',()=>lab.classList.toggle('show'));
 $('closeLab').addEventListener('click',hideLab);
 $('closeLab2').addEventListener('click',hideLab);
 $('resetLab').addEventListener('click',()=>{settings={...defaults};applySettings();});
-window.addEventListener('resize',()=>{reflowGroups();layout(true);});
+window.addEventListener('resize',()=>{
+  if(!active)reflowGroups();
+  else if(previewPoint)scheduleLivePreview(previewPoint.x,previewPoint.y);
+  layout(true);
+});
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape')hideLab();
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}
