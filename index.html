@@ -221,7 +221,20 @@ const LEVELS=[
      {n:1,c:1,u:.22,v:.85},
      {n:2,c:1,u:.40,v:.85},
      {n:5,c:2,u:.73,v:.85}
-   ]}
+   ]},
+  // Experimental challenge: every green group is a beautiful trap.
+  // 23 tiles, one valid exact-cover solution; at least 13 tiles must
+  // change groups. No special tiles or exceptions to the rules.
+  {name:'The Knot',skill:'Two green groups must be dismantled to solve the table',
+   groups:[
+     {axis:'h',u:.18,v:.26,tiles:[[2,0],[3,0],[8,2],[9,3]]},
+     {axis:'h',u:.82,v:.26,tiles:[[3,1],[6,1],[6,3],[9,0]]},
+     {axis:'h',u:.19,v:.76,tiles:[[5,2],[6,2],[7,2],[6,0],[9,1]]},
+     {axis:'h',u:.81,v:.76,tiles:[[3,3],[4,3],[7,1],[7,3]]},
+     {axis:'v',u:.43,v:.51,tiles:[[4,0],[4,1],[4,2]]},
+     {axis:'v',u:.57,v:.51,tiles:[[5,0],[5,1],[5,3]]}
+   ],
+   loose:[]}
 ];
 const defaults={tile:58,corner:9,gap:4,spring:180,magnet:55};
 let settings={...defaults};
@@ -334,7 +347,10 @@ function measure() {
   const longest=Math.max(3, maxSequence());
   const maxByW=(boardW-32-2*settings.gap-(longest-1)*settings.gap)/longest;
   const maxByH=(boardH-34-2*settings.gap-3*settings.gap)/4;
-  actualTile=Math.max(21,Math.floor(Math.min(settings.tile,maxByW,maxByH)));
+  // On very narrow landscape displays the six interlocking groups of
+  // The Knot need a little more breathing room. Other levels are untouched.
+  const knotFit=level===10?boardW/14:Infinity;
+  actualTile=Math.max(21,Math.floor(Math.min(settings.tile,maxByW,maxByH,knotFit)));
   document.documentElement.style.setProperty('--tile',`${actualTile}px`);
   document.documentElement.style.setProperty('--gap',`${settings.gap}px`);
   document.documentElement.style.setProperty('--border',`${settings.gap}px`);
@@ -659,10 +675,11 @@ function checkWin() {
   if(groups.length&&groups.every(isValid) && groups.reduce((n,g)=>n+g.tiles.length,0)===tiles.length) {
     won=true;stopNudge();
     const firstChapterEnd=level===4;
-    const last=level===LEVELS.length-1;
-    $('winHeading').textContent=last?'Chapter Two complete!':firstChapterEnd?'Chapter One complete!':'Beautifully done.';
-    $('winSub').textContent=last?'Ten puzzles solved. The table is yours.':firstChapterEnd?'Ready to turn things around?':'Every tile has found its place.';
-    $('nextWin').textContent=last?'PLAY AGAIN →':firstChapterEnd?'ON TO LEVEL 6 →':'NEXT LEVEL →';
+    const secondChapterEnd=level===9;
+    const knotEnd=level===10;
+    $('winHeading').textContent=knotEnd?'The Knot untied!':secondChapterEnd?'Chapter Two complete!':firstChapterEnd?'Chapter One complete!':'Beautifully done.';
+    $('winSub').textContent=knotEnd?'A tangled table, beautifully resolved.':secondChapterEnd?'Ready for your first real challenge?':firstChapterEnd?'Ready to turn things around?':'Every tile has found its place.';
+    $('nextWin').textContent=knotEnd?'PLAY AGAIN →':secondChapterEnd?'ENTER THE KNOT →':firstChapterEnd?'ON TO LEVEL 6 →':'NEXT LEVEL →';
     $('win').classList.add('show');
   }
 }
@@ -707,7 +724,11 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape')hideLab();
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}
 });
-loadLevel(0);applySettings();
+// For playtesting, append #11 to the GitHub Pages URL to open The Knot.
+// The default opening still starts at Level 1.
+const deepLevel=/^#(?:level-?)?(\d+)$/.exec(location.hash);
+const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[1])-1)):0;
+loadLevel(firstLevel);applySettings();
 </script>
 </body>
 </html>
