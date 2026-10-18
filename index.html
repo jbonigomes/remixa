@@ -30,13 +30,10 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 #board {position:relative;flex:1;width:100%;min-height:0;min-width:0;overflow:hidden;border-radius:17px;height:100%;background:linear-gradient(145deg,#254b4b,#1d3f42 90%);border:1px solid #456766;isolation:isolate;}
 
 #board::before {content:"";pointer-events:none;position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 59px,#ffffff04 60px 61px);opacity:.45;}
-#groupLayer,#homeGroupLayer,#tileLayer,#homeTiles {position:absolute;inset:0;pointer-events:none;}
-#groupLayer {z-index:1;} #homeBase {z-index:1;} #homeGroupLayer {z-index:2;} #tileLayer {z-index:3;} #homeTiles {z-index:4;}
-#homeBase {position:absolute;left:50%;bottom:1px;transform:translateX(-50%);width:min(265px,40vw);height:min(88px,25vh);border-radius:200px 200px 0 0;background:radial-gradient(ellipse at 50% 100%,#a5c8bb14 0%,#a5c8bb02 78%);border:1px solid #89bcb533;border-bottom:none;pointer-events:none;}
+#groupLayer,#tileLayer {position:absolute;inset:0;pointer-events:none;}
+#groupLayer {z-index:1;} #tileLayer {z-index:2;}
 .header-small-btn {height:35px;min-width:54px;padding:0 9px;background:#24474a;border-radius:11px;border:1px solid #4a6966;color:#e7eee8;font-size:11px;font-weight:750;letter-spacing:.045em;}
 .header-small-btn:active {background:#3b696b;} .header-small-btn:disabled {opacity:.33;}
-#homeTiles,#homeGroupLayer {inset:0;}
-.home-group {position:absolute;top:0;left:0;box-sizing:border-box;border:var(--border) solid var(--red);background:var(--red);border-radius:calc(var(--corner) + var(--gap));pointer-events:none;transition:transform var(--snap-ms) cubic-bezier(.19,.95,.33,1),opacity .15s;}
 .small-btn {height:36px;min-width:0;flex:1;background:#294b50;border-radius:10px;border:1px solid #49696b;color:#e9f0e9;font-size:12px;font-weight:750;letter-spacing:.05em;}
 .small-btn:active {background:#3b6765;} .small-btn:disabled {opacity:.35;}
 .group {position:absolute;top:0;left:0;box-sizing:border-box;transform-origin:center center;pointer-events:none;border:var(--border) solid var(--green);background:#145244;border-radius:calc(var(--corner) + var(--border));will-change:transform;transition:transform var(--snap-ms) cubic-bezier(.19,.95,.33,1),width var(--snap-ms) cubic-bezier(.19,.95,.33,1),height var(--snap-ms) cubic-bezier(.19,.95,.33,1),border-color .18s,background-color .18s;}
@@ -114,10 +111,7 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
   <main id="play">
     <section id="board" aria-label="Puzzle board">
       <div id="groupLayer"></div>
-      <div id="homeBase" aria-hidden="true"></div>
-      <div id="homeGroupLayer" aria-hidden="true"></div>
       <div id="tileLayer"></div>
-      <div id="homeTiles" aria-label="Your tiles"></div>
     </section>
   </main>
 </div>
@@ -126,7 +120,7 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
   <div class="win-card">
     <div class="win-icon">✦</div>
     <div class="win-heading">Beautifully done.</div>
-    <div class="win-sub">Every tile found its place.</div>
+    <div class="win-sub">The whole table is in harmony.</div>
     <button class="primary-btn" id="nextWin">NEXT PUZZLE →</button>
   </div>
 </div>
@@ -153,22 +147,22 @@ const LEVELS=[
     {axis:'h',u:.26,v:.28,tiles:[[3,0],[4,0],[5,0]]},
     {axis:'v',u:.77,v:.45,tiles:[[7,1],[7,2],[7,3]]},
     {axis:'h',u:.22,v:.72,tiles:[[2,4],[3,4],[4,4]]}
-  ],hand:[[6,0],[5,4]]},
+  ],loose:[[6,0],[5,4]]},
   {name:'Borrow a Tile',groups:[
     {axis:'h',u:.27,v:.26,tiles:[[2,0],[3,0],[4,0],[5,0]]},
     {axis:'h',u:.78,v:.28,tiles:[[8,3],[9,3],[10,3]]},
     {axis:'h',u:.22,v:.72,tiles:[[2,4],[3,4],[4,4]]}
-  ],hand:[[5,1],[5,2]]},
+  ],loose:[[5,1],[5,2]]},
   {name:'Split the Run',groups:[
     {axis:'h',u:.50,v:.32,tiles:[[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[8,0],[9,0]]},
     {axis:'h',u:.20,v:.72,tiles:[[10,3],[11,3],[12,3]]}
-  ],hand:[[5,1],[5,2]]}
+  ],loose:[[5,1],[5,2]]}
 ];
 const defaults={tile:58,corner:9,gap:4,spring:180,magnet:55};
 let settings={...defaults};
 try {const saved=JSON.parse(localStorage.getItem('remixaLab')||'null'); if(saved) settings={...settings,...saved};}catch(_){}
-const board=$('board'), rack=$('homeTiles'), homeGroupLayer=$('homeGroupLayer'), groupsLayer=$('groupLayer'), tilesLayer=$('tileLayer'), dragLayer=$('dragLayer');
-let tiles=[],groups=[],hand=[],active=null,hover=null,history=[],level=0,won=false,nextID=1,nextGroup=1;
+const board=$('board'), groupsLayer=$('groupLayer'), tilesLayer=$('tileLayer'), dragLayer=$('dragLayer');
+let tiles=[],groups=[],active=null,hover=null,history=[],level=0,won=false,nextID=1,nextGroup=1;
 let actualTile=58,boardW=1,boardH=1;
 // A purely visual collision preview; puzzle positions remain untouched until drop.
 let projected=null,previewFrame=0,previewPoint=null;
@@ -217,7 +211,7 @@ function isCompatible(g) {
          (g.axis==='v'&&a[0].num===a[1].num&&a[0].col!==a[1].col);
 }
 function snapshot() {
-  return {groups:groups.map(g=>({id:g.id,axis:g.axis,u:g.u,v:g.v,ids:g.tiles.map(t=>t.id)})),hand:hand.map(t=>t.id)};
+  return {groups:groups.map(g=>({id:g.id,axis:g.axis,u:g.u,v:g.v,ids:g.tiles.map(t=>t.id)}))};
 }
 function restore(s) {
   clearLivePreview();
@@ -226,7 +220,6 @@ function restore(s) {
   const map=new Map(tiles.map(t=>[t.id,t]));
   groups=s.groups.map(g=>groupNew(g.ids.map(id=>map.get(id)),g.axis,g.u,g.v,g.id));
   nextGroup=Math.max(nextGroup, ...groups.map(g=>g.id+1),1);
-  hand=s.hand.map(id=>map.get(id));
   layout();
 }
 function loadLevel(i) {
@@ -235,11 +228,14 @@ function loadLevel(i) {
   level=(i+LEVELS.length)%LEVELS.length;
   for(const t of tiles)t.el.remove();
   for(const g of groups)g.el.remove();
-  homeGroupLayer.replaceChildren(); // prevent red home backplates from previous levels lingering
-  tiles=[];groups=[];hand=[];hover=null;active=null;history=[];won=false;nextID=1;nextGroup=1;
+  tiles=[];groups=[];hover=null;active=null;history=[];won=false;nextID=1;nextGroup=1;
   const source=LEVELS[level];
   groups=source.groups.map(g=>groupNew(g.tiles.map(v=>tileNew(...v)),g.axis,g.u,g.v));
-  hand=source.hand.map(v=>tileNew(...v));
+  // Every loose tile is now an ordinary one-tile (red) group on the same board.
+  source.loose.forEach((v,i)=>{
+    const u=.5+(i-(source.loose.length-1)/2)*.13;
+    groups.push(groupNew([tileNew(...v)],'h',u,.84));
+  });
   $('levelLabel').textContent=`${String(level+1).padStart(2,'0')} / ${String(LEVELS.length).padStart(2,'0')}`;
   $('levelName').textContent=source.name;
   $('win').classList.remove('show');
@@ -259,33 +255,14 @@ function measure() {
   document.documentElement.style.setProperty('--corner',`${Math.min(settings.corner,actualTile*.34)}px`);
   document.documentElement.style.setProperty('--snap-ms',`${settings.spring}ms`);
 }
-function geometry(g,extra=false) {
+function geometry(g,extra=false,axisOverride=null) {
+  const axis=axisOverride||g.axis;
   const n=g.tiles.length+(extra?1:0), gap=settings.gap,step=actualTile+gap;
-  const w=(g.axis==='h'?n:1)*actualTile+(g.axis==='h'?Math.max(0,n-1)*gap:0)+gap*2;
-  const h=(g.axis==='v'?n:1)*actualTile+(g.axis==='v'?Math.max(0,n-1)*gap:0)+gap*2;
+  const w=(axis==='h'?n:1)*actualTile+(axis==='h'?Math.max(0,n-1)*gap:0)+gap*2;
+  const h=(axis==='v'?n:1)*actualTile+(axis==='v'?Math.max(0,n-1)*gap:0)+gap*2;
   const x=clamp(g.u*boardW,w/2+3,boardW-w/2-3);
   const y=clamp(g.v*boardH,h/2+3,boardH-h/2-3);
   return {n,step,w,h,x,y,left:x-w/2,top:y-h/2};
-}
-
-// Home pieces occupy real tabletop space, but the decorative arc does not.
-// They are stationary obstacles for the group reflow solver.
-function homeFootprints() {
-  const count=hand.length;
-  const spread=Math.min(boardW*.34,Math.max(actualTile*1.25,(count-1)*(actualTile*.78)));
-  const centerX=boardW/2;
-  const baseY=boardH-actualTile*1.08-settings.gap*2;
-  const amp=Math.min(actualTile*.48,boardH*.055);
-  return hand.map((t,i)=>{
-    const pct=count<=1?0:(i/(count-1)-.5);
-    return {
-      id:'home-'+t.id,
-      w:actualTile+settings.gap*2,
-      h:actualTile+settings.gap*2,
-      x:centerX+(count<=1?0:pct*spread),
-      y:baseY+(1-Math.cos(pct*Math.PI))*amp
-    };
-  });
 }
 
 // Solve rectangular linked-group collisions without DOM reads or mutations.
@@ -294,7 +271,7 @@ function solveSpaces(items,preferredId=null) {
   const clearance=Math.max(7,settings.gap*1.6);
   const leader=items.find(p=>p.id===preferredId);
   const order=leader?[leader,...items.filter(p=>p!==leader)]:items;
-  const placed=homeFootprints();
+  const placed=[];
   const result=[];
   for(const item of order) {
     const {w,h}=item,halfW=w/2,halfH=h/2;
@@ -331,11 +308,12 @@ function solveSpaces(items,preferredId=null) {
   }
   return result;
 }
-function spaceItems(extraFor=null) {
+function spaceItems(extraFor=null,extraAxis=null) {
   return groups.filter(g=>g.tiles.length).map(g=>{
+    const axis=g.id===extraFor&&extraAxis?extraAxis:g.axis;
     const n=g.tiles.length+(g.id===extraFor?1:0),step=actualTile+settings.gap;
-    const w=(g.axis==='h'?(n-1)*step+actualTile:actualTile)+settings.gap*2;
-    const h=(g.axis==='v'?(n-1)*step+actualTile:actualTile)+settings.gap*2;
+    const w=(axis==='h'?(n-1)*step+actualTile:actualTile)+settings.gap*2;
+    const h=(axis==='v'?(n-1)*step+actualTile:actualTile)+settings.gap*2;
     return {id:g.id,g,w,h,x:g.u*boardW,y:g.v*boardH};
   });
 }
@@ -358,7 +336,7 @@ function calculateLivePreview(clientX,clientY) {
   const x=clientX-br.left,y=clientY-br.top;
   if(x<0||x>boardW||y<0||y>boardH)return null;
   const hoveredId=hover?.id??null;
-  const items=spaceItems(hoveredId);
+  const items=spaceItems(hoveredId,hover?.axis);
   if(hoveredId!==null) {
     const result=solveSpaces(items,hoveredId);
     return result?new Map(result.map(({id,x,y})=>[id,{x,y}])):null;
@@ -396,7 +374,7 @@ function layout(initial=false,skipMeasure=false) {
     if(!g.tiles.length){g.el.remove();continue;}
     if(!g.el.isConnected)groupsLayer.appendChild(g.el);
     const pv=hover?.id===g.id?hover:null;
-    const geom=geometry(g,!!pv);
+    const geom=geometry(g,!!pv,pv?.axis);
     // Render projected positions only, never alter the actual puzzle state.
     const live=projected?.get(g.id);
     if(live) {
@@ -418,45 +396,21 @@ function layout(initial=false,skipMeasure=false) {
       g.el.getBoundingClientRect();
       g.el.style.transition='';
     }
+    const renderAxis=pv?.axis||g.axis;
     g.tiles.forEach((t,j)=>{
       used.add(t.id);
       if(t===active?.tile)return;
       if(t.el.parentNode!==tilesLayer)tilesLayer.appendChild(t.el);
       const slot=j+((pv&&j>=pv.index)?1:0);
-      const x=geom.x+(g.axis==='h'?(slot-(geom.n-1)/2)*geom.step:0)-actualTile/2;
-      const y=geom.y+(g.axis==='v'?(slot-(geom.n-1)/2)*geom.step:0)-actualTile/2;
+      const x=geom.x+(renderAxis==='h'?(slot-(geom.n-1)/2)*geom.step:0)-actualTile/2;
+      const y=geom.y+(renderAxis==='v'?(slot-(geom.n-1)/2)*geom.step:0)-actualTile/2;
       posStyle(t.el,x,y);
     });
     if(pv) {
-      const ix=geom.x+(g.axis==='h'?(pv.index-(geom.n-1)/2)*geom.step:0)-actualTile/2;
-      const iy=geom.y+(g.axis==='v'?(pv.index-(geom.n-1)/2)*geom.step:0)-actualTile/2;
+      const ix=geom.x+(renderAxis==='h'?(pv.index-(geom.n-1)/2)*geom.step:0)-actualTile/2;
+      const iy=geom.y+(renderAxis==='v'?(pv.index-(geom.n-1)/2)*geom.step:0)-actualTile/2;
       posStyle(g.slot,ix-geom.left-settings.gap,iy-geom.top-settings.gap);
     }
-  }
-  const homeSlots=homeFootprints();
-  hand.forEach((t,i)=>{
-    used.add(t.id);
-    if(!t.homeBg){
-      const bg=document.createElement('div');
-      bg.className='home-group';
-      homeGroupLayer.appendChild(bg);
-      t.homeBg=bg;
-    }
-    if(t===active?.tile){
-      t.homeBg.style.opacity='0';
-      return;
-    }
-    if(t.el.parentNode!==rack)rack.appendChild(t.el);
-    const x=homeSlots[i].x-actualTile/2;
-    const y=homeSlots[i].y-actualTile/2;
-    posStyle(t.homeBg,x-settings.gap,y-settings.gap);
-    t.homeBg.style.width=`${actualTile+settings.gap*2}px`;
-    t.homeBg.style.height=`${actualTile+settings.gap*2}px`;
-    t.homeBg.style.opacity='1';
-    posStyle(t.el,x,y);
-  });
-  for(const t of tiles){
-    if(!used.has(t.id) && t.homeBg)t.homeBg.style.opacity='0';
   }
   $('undo').disabled=!history.length;
   if(initial) {
@@ -476,6 +430,26 @@ function getHover(clientX,clientY) {
   for(const g of groups) {
     if(!g.tiles.length)continue;
     const box=geometry(g,false);
+    // A one-tile group can grow in either direction. Choose its axis from
+    // the tiles' relationship, otherwise from the approach direction.
+    if(g.tiles.length===1){
+      const dx=x-box.x,dy=y-box.y;
+      const reach=actualTile*settings.magnet/100;
+      const near=Math.hypot(dx,dy);
+      if(near>actualTile*1.27+reach*.55)continue;
+      const other=g.tiles[0], moving=active?.tile;
+      const sameRank=moving&&moving.num===other.num&&moving.col!==other.col;
+      const sequence=moving&&moving.col===other.col&&Math.abs(moving.num-other.num)===1;
+      const axis=sameRank?'v':sequence?'h':Math.abs(dx)>=Math.abs(dy)?'h':'v';
+      const along=axis==='h'?dx:dy;
+      const index=sequence?(moving.num<other.num?0:1):(along>=0?1:0);
+      const score=near*.40-(sameRank||sequence?actualTile*.22:0);
+      if(score<bestDist){
+        best={id:g.id,index,axis};
+        bestDist=score;
+      }
+      continue;
+    }
     const along=g.axis==='h'?x-box.x:y-box.y;
     const across=g.axis==='h'?y-box.y:x-box.x;
     // Connect a tile when it approaches the end of a group, even if invalid.
@@ -500,10 +474,8 @@ function pointerDown(e,t) {
   e.preventDefault();
   const old=snapshot(),rect=t.el.getBoundingClientRect();
   const colors=new Map(groups.map(g=>[g.id,isValid(g)]));
-  const fromHand=hand.includes(t);
   let heldColor=false;
-  if(fromHand)hand.splice(hand.indexOf(t),1);
-  else {
+  {
     const idx=groups.findIndex(g=>g.tiles.includes(t));
     if(idx<0)return;
     const g=groups[idx],pos=g.tiles.indexOf(t),before=g.tiles.length;
@@ -526,7 +498,7 @@ function pointerDown(e,t) {
     tile:t,pointerId:e.pointerId,
     dx:rect.left+rect.width/2-e.clientX,
     dy:rect.top+rect.height/2-e.clientY,
-    before:old, fromHand, colors
+    before:old, colors
   };
   // Each lifted tile carries a linked-group outline with it.  It is the
   // colour it had before pickup; a new verdict waits until drop.
@@ -546,13 +518,8 @@ function moveDrag(e) {
   const a=active;
   let x=e.clientX+a.dx,y=e.clientY+a.dy;
   const b=board.getBoundingClientRect();
-  if(!a.fromHand){
-    x=clamp(x,b.left+actualTile/2,b.right-actualTile/2);
-    y=clamp(y,b.top+actualTile/2,b.bottom-actualTile/2);
-  } else {
-    x=clamp(x,actualTile/2,window.innerWidth-actualTile/2);
-    y=clamp(y,actualTile/2,window.innerHeight-actualTile/2);
-  }
+  x=clamp(x,b.left+actualTile/2,b.right-actualTile/2);
+  y=clamp(y,b.top+actualTile/2,b.bottom-actualTile/2);
   posStyle(a.tile.el,x-actualTile/2,y-actualTile/2,1.035);
   const next=getHover(x,y);
   hover=next;
@@ -579,6 +546,7 @@ function pointerUp(e) {
   let g=target&&groups.find(g=>g.id===target.id);
   if(g) {
     g.tiles.splice(target.index,0,t);
+    if(target.axis)g.axis=target.axis;
     if(g.tiles.length===2) {
       const [first,second]=g.tiles;
       if(first.num===second.num&&first.col!==second.col)g.axis='v';
@@ -601,7 +569,7 @@ function pointerUp(e) {
   checkWin();
 }
 function checkWin() {
-  if(!hand.length&&groups.length&&groups.every(isValid)) {
+  if(groups.length&&groups.every(isValid) && groups.reduce((n,g)=>n+g.tiles.length,0)===tiles.length) {
     won=true;$('win').classList.add('show');
   }
 }
