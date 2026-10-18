@@ -268,13 +268,34 @@ function geometry(g,extra=false) {
   return {n,step,w,h,x,y,left:x-w/2,top:y-h/2};
 }
 
+// Home pieces occupy real tabletop space, but the decorative arc does not.
+// They are stationary obstacles for the group reflow solver.
+function homeFootprints() {
+  const count=hand.length;
+  const spread=Math.min(boardW*.34,Math.max(actualTile*1.25,(count-1)*(actualTile*.78)));
+  const centerX=boardW/2;
+  const baseY=boardH-actualTile*1.08-settings.gap*2;
+  const amp=Math.min(actualTile*.48,boardH*.055);
+  return hand.map((t,i)=>{
+    const pct=count<=1?0:(i/(count-1)-.5);
+    return {
+      id:'home-'+t.id,
+      w:actualTile+settings.gap*2,
+      h:actualTile+settings.gap*2,
+      x:centerX+(count<=1?0:pct*spread),
+      y:baseY+(1-Math.cos(pct*Math.PI))*amp
+    };
+  });
+}
+
 // Solve rectangular linked-group collisions without DOM reads or mutations.
 // The preferred group (or finger-sized ghost) gets first choice of position.
 function solveSpaces(items,preferredId=null) {
   const clearance=Math.max(7,settings.gap*1.6);
   const leader=items.find(p=>p.id===preferredId);
   const order=leader?[leader,...items.filter(p=>p!==leader)]:items;
-  const placed=[];
+  const placed=homeFootprints();
+  const result=[];
   for(const item of order) {
     const {w,h}=item,halfW=w/2,halfH=h/2;
     const minX=halfW+3,maxX=boardW-halfW-3;
@@ -304,9 +325,11 @@ function solveSpaces(items,preferredId=null) {
           consider(Math.min(x,maxX),Math.min(y,maxY));
     }
     if(!choice)return null;
-    placed.push({...item,x:choice.x,y:choice.y});
+    const positioned={...item,x:choice.x,y:choice.y};
+    placed.push(positioned);
+    result.push(positioned);
   }
-  return placed;
+  return result;
 }
 function spaceItems(extraFor=null) {
   return groups.filter(g=>g.tiles.length).map(g=>{
@@ -410,11 +433,7 @@ function layout(initial=false,skipMeasure=false) {
       posStyle(g.slot,ix-geom.left-settings.gap,iy-geom.top-settings.gap);
     }
   }
-  const count=hand.length;
-  const spread=Math.min(boardW*.34, Math.max(actualTile*1.25, (count-1)*(actualTile*.78)));
-  const centerX=boardW/2;
-  const baseY=boardH-actualTile*1.08-settings.gap*2;
-  const amp=Math.min(actualTile*.48, boardH*.055);
+  const homeSlots=homeFootprints();
   hand.forEach((t,i)=>{
     used.add(t.id);
     if(!t.homeBg){
@@ -428,17 +447,16 @@ function layout(initial=false,skipMeasure=false) {
       return;
     }
     if(t.el.parentNode!==rack)rack.appendChild(t.el);
-    const pct=count<=1?0:(i/(count-1)-.5);
-    const x=centerX + (count<=1?0:pct*spread) - actualTile/2;
-    const y=baseY + (1-Math.cos(pct*Math.PI))*amp - actualTile/2;
-    posStyle(t.homeBg, x-settings.gap, y-settings.gap);
+    const x=homeSlots[i].x-actualTile/2;
+    const y=homeSlots[i].y-actualTile/2;
+    posStyle(t.homeBg,x-settings.gap,y-settings.gap);
     t.homeBg.style.width=`${actualTile+settings.gap*2}px`;
     t.homeBg.style.height=`${actualTile+settings.gap*2}px`;
     t.homeBg.style.opacity='1';
     posStyle(t.el,x,y);
   });
   for(const t of tiles){
-    if(!used.has(t.id) && t.homeBg) t.homeBg.style.opacity='0';
+    if(!used.has(t.id) && t.homeBg)t.homeBg.style.opacity='0';
   }
   $('undo').disabled=!history.length;
   if(initial) {
