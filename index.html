@@ -191,6 +191,9 @@ function tileNew(num,col) {
 function groupNew(contents,axis,u,v,id=nextGroup++) {
   const g={id,tiles:contents,axis,u,v,el:document.createElement('div')};
   g.el.className='group';
+  // A brand-new outline must be painted at its target, never fly in from (0,0).
+  g.el.style.transition='none';
+  g.fresh=true;
   const slot=document.createElement('div');
   slot.className='slot';g.el.appendChild(slot);g.slot=slot;
   groupsLayer.appendChild(g.el);
@@ -378,10 +381,20 @@ function layout(initial=false,skipMeasure=false) {
       geom.left=live.x-geom.w/2;geom.top=live.y-geom.h/2;
     }
     g.el.classList.remove('valid','invalid','incomplete','has-slot');
-    g.el.classList.add(isValid(g)?'valid':active||isCompatible(g)?'incomplete':'invalid');
+    // The colour of an existing group stays fixed throughout a drag.
+    // Validation only changes on release, not when a tile is picked up.
+    const frozen=active?.colors?.get(g.id);
+    g.el.classList.add((frozen===undefined?isValid(g):frozen)?'valid':'invalid');
     if(pv)g.el.classList.add('has-slot');
     g.el.style.width=`${geom.w}px`;g.el.style.height=`${geom.h}px`;
     posStyle(g.el,geom.left,geom.top);
+    if(g.fresh){
+      g.fresh=false;
+      // Flush only once for a newly-created group, while transitions are off.
+      // Subsequent repositioning continues to use the normal smooth transition.
+      g.el.getBoundingClientRect();
+      g.el.style.transition='';
+    }
     g.tiles.forEach((t,j)=>{
       used.add(t.id);
       if(t===active?.tile)return;
@@ -468,12 +481,15 @@ function pointerDown(e,t) {
   if(won||active||$('lab').classList.contains('show')||e.button>0)return;
   e.preventDefault();
   const old=snapshot(),rect=t.el.getBoundingClientRect();
+  const colors=new Map(groups.map(g=>[g.id,isValid(g)]));
   const fromHand=hand.includes(t);
+  let heldColor=false;
   if(fromHand)hand.splice(hand.indexOf(t),1);
   else {
     const idx=groups.findIndex(g=>g.tiles.includes(t));
     if(idx<0)return;
     const g=groups[idx],pos=g.tiles.indexOf(t),before=g.tiles.length;
+    heldColor=colors.get(g.id);
     g.tiles.splice(pos,1);
     // Pulling a middle tile out of a long horizontal run can split the sequence.
     if(g.axis==='h'&&pos>=3&&before-pos-1>=3) {
@@ -482,6 +498,7 @@ function pointerDown(e,t) {
       const leftWidth=g.tiles.length*actualTile+Math.max(0,g.tiles.length-1)*settings.gap;
       const rightWidth=right.length*actualTile+Math.max(0,right.length-1)*settings.gap;
       const rightGroup=groupNew(right,'h',clamp(g.u+(fullWidth-rightWidth)/2/boardW,0,1),g.v);
+      colors.set(rightGroup.id,colors.get(g.id));
       g.u=clamp(g.u-(fullWidth-leftWidth)/2/boardW,0,1);
       groups.splice(idx+1,0,rightGroup);
     }
@@ -491,8 +508,13 @@ function pointerDown(e,t) {
     tile:t,pointerId:e.pointerId,
     dx:rect.left+rect.width/2-e.clientX,
     dy:rect.top+rect.height/2-e.clientY,
-    before:old, fromHand
+    before:old, fromHand, colors
   };
+  // Each lifted tile carries a linked-group outline with it.  It is the
+  // colour it had before pickup; a new verdict waits until drop.
+  t.el.style.boxShadow=
+    `0 0 0 ${settings.gap}px ${heldColor?'var(--green)':'var(--red)'}, `+
+    '0 15px 26px #0009, 0 5px 9px #0006';
   clearLivePreview();
   hover=null;
   dragLayer.appendChild(t.el);
@@ -525,6 +547,7 @@ function cancelDrag() {
   clearLivePreview();
   const s=active.before;
   active.tile.el.classList.remove('dragging');
+  active.tile.el.style.boxShadow='';
   active=null;hover=null;
   restore(s);
 }
@@ -548,6 +571,7 @@ function pointerUp(e) {
     groups.push(g);
   }
   t.el.classList.remove('dragging');
+  t.el.style.boxShadow='';
   clearLivePreview();
   active=null;hover=null;
   if(!reflowGroups(g.id)) {
