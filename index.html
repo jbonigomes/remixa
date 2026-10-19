@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#0e2528">
-<title>Remixa · The First Ten</title>
+<title>Remixa · The Big Table</title>
 <style>
 :root {
   color-scheme:dark;
@@ -100,6 +100,31 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 @media(max-width:600px) and (orientation:landscape) {
   #levelName {display:none;}
 }
+
+#scoreHud {display:flex;align-items:center;gap:10px;padding:5px 9px;border:1px solid #426764;border-radius:9px;background:#122f32;color:#8caba4;font-size:10px;letter-spacing:.065em;white-space:nowrap;}
+#scoreHud b {color:#ffe0a1;font-size:13px;font-variant-numeric:tabular-nums;margin-left:3px;}
+#bigHint {display:none;position:absolute;top:12px;left:50%;transform:translateX(-50%);font-size:10px;color:#accac0;letter-spacing:.14em;font-weight:750;z-index:5;pointer-events:none;white-space:nowrap;opacity:.86;}
+#bigHint.visible {display:block;}
+#bigHint span {color:#f3d08d;margin:0 5px;}
+#winStats {display:flex;justify-content:center;gap:25px;margin:-7px 0 19px;}
+#winStats:empty {display:none;}
+.win-score {display:flex;flex-direction:column;gap:4px;align-items:center;}
+.win-score strong {font-size:27px;color:#ffe1a3;font-variant-numeric:tabular-nums;}
+.win-score span {font-size:10px;letter-spacing:.12em;color:#aaccc0;}
+.group.open {filter:brightness(1.06);}
+.group.compact .slot {opacity:0;}
+#board.big .tile {font-size:calc(var(--tile) * .52);}
+#board.big .tile.opened {scale:1.025;filter:brightness(1.035);}
+@media(max-width:980px) and (orientation:landscape) {
+  #scoreHud {gap:6px;padding:4px 6px;font-size:9px;}
+  #header .header-center {gap:6px;}
+  #bigHint {font-size:9px;}
+}
+@media(max-width:740px) and (orientation:landscape) {
+  #levelName {display:none;}
+  #scoreHud {padding:3px 5px;}
+}
+
 @media(prefers-reduced-motion:reduce) {
  .tile,.group,#win,.win-card {transition-duration:.01ms!important;}
 }
@@ -109,7 +134,7 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 <div id="app">
   <header id="header">
     <div class="brand">remixa</div>
-    <div class="header-center"><span id="levelLabel">01 / 10</span><span id="levelName">First Fit</span></div>
+    <div class="header-center"><span id="levelLabel">01 / 12</span><span id="levelName">One More</span><span id="scoreHud" aria-live="polite"><span>MOVES <b id="moves">0</b></span><span>BEST <b id="best">—</b></span></span></div>
     <div class="header-controls">
       <button class="icon-btn" id="prev" aria-label="Previous puzzle">‹</button>
       <button class="icon-btn" id="next" aria-label="Next puzzle">›</button>
@@ -123,6 +148,7 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
       <div id="groupLayer"></div>
       <div id="tileLayer"></div>
       <div id="lessonCue" aria-live="polite">Make everything green.</div>
+      <div id="bigHint">TAP A GROUP TO OPEN IT <span>·</span> DRAG A TILE TO REMIX</div>
     </section>
   </main>
 </div>
@@ -132,6 +158,7 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
     <div class="win-icon">✦</div>
     <div class="win-heading" id="winHeading">Beautifully done.</div>
     <div class="win-sub" id="winSub">Every tile has found its place.</div>
+    <div id="winStats"></div>
     <button class="primary-btn" id="nextWin">NEXT LEVEL →</button>
   </div>
 </div>
@@ -235,16 +262,59 @@ const LEVELS=[
      {axis:'v',u:.43,v:.51,tiles:[[4,0],[4,1],[4,2]]},
      {axis:'v',u:.57,v:.51,tiles:[[5,0],[5,1],[5,3]]}
    ],
-   loose:[]}
+    loose:[]},
+  // Chapter 3 workshop: 40 tiles in 13 ordinary groups.
+  // The overlapping layout is deliberately a usability experiment, not a
+  // claim of expert-level puzzle difficulty.
+  {name:'The Big Table',skill:'40 tiles · tap a group to spread its tiles',
+   groups:[
+     {axis:'h',u:.13,v:.22,tiles:[[2,0],[3,0],[4,0]]},
+     {axis:'h',u:.37,v:.22,tiles:[[8,0],[9,0],[11,0]]},
+     {axis:'h',u:.62,v:.22,tiles:[[3,1],[4,1],[6,1]]},
+     {axis:'h',u:.86,v:.22,tiles:[[9,1],[10,1],[11,1],[12,1]]},
+     {axis:'h',u:.13,v:.75,tiles:[[4,2],[6,2],[7,2]]},
+     {axis:'h',u:.37,v:.75,tiles:[[10,2],[12,2],[13,2]]},
+     {axis:'h',u:.62,v:.75,tiles:[[2,3],[3,3],[4,3]]},
+     {axis:'h',u:.86,v:.75,tiles:[[8,3],[9,3],[10,3],[11,3]]},
+     {axis:'v',u:.24,v:.49,tiles:[[7,0],[7,1],[7,2],[7,4]]},
+     {axis:'v',u:.76,v:.49,tiles:[[8,1],[8,2],[8,3],[8,4]]},
+     {axis:'v',u:.47,v:.48,tiles:[[5,0],[5,1],[5,2],[5,3]]}
+   ],
+   loose:[
+     {n:10,c:0,u:.38,v:.49},
+     {n:11,c:2,u:.58,v:.49}
+   ]}
 ];
 const defaults={tile:58,corner:9,gap:4,spring:180,magnet:55};
 let settings={...defaults};
 try {const saved=JSON.parse(localStorage.getItem('remixaLab')||'null'); if(saved) settings={...settings,...saved};}catch(_){}
 const board=$('board'), groupsLayer=$('groupLayer'), tilesLayer=$('tileLayer'), dragLayer=$('dragLayer');
 let tiles=[],groups=[],active=null,hover=null,history=[],level=0,won=false,nextID=1,nextGroup=1;
+let moves=0,selectedId=null;
 let actualTile=58,boardW=1,boardH=1,adaptiveTileCap=Infinity;
 // A purely visual collision preview; puzzle positions remain untouched until drop.
 let projected=null,previewFrame=0,previewPoint=null;
+const isBig=()=>level===11;
+const openedId=()=>isBig()?(active?(hover?.id??null):selectedId):null;
+const isOpen=id=>!isBig()||openedId()===id;
+const groupStep=id=>isOpen(id)?actualTile+settings.gap:actualTile*.77;
+function bestKey(){return 'remixa_best_v1_'+String(level+1);}
+function readBest(){
+  try{const n=Number(localStorage.getItem(bestKey()));return n>0?Math.floor(n):null;}catch(_){return null;}
+}
+function updateScore(){
+  $('moves').textContent=String(moves);
+  $('best').textContent=readBest()??'—';
+}
+function selectGroup(id){
+  if(!isBig()||active)return;
+  const previous=selectedId;selectedId=id;
+  if(!reflowGroups(id)){selectedId=previous;reflowGroups(previous);}
+  layout();
+}
+board.addEventListener('pointerdown',e=>{
+  if(e.target===board && !active && selectedId!==null)selectGroup(null);
+});
 
 const clamp=(v,a,b)=>Math.min(Math.max(v,a),Math.max(a,b));
 const colorAt=c=>COLORS[c%COLORS.length];
@@ -308,13 +378,15 @@ function canJoin(g,t,axis=g.axis) {
 function snapshot() {
   return {
     groups:groups.map(g=>({id:g.id,axis:g.axis,u:g.u,v:g.v,ids:g.tiles.map(t=>t.id)})),
-    tileCap:adaptiveTileCap
+    tileCap:adaptiveTileCap,
+    selected:selectedId
   };
 }
 function restore(s) {
   clearLivePreview();
   active=null;hover=null;won=false;$('win').classList.remove('show');
   adaptiveTileCap=s.tileCap??Infinity;
+  selectedId=s.selected??null;
   for(const g of groups)g.el.remove();
   const map=new Map(tiles.map(t=>[t.id,t]));
   groups=s.groups.map(g=>groupNew(g.ids.map(id=>map.get(id)),g.axis,g.u,g.v,g.id));
@@ -347,6 +419,7 @@ function loadLevel(i) {
   for(const t of tiles)t.el.remove();
   for(const g of groups)g.el.remove();
   tiles=[];groups=[];hover=null;active=null;history=[];won=false;nextID=1;nextGroup=1;
+  moves=0;selectedId=null;
   adaptiveTileCap=Infinity;
   const source=LEVELS[level];
   groups=source.groups.map(g=>groupNew(g.tiles.map(v=>tileNew(...v)),g.axis,g.u,g.v));
@@ -357,11 +430,15 @@ function loadLevel(i) {
   $('levelLabel').textContent=`${String(level+1).padStart(2,'0')} / ${String(LEVELS.length).padStart(2,'0')}`;
   $('levelName').textContent=source.name;
   $('win').classList.remove('show');
+  $('winStats').innerHTML='';
+  board.classList.toggle('big',isBig());
+  $('bigHint').classList.toggle('visible',isBig());
   $('lessonCue').classList.toggle('show',level===0);
   stopNudge();
   if(level===0)startNudge();
   reflowGroups();
   layout(true);
+  updateScore();
 }
 function maxSequence(){return Math.max(...groups.filter(g=>g.axis==='h').map(g=>g.tiles.length),3);}
 function measure() {
@@ -372,7 +449,8 @@ function measure() {
   // On very narrow landscape displays the six interlocking groups of
   // The Knot need a little more breathing room. Other levels are untouched.
   const knotFit=level===10?boardW/14:Infinity;
-  actualTile=Math.max(21,Math.floor(Math.min(settings.tile,maxByW,maxByH,knotFit,adaptiveTileCap)));
+  const tableFit=isBig()?Math.min(48,boardW/17.5,boardH/6.3):Infinity;
+  actualTile=Math.max(21,Math.floor(Math.min(settings.tile,maxByW,maxByH,knotFit,tableFit,adaptiveTileCap)));
   document.documentElement.style.setProperty('--tile',`${actualTile}px`);
   document.documentElement.style.setProperty('--gap',`${settings.gap}px`);
   document.documentElement.style.setProperty('--border',`${settings.gap}px`);
@@ -381,9 +459,9 @@ function measure() {
 }
 function geometry(g,extra=false,axisOverride=null) {
   const axis=axisOverride||g.axis;
-  const n=g.tiles.length+(extra?1:0), gap=settings.gap,step=actualTile+gap;
-  const w=(axis==='h'?n:1)*actualTile+(axis==='h'?Math.max(0,n-1)*gap:0)+gap*2;
-  const h=(axis==='v'?n:1)*actualTile+(axis==='v'?Math.max(0,n-1)*gap:0)+gap*2;
+  const n=g.tiles.length+(extra?1:0), gap=settings.gap,step=groupStep(g.id);
+  const w=(axis==='h'?(n-1)*step+actualTile:actualTile)+gap*2;
+  const h=(axis==='v'?(n-1)*step+actualTile:actualTile)+gap*2;
   const x=clamp(g.u*boardW,w/2+3,boardW-w/2-3);
   const y=clamp(g.v*boardH,h/2+3,boardH-h/2-3);
   return {n,step,w,h,x,y,left:x-w/2,top:y-h/2};
@@ -494,7 +572,7 @@ function solveSpaces(items,preferredId=null,preview=false) {
 function spaceItems(extraFor=null,extraAxis=null) {
   return groups.filter(g=>g.tiles.length).map(g=>{
     const axis=g.id===extraFor&&extraAxis?extraAxis:g.axis;
-    const n=g.tiles.length+(g.id===extraFor?1:0),step=actualTile+settings.gap;
+    const n=g.tiles.length+(g.id===extraFor?1:0),step=groupStep(g.id);
     const w=(axis==='h'?(n-1)*step+actualTile:actualTile)+settings.gap*2;
     const h=(axis==='v'?(n-1)*step+actualTile:actualTile)+settings.gap*2;
     return {id:g.id,g,w,h,x:g.u*boardW,y:g.v*boardH};
@@ -584,6 +662,8 @@ function layout(initial=false,skipMeasure=false) {
     const frozen=active?.colors?.get(g.id);
     g.el.classList.add((frozen===undefined?isValid(g):frozen)?'valid':'invalid');
     if(pv)g.el.classList.add('has-slot');
+    g.el.classList.toggle('open',isBig()&&isOpen(g.id));
+    g.el.classList.toggle('compact',isBig()&&!isOpen(g.id));
     g.el.style.width=`${geom.w}px`;g.el.style.height=`${geom.h}px`;
     posStyle(g.el,geom.left,geom.top);
     if(g.fresh){
@@ -596,6 +676,8 @@ function layout(initial=false,skipMeasure=false) {
     const renderAxis=pv?.axis||g.axis;
     g.tiles.forEach((t,j)=>{
       used.add(t.id);
+      t.el.style.zIndex=String(10+i*40+j);
+      t.el.classList.toggle('opened',isBig()&&isOpen(g.id));
       if(t===active?.tile)return;
       if(t.el.parentNode!==tilesLayer)tilesLayer.appendChild(t.el);
       const slot=j+((pv&&j>=pv.index)?1:0);
@@ -685,6 +767,11 @@ function pointerDown(e,t) {
   if(won||active||$('lab').classList.contains('show')||e.button>0)return;
   e.preventDefault();
   dismissOpeningHint();
+  const owner=groups.find(g=>g.tiles.includes(t));
+  if(isBig()&&owner&&!isOpen(owner.id)){
+    selectGroup(owner.id);
+    return;
+  }
   const old=snapshot(),rect=t.el.getBoundingClientRect();
   const colors=new Map(groups.map(g=>[g.id,isValid(g)]));
   let heldColor=false;
@@ -711,7 +798,7 @@ function pointerDown(e,t) {
     tile:t,pointerId:e.pointerId,
     dx:rect.left+rect.width/2-e.clientX,
     dy:rect.top+rect.height/2-e.clientY,
-    before:old, colors
+    before:old, colors, startX:e.clientX, startY:e.clientY
   };
   // Each lifted tile carries a linked-group outline with it.  It is the
   // colour it had before pickup; a new verdict waits until drop.
@@ -757,6 +844,7 @@ function pointerUp(e) {
   e.preventDefault();
   const a=active,t=a.tile,br=board.getBoundingClientRect();
   const x=e.clientX+a.dx,y=e.clientY+a.dy;
+  if(Math.hypot(e.clientX-a.startX,e.clientY-a.startY)<7){cancelDrag();return;}
   if(x<br.left||x>br.right||y<br.top||y>br.bottom){cancelDrag();return;}
   const target=getHover(x,y);
   let g=target&&groups.find(g=>g.id===target.id);
@@ -782,12 +870,15 @@ function pointerUp(e) {
   t.el.style.boxShadow='';
   clearLivePreview();
   active=null;hover=null;
+  if(isBig())selectedId=g.id;
   if(!reflowGroups(g.id)) {
     restore(a.before);
     return;
   }
   history.push(a.before);
+  moves++;
   layout();
+  updateScore();
   checkWin();
 }
 function checkWin() {
@@ -795,10 +886,15 @@ function checkWin() {
     won=true;stopNudge();
     const firstChapterEnd=level===4;
     const secondChapterEnd=level===9;
-    const knotEnd=level===10;
-    $('winHeading').textContent=knotEnd?'The Knot untied!':secondChapterEnd?'Chapter Two complete!':firstChapterEnd?'Chapter One complete!':'Beautifully done.';
-    $('winSub').textContent=knotEnd?'A tangled table, beautifully resolved.':secondChapterEnd?'Ready for your first real challenge?':firstChapterEnd?'Ready to turn things around?':'Every tile has found its place.';
-    $('nextWin').textContent=knotEnd?'PLAY AGAIN →':secondChapterEnd?'ENTER THE KNOT →':firstChapterEnd?'ON TO LEVEL 6 →':'NEXT LEVEL →';
+    const knotEnd=level===10,bigEnd=isBig();
+    const previousBest=readBest();
+    const isRecord=previousBest===null||moves<previousBest;
+    if(isRecord){try{localStorage.setItem(bestKey(),String(moves));}catch(_){}}
+    updateScore();
+    $('winHeading').textContent=bigEnd?'Big table, beautiful finish!':knotEnd?'The Knot untied!':secondChapterEnd?'Chapter Two complete!':firstChapterEnd?'Chapter One complete!':'Beautifully done.';
+    $('winSub').textContent=isRecord?'A new personal best!':bigEnd?'Forty tiles, all green.':knotEnd?'A tangled table, beautifully resolved.':secondChapterEnd?'Ready for your first real challenge?':firstChapterEnd?'Ready to turn things around?':'Every tile has found its place.';
+    $('winStats').innerHTML=`<div class="win-score"><strong>${moves}</strong><span>YOUR MOVES</span></div><div class="win-score"><strong>${readBest()??'—'}</strong><span>PERSONAL BEST</span></div>`;
+    $('nextWin').textContent=bigEnd?'PLAY AGAIN →':knotEnd?'ENTER THE BIG TABLE →':secondChapterEnd?'ENTER THE KNOT →':firstChapterEnd?'ON TO LEVEL 6 →':'NEXT LEVEL →';
     $('win').classList.add('show');
   }
 }
@@ -811,7 +907,7 @@ $('undo').addEventListener('click',undo);
 $('reset').addEventListener('click',()=>loadLevel(level));
 $('prev').addEventListener('click',()=>loadLevel(level-1));
 $('next').addEventListener('click',()=>loadLevel(level+1));
-$('nextWin').addEventListener('click',()=>loadLevel(level+1));
+$('nextWin').addEventListener('click',()=>loadLevel(isBig()?level:level+1));
 function applySettings() {
   for(const key of ['tile','corner','gap','spring','magnet']){
     $(key+'Range').value=settings[key];
