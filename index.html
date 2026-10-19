@@ -222,15 +222,16 @@ const LEVELS=[
      {n:2,c:1,u:.40,v:.85},
      {n:5,c:2,u:.73,v:.85}
    ]},
-  // Experimental challenge: every green group is a beautiful trap.
-  // 23 tiles, one valid exact-cover solution; at least 13 tiles must
-  // change groups. No special tiles or exceptions to the rules.
+  // The Knot now starts with type-consistent groups. Horizontal groups
+  // contain one colour only; vertical groups contain one number only.
+  // The same original 23 tiles remain, with the two green number sets
+  // serving as tempting-but-misleading anchors.
   {name:'The Knot',skill:'Two green groups must be dismantled to solve the table',
    groups:[
-     {axis:'h',u:.18,v:.26,tiles:[[2,0],[3,0],[8,2],[9,3]]},
-     {axis:'h',u:.82,v:.26,tiles:[[3,1],[6,1],[6,3],[9,0]]},
-     {axis:'h',u:.19,v:.76,tiles:[[5,2],[6,2],[7,2],[6,0],[9,1]]},
-     {axis:'h',u:.81,v:.76,tiles:[[3,3],[4,3],[7,1],[7,3]]},
+     {axis:'h',u:.19,v:.25,tiles:[[2,0],[3,0],[6,0],[9,0]]},
+     {axis:'h',u:.81,v:.25,tiles:[[3,1],[6,1],[7,1],[9,1]]},
+     {axis:'h',u:.20,v:.76,tiles:[[8,2],[5,2],[6,2],[7,2]]},
+     {axis:'h',u:.80,v:.76,tiles:[[3,3],[4,3],[6,3],[7,3],[9,3]]},
      {axis:'v',u:.43,v:.51,tiles:[[4,0],[4,1],[4,2]]},
      {axis:'v',u:.57,v:.51,tiles:[[5,0],[5,1],[5,3]]}
    ],
@@ -241,7 +242,7 @@ let settings={...defaults};
 try {const saved=JSON.parse(localStorage.getItem('remixaLab')||'null'); if(saved) settings={...settings,...saved};}catch(_){}
 const board=$('board'), groupsLayer=$('groupLayer'), tilesLayer=$('tileLayer'), dragLayer=$('dragLayer');
 let tiles=[],groups=[],active=null,hover=null,history=[],level=0,won=false,nextID=1,nextGroup=1;
-let actualTile=58,boardW=1,boardH=1;
+let actualTile=58,boardW=1,boardH=1,adaptiveTileCap=Infinity;
 // A purely visual collision preview; puzzle positions remain untouched until drop.
 let projected=null,previewFrame=0,previewPoint=null;
 
@@ -288,12 +289,32 @@ function isCompatible(g) {
   return (g.axis==='h'&&a[0].col===a[1].col&&Math.abs(a[0].num-a[1].num)===1)||
          (g.axis==='v'&&a[0].num===a[1].num&&a[0].col!==a[1].col);
 }
+// These are *structural* rules, distinct from green/red validation.
+// An unfinished run can still be red (e.g. 3, 5), but it may not mix
+// colours. A number set can be red with 2 tiles, but it may not mix
+// numbers or repeat a colour.
+function canJoin(g,t,axis=g.axis) {
+  if(!g||!t||!g.tiles.length)return false;
+  if(g.tiles.length===1) {
+    const first=g.tiles[0];
+    return axis==='v'
+      ? t.num===first.num && t.col!==first.col
+      : t.col===first.col;
+  }
+  return axis==='v'
+    ? g.tiles.every(p=>p.num===t.num && p.col!==t.col)
+    : g.tiles.every(p=>p.col===t.col);
+}
 function snapshot() {
-  return {groups:groups.map(g=>({id:g.id,axis:g.axis,u:g.u,v:g.v,ids:g.tiles.map(t=>t.id)}))};
+  return {
+    groups:groups.map(g=>({id:g.id,axis:g.axis,u:g.u,v:g.v,ids:g.tiles.map(t=>t.id)})),
+    tileCap:adaptiveTileCap
+  };
 }
 function restore(s) {
   clearLivePreview();
   active=null;hover=null;won=false;$('win').classList.remove('show');
+  adaptiveTileCap=s.tileCap??Infinity;
   for(const g of groups)g.el.remove();
   const map=new Map(tiles.map(t=>[t.id,t]));
   groups=s.groups.map(g=>groupNew(g.ids.map(id=>map.get(id)),g.axis,g.u,g.v,g.id));
@@ -326,6 +347,7 @@ function loadLevel(i) {
   for(const t of tiles)t.el.remove();
   for(const g of groups)g.el.remove();
   tiles=[];groups=[];hover=null;active=null;history=[];won=false;nextID=1;nextGroup=1;
+  adaptiveTileCap=Infinity;
   const source=LEVELS[level];
   groups=source.groups.map(g=>groupNew(g.tiles.map(v=>tileNew(...v)),g.axis,g.u,g.v));
   // Loose tiles use exactly the same group model, hit testing and rules.
@@ -350,7 +372,7 @@ function measure() {
   // On very narrow landscape displays the six interlocking groups of
   // The Knot need a little more breathing room. Other levels are untouched.
   const knotFit=level===10?boardW/14:Infinity;
-  actualTile=Math.max(21,Math.floor(Math.min(settings.tile,maxByW,maxByH,knotFit)));
+  actualTile=Math.max(21,Math.floor(Math.min(settings.tile,maxByW,maxByH,knotFit,adaptiveTileCap)));
   document.documentElement.style.setProperty('--tile',`${actualTile}px`);
   document.documentElement.style.setProperty('--gap',`${settings.gap}px`);
   document.documentElement.style.setProperty('--border',`${settings.gap}px`);
@@ -369,46 +391,105 @@ function geometry(g,extra=false,axisOverride=null) {
 
 // Solve rectangular linked-group collisions without DOM reads or mutations.
 // The preferred group (or finger-sized ghost) gets first choice of position.
-function solveSpaces(items,preferredId=null) {
+// First try the original nearest-space packing.  If a surrounding group
+// becomes boxed in, retry different whole-group orders and slightly shifted
+// destinations instead of refusing an otherwise legal tile drop.
+function solveSpaces(items,preferredId=null,preview=false) {
   const clearance=Math.max(7,settings.gap*1.6);
   const leader=items.find(p=>p.id===preferredId);
-  const order=leader?[leader,...items.filter(p=>p!==leader)]:items;
-  const placed=[];
-  const result=[];
-  for(const item of order) {
-    const {w,h}=item,halfW=w/2,halfH=h/2;
-    const minX=halfW+3,maxX=boardW-halfW-3;
-    const minY=halfH+3,maxY=boardH-halfH-3;
-    if(minX>maxX||minY>maxY)return null;
-    const x0=clamp(item.x,minX,maxX),y0=clamp(item.y,minY,maxY);
-    const xs=[x0],ys=[y0];
-    for(const p of placed) {
-      const dx=halfW+p.w/2+clearance;
-      const dy=halfH+p.h/2+clearance;
-      xs.push(p.x-dx,p.x+dx);
-      ys.push(p.y-dy,p.y+dy);
+  const rest=items.filter(p=>p!==leader);
+  const clampPos=(p,x,y)=>({
+    x:clamp(x,p.w/2+3,boardW-p.w/2-3),
+    y:clamp(y,p.h/2+3,boardH-p.h/2-3)
+  });
+  const overlap=(a,b)=>
+    Math.abs(a.x-b.x)<(a.w+b.w)/2+clearance-.01 &&
+    Math.abs(a.y-b.y)<(a.h+b.h)/2+clearance-.01;
+  const pack=(order,leaderPos=null)=>{
+    const placed=[];
+    for(const p of order){
+      const halfW=p.w/2,halfH=p.h/2;
+      const minX=halfW+3,maxX=boardW-halfW-3;
+      const minY=halfH+3,maxY=boardH-halfH-3;
+      if(minX>maxX||minY>maxY)return null;
+      const target=p===leader&&leaderPos?leaderPos:p;
+      const desired=clampPos(p,target.x,target.y);
+      const xs=[desired.x,minX,maxX],ys=[desired.y,minY,maxY];
+      for(const q of placed){
+        const dx=halfW+q.w/2+clearance;
+        const dy=halfH+q.h/2+clearance;
+        xs.push(q.x-dx,q.x+dx);
+        ys.push(q.y-dy,q.y+dy);
+      }
+      let chosen=null,score=Infinity;
+      const consider=(x,y)=>{
+        if(x<minX-.01||x>maxX+.01||y<minY-.01||y>maxY+.01)return;
+        const trial={...p,x,y};
+        if(placed.some(q=>overlap(trial,q)))return;
+        const d=(x-desired.x)**2+(y-desired.y)**2;
+        if(d<score){chosen=trial;score=d;}
+      };
+      for(const x of xs)for(const y of ys)consider(x,y);
+      // Candidate corners normally suffice.  In an irregular tight space,
+      // check a small grid as well before declaring the placement impossible.
+      if(!chosen){
+        const stride=Math.max(9,Math.floor(actualTile/3));
+        for(let y=minY;y<=maxY;y+=stride)
+          for(let x=minX;x<=maxX;x+=stride)consider(x,y);
+        for(let x=minX;x<=maxX;x+=stride)consider(x,maxY);
+        for(let y=minY;y<=maxY;y+=stride)consider(maxX,y);
+        consider(maxX,maxY);
+      }
+      if(!chosen)return null;
+      placed.push(chosen);
     }
-    let choice=null,score=Infinity;
-    const consider=(x,y)=>{
-      if(x<minX-.01||x>maxX+.01||y<minY-.01||y>maxY+.01)return;
-      if(placed.some(p=>Math.abs(x-p.x)<(w+p.w)/2+clearance-.01 &&
-                        Math.abs(y-p.y)<(h+p.h)/2+clearance-.01))return;
-      const distance=(x-x0)**2+(y-y0)**2;
-      if(distance<score){score=distance;choice={x,y};}
-    };
-    for(const x of xs)for(const y of ys)consider(x,y);
-    if(!choice) {
-      const stride=Math.max(8,Math.floor(actualTile/4));
-      for(let y=minY;y<=maxY+stride;y+=stride)
-        for(let x=minX;x<=maxX+stride;x+=stride)
-          consider(Math.min(x,maxX),Math.min(y,maxY));
+    return placed;
+  };
+  if(!leader)return pack(rest);
+  const first=pack([leader,...rest]);
+  if(first)return first;
+  const byArea=[...rest].sort((a,b)=>b.w*b.h-a.w*a.h);
+  const byNear=[...rest].sort((a,b)=>
+    Math.hypot(a.x-leader.x,a.y-leader.y)-
+    Math.hypot(b.x-leader.x,b.y-leader.y));
+  const byWidth=[...rest].sort((a,b)=>b.w-a.w);
+  const orders=[rest,byArea,byNear,[...rest].reverse(),byWidth]
+    .map(arr=>[leader,...arr]);
+  // Keep the dragged finger precisely where it is, even during collision
+  // previews; only *groups* can settle away from their original centres.
+  const rad=actualTile;
+  const shifts=preview
+    ? [[0,0]]
+    : [[0,0],[0,-.65],[0,.65],[-.65,0],[.65,0],
+       [0,-1.35],[0,1.35],[-1.35,0],[1.35,0],
+       [-.85,-.85],[.85,-.85],[-.85,.85],[.85,.85],
+       [0,-2.2],[0,2.2],[-2.2,0],[2.2,0]];
+  let best=null,bestScore=Infinity;
+  const tryOrder=(order,position)=>{
+    const candidate=pack(order,position);
+    if(!candidate)return;
+    let cost=0;
+    for(const p of candidate) {
+      const original=items.find(x=>x.id===p.id);
+      const weight=p.id===preferredId?1.8:1;
+      cost+=weight*((p.x-original.x)**2+(p.y-original.y)**2);
     }
-    if(!choice)return null;
-    const positioned={...item,x:choice.x,y:choice.y};
-    placed.push(positioned);
-    result.push(positioned);
+    if(cost<bestScore){best=candidate;bestScore=cost;}
+  };
+  for(const [sx,sy] of shifts){
+    const spot=clampPos(leader,leader.x+sx*rad,leader.y+sy*rad);
+    for(const order of orders)tryOrder(order,spot);
+    if(preview&&best)break;
   }
-  return result;
+  // Last resort: let a large neighbour settle first, which can open a path
+  // around an obstructed target group (the trapped-meld case).
+  if(!best&&!preview) {
+    for(const firstObstacle of byArea.slice(0,3)) {
+      const remainder=byArea.filter(p=>p!==firstObstacle);
+      tryOrder([firstObstacle,leader,...remainder],null);
+    }
+  }
+  return best;
 }
 function spaceItems(extraFor=null,extraAxis=null) {
   return groups.filter(g=>g.tiles.length).map(g=>{
@@ -422,8 +503,22 @@ function spaceItems(extraFor=null,extraAxis=null) {
 // Permanent reflow happens only on drop or setup.
 function reflowGroups(preferredId=null) {
   measure();
-  const result=solveSpaces(spaceItems(),preferredId);
-  if(!result)return false;
+  let result=solveSpaces(spaceItems(),preferredId);
+  if(!result) {
+    // On an exceptionally crowded/small board, shrink all tiles together
+    // rather than making puzzle legality depend on the packing algorithm.
+    const previousCap=adaptiveTileCap;
+    for(let cap=actualTile-2;cap>=21&&!result;cap-=2){
+      adaptiveTileCap=cap;
+      measure();
+      result=solveSpaces(spaceItems(),preferredId);
+    }
+    if(!result){
+      adaptiveTileCap=previousCap;
+      measure();
+      return false;
+    }
+  }
   for(const item of result) {
     item.g.u=item.x/Math.max(boardW,1);
     item.g.v=item.y/Math.max(boardH,1);
@@ -440,14 +535,14 @@ function calculateLivePreview(clientX,clientY) {
   const hoveredId=hover?.id??null;
   const items=spaceItems(hoveredId,hover?.axis);
   if(hoveredId!==null) {
-    const result=solveSpaces(items,hoveredId);
+    const result=solveSpaces(items,hoveredId,true);
     return result?new Map(result.map(({id,x,y})=>[id,{x,y}])):null;
   }
   // Treat the dragged tile like a temporary, collision-producing group.
   const fingerItem={id:'finger',g:null,
     w:actualTile+settings.gap*2,h:actualTile+settings.gap*2,
     x,y};
-  const result=solveSpaces([fingerItem,...items],'finger');
+  const result=solveSpaces([fingerItem,...items],'finger',true);
   return result?new Map(result.filter(p=>p.g).map(({id,x,y})=>[id,{x,y}])):null;
 }
 function clearLivePreview() {
@@ -524,6 +619,14 @@ function layout(initial=false,skipMeasure=false) {
     });
   }
 }
+// When two nearby groups compete for the same tile, prefer the group that
+// makes a valid meld.  Distance still matters: this only breaks local ties.
+function insertionQuality(g,t,index,axis=g.axis){
+  if(!t)return 0;
+  const list=[...g.tiles.slice(0,index),t,...g.tiles.slice(index)];
+  const candidate={tiles:list,axis};
+  return isValid(candidate)?2:isCompatible(candidate)?1:0;
+}
 function getHover(clientX,clientY) {
   const br=board.getBoundingClientRect();
   const x=clientX-br.left,y=clientY-br.top;
@@ -541,13 +644,17 @@ function getHover(clientX,clientY) {
       if(near>actualTile*1.27+reach*.55)continue;
       const other=g.tiles[0], moving=active?.tile;
       const sameRank=moving&&moving.num===other.num&&moving.col!==other.col;
-      const sequence=moving&&moving.col===other.col&&Math.abs(moving.num-other.num)===1;
-      const axis=sameRank?'v':sequence?'h':Math.abs(dx)>=Math.abs(dy)?'h':'v';
+      const sameColour=moving&&moving.col===other.col;
+      const axis=sameRank?'v':sameColour?'h':Math.abs(dx)>=Math.abs(dy)?'h':'v';
       const along=axis==='h'?dx:dy;
-      const index=sequence?(moving.num<other.num?0:1):(along>=0?1:0);
-      const score=near*.40-(sameRank||sequence?actualTile*.22:0);
+      const index=sameColour&&moving.num!==other.num
+        ? (moving.num<other.num?0:1)
+        : (along>=0?1:0);
+      const allowed=canJoin(g,moving,axis);
+      const quality=allowed?insertionQuality(g,moving,index,axis):0;
+      const score=near*.40-quality*actualTile*.19-(hover?.id===g.id?actualTile*.045:0);
       if(score<bestDist){
-        best={id:g.id,index,axis};
+        best={id:g.id,index,axis,blocked:!allowed};
         bestDist=score;
       }
       continue;
@@ -562,11 +669,14 @@ function getHover(clientX,clientY) {
     if(Math.abs(along)>maxAlong||Math.abs(across)>maxAcross)continue;
     const overshoot=Math.max(0,Math.abs(along)-end-box.step);
     const normalGap=Math.max(0,Math.abs(across)-actualTile/2);
+    const index=clamp(Math.round(along/box.step+g.tiles.length/2),0,g.tiles.length);
+    const allowed=canJoin(g,active?.tile);
+    const quality=allowed?insertionQuality(g,active?.tile,index):0;
     const dist=normalGap*1.5+overshoot*1.2+
-               Math.abs(across)*.18+Math.max(0,Math.abs(along)-end)*.08;
+               Math.abs(across)*.18+Math.max(0,Math.abs(along)-end)*.08-
+               quality*actualTile*.38-(hover?.id===g.id?actualTile*.045:0);
     if(dist<bestDist) {
-      const index=clamp(Math.round(along/box.step+g.tiles.length/2),0,g.tiles.length);
-      best={id:g.id,index};bestDist=dist;
+      best={id:g.id,index,blocked:!allowed};bestDist=dist;
     }
   }
   return best;
@@ -625,7 +735,10 @@ function moveDrag(e) {
   y=clamp(y,b.top+actualTile/2,b.bottom-actualTile/2);
   posStyle(a.tile.el,x-actualTile/2,y-actualTile/2,1.035);
   const next=getHover(x,y);
-  hover=next;
+  // A blocked target does not draw a misleading insertion slot. We still
+  // remember it so release rolls the tile back instead of creating a new
+  // singleton beside the incompatible group.
+  hover=next&&!next.blocked?next:null;
   // Coalesce pointermove events into one collision/layout update per frame.
   // The held tile itself tracks the finger directly above, without a spring.
   scheduleLivePreview(x,y);
@@ -647,6 +760,12 @@ function pointerUp(e) {
   if(x<br.left||x>br.right||y<br.top||y>br.bottom){cancelDrag();return;}
   const target=getHover(x,y);
   let g=target&&groups.find(g=>g.id===target.id);
+  // Reject incompatible drops atomically. restore() replaces the exact
+  // original grouping, positions, colour state and Undo history.
+  if(g && (target.blocked || !canJoin(g,t,target.axis||g.axis))) {
+    cancelDrag();
+    return;
+  }
   if(g) {
     g.tiles.splice(target.index,0,t);
     if(target.axis)g.axis=target.axis;
