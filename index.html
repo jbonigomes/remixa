@@ -386,17 +386,16 @@ function canJoin(g,t,axis=g.axis) {
 }
 // A no-op is determined from the table, not just how far the finger moved.
 // A singleton repositioned elsewhere is a real move; returning it is free.
-// A puzzle move changes the *logical* groups, not their screen positions.
-// A singleton can be relocated anywhere for free. A vertical set can also
-// be reordered for free because its colour ordering is not part of the rule.
-// Horizontal runs remain order-sensitive, since 3-4-5 and 3-5-4 differ.
+// A puzzle move changes meld membership or tile order, never merely
+// a group's table coordinates. This deliberately counts rearranging a
+// vertical set (trinca) as a move even when that set remains valid.
+// Sliding a solo tile or an intact meld elsewhere remains free.
 function puzzleSignature(group,lookup=null) {
   const pieces=lookup
     ? group.ids.map(id=>lookup.get(id))
     : group.tiles;
   const axis=pieces.length===1?'solo':group.axis;
   const keys=pieces.map(t=>`${t.num}:${t.col}`);
-  if(axis==='v')keys.sort();
   return `${axis}|${keys.join(',')}`;
 }
 function samePuzzleArrangement(before) {
@@ -907,7 +906,7 @@ function pointerUp(e) {
     groups.push(g);
   }
   // Repositioning a group (including a solo tile) is free. Count a move
-  // only if meld membership or a meaningful run order actually changed.
+  // only if meld membership or the order of tiles in a run/set changed.
   const changedPuzzle=!samePuzzleArrangement(a.before);
   t.el.classList.remove('dragging');
   t.el.style.boxShadow='';
