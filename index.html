@@ -42,8 +42,32 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 .group.invalid {border-color:var(--red);background:var(--red);}
 .group .slot {position:absolute;width:var(--tile);height:var(--tile);left:0;top:0;border-radius:var(--corner);background:#d0ffe92e;outline:1px solid #ffffff3a;opacity:0;pointer-events:none;transition:opacity .12s,transform var(--snap-ms);}
 .group.has-slot .slot {opacity:1;}
-.tile {position:absolute;top:0;left:0;width:var(--tile);height:var(--tile);background:var(--tile-color);border-radius:var(--corner);display:flex;align-items:center;justify-content:center;line-height:1;font-size:calc(var(--tile) * .55);font-weight:800;letter-spacing:-.055em;color:white;text-shadow:0 1px 1px #00000025;transform:translate3d(0,0,0);transition:transform var(--snap-ms) cubic-bezier(.15,1.2,.35,1);backface-visibility:hidden;will-change:transform;pointer-events:auto;touch-action:none;cursor:grab;}
-.tile.yellow {color:#243c40;text-shadow:none;}
+.tile {
+  position:absolute;top:0;left:0;width:var(--tile);height:var(--tile);
+  box-sizing:border-box;border-radius:calc(var(--corner) * .9);
+  border:1px solid #d8d5ca;
+  background:
+    linear-gradient(180deg,#fffcf6 0%,#f8f3e8 100%);
+  box-shadow:0 2px 7px #00000014, inset 0 1px 0 #ffffffd9;
+  user-select:none;will-change:transform;pointer-events:auto;
+  touch-action:none;cursor:grab;color:#1e252d;
+}
+.tile .corner {
+  position:absolute;left:10%;top:8%;
+  font-weight:900;font-size:calc(var(--tile) * .22);
+  line-height:1;letter-spacing:-.035em;
+}
+.tile .center-suit {
+  position:absolute;left:50%;top:50%;
+  transform:translate(-50%,-48%);
+  font-size:calc(var(--tile) * .46);line-height:1;
+  font-weight:800;
+  filter:drop-shadow(0 1px 0 #ffffffaa);
+}
+.tile.suit-red {color:#c04452;}
+.tile.suit-black {color:#24282e;}
+.tile.suit-gold {color:#b58a2e;}
+
 
 #lessonCue {position:absolute;top:12px;left:50%;transform:translateX(-50%);font-size:12px;font-weight:650;letter-spacing:.055em;color:#d0e8dc;pointer-events:none;white-space:nowrap;z-index:5;opacity:0;transition:opacity .35s;}
 #lessonCue.show {opacity:.92;}
@@ -180,6 +204,13 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 // Remixa DOM prototype: pure browser layout and Pointer Events, no external assets.
 const $ = id => document.getElementById(id);
 const COLORS=['#488be1','#e45e71','#f1bf55','#43bb99','#a581e5'];
+const SUITS=[
+  {symbol:'♠',kind:'black',name:'spades'},
+  {symbol:'♥',kind:'red',name:'hearts'},
+  {symbol:'♣',kind:'black',name:'clubs'},
+  {symbol:'♦',kind:'red',name:'diamonds'},
+  {symbol:'★',kind:'gold',name:'stars'}
+];
 const LEVELS=[
   // Chapter 1: introduce one rule or insight at a time.
   {name:'One More',skill:'Extend a run',
@@ -324,8 +355,10 @@ const posStyle=(el,x,y,scale=1)=>{
 };
 function tileNew(num,col) {
   const t={id:nextID++,num,col,el:document.createElement('div')};
-  t.el.className='tile'+(col===2?' yellow':'');
-  t.el.textContent=num;
+  const suit=SUITS[col%SUITS.length];
+  t.el.className='tile suit-'+suit.kind;
+  t.el.innerHTML=`<span class="corner">${num}</span><span class="center-suit" aria-hidden="true">${suit.symbol}</span>`;
+  t.el.setAttribute('aria-label', `${num} of ${suit.name}`);
   t.el.style.setProperty('--tile-color',colorAt(col));
   t.el.dataset.id=t.id;
   t.el.addEventListener('pointerdown',ev=>pointerDown(ev,t));
