@@ -70,8 +70,8 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 }
 .tile .center-suit {
   position:absolute;left:50%;top:52%;
-  transform:translate(-50%,-50%);
-  font-size:calc(var(--tile) * .51);
+  transform:translate(-50%,-50%) scaleX(1.25);
+  font-size:calc(var(--tile) * .54);
   line-height:1;font-family:Georgia,"Times New Roman",serif;
   font-weight:700;pointer-events:none;
 }
@@ -337,7 +337,7 @@ let projected=null,previewFrame=0,previewPoint=null;
 const isBig=()=>level===11;
 const openedId=()=>isBig()?(active?(hover?.id??null):selectedId):null;
 const isOpen=id=>!isBig()||openedId()===id;
-const groupStep=id=>isOpen(id)?actualTile+settings.gap:actualTile*.61;
+const groupStep=id=>isOpen(id)?actualTile+settings.gap:actualTile*.56;
 function bestKey(){return 'remixa_best_v1_'+String(level+1);}
 function readBest(){
   try{const n=Number(localStorage.getItem(bestKey()));return n>0?Math.floor(n):null;}catch(_){return null;}
@@ -358,6 +358,7 @@ board.addEventListener('pointerdown',e=>{
 
 const clamp=(v,a,b)=>Math.min(Math.max(v,a),Math.max(a,b));
 const colorAt=c=>COLORS[c%COLORS.length];
+const rankLabel=n=>({1:'A',11:'J',12:'Q',13:'K'})[n]||String(n);
 const posStyle=(el,x,y,scale=1)=>{
   el.style.transform=`translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,0)${scale!==1?` scale(${scale})`:''}`;
 };
@@ -365,8 +366,8 @@ function tileNew(num,col) {
   const t={id:nextID++,num,col,el:document.createElement('div')};
   const suit=SUITS[col%SUITS.length];
   t.el.className='tile suit-'+suit.kind;
-  t.el.innerHTML=`<span class="corner">${num}</span><span class="center-suit" aria-hidden="true">${suit.symbol}</span>`;
-  t.el.setAttribute('aria-label', `${num} of ${suit.name}`);
+  t.el.innerHTML=`<span class="corner">${rankLabel(num)}</span><span class="center-suit" aria-hidden="true">${suit.symbol}</span>`;
+  t.el.setAttribute('aria-label', `${rankLabel(num)} of ${suit.name}`);
   t.el.style.setProperty('--tile-color',colorAt(col));
   t.el.dataset.id=t.id;
   t.el.addEventListener('pointerdown',ev=>pointerDown(ev,t));
@@ -386,8 +387,14 @@ function groupNew(contents,axis,u,v,id=nextGroup++) {
 }
 function normalizeGroupOrder(g){
   if(!g||g.tiles.length<2)return;
-  if(g.axis==='h')
-    g.tiles.sort((a,b)=>(a.num-b.num)||(a.col-b.col));
+  if(g.axis==='h'){
+    const highAce=g.tiles.some(t=>t.num===1) &&
+      g.tiles.some(t=>t.num===13) &&
+      !g.tiles.some(t=>t.num===2);
+    g.tiles.sort((a,b)=>
+      ((highAce&&a.num===1?14:a.num)-(highAce&&b.num===1?14:b.num)) ||
+      (a.col-b.col));
+  }
   else
     g.tiles.sort((a,b)=>(a.col-b.col)||(a.num-b.num));
 }
@@ -396,8 +403,14 @@ function isValid(g) {
   const a=g.tiles,n=a.length;
   if(n<3)return false;
   if(g.axis==='h') {
-    if(n>14||a.some(t=>t.col!==a[0].col))return false;
-    return a.every((t,i)=>!i||t.num===a[i-1].num+1);
+    if(n>13||a.some(t=>t.col!==a[0].col))return false;
+    // Ace is low in A-2-3 and high in Q-K-A, but cannot bridge K-A-2.
+    const ranks=a.map(t=>t.num);
+    const ascending=ranks.every((v,i)=>!i||v===ranks[i-1]+1);
+    const aceHigh=ranks[n-1]===1 &&
+      ranks.slice(0,-1).every((v,i)=>!i||v===ranks[i-1]+1) &&
+      ranks[n-2]===13;
+    return ascending||aceHigh;
   }
   return n<=COLORS.length&&a.every(t=>t.num===a[0].num)&&new Set(a.map(t=>t.col)).size===n;
 }
@@ -803,8 +816,11 @@ function getHover(clientX,clientY) {
       const sameColour=moving&&moving.col===other.col;
       const axis=sameRank?'v':sameColour?'h':Math.abs(dx)>=Math.abs(dy)?'h':'v';
       const along=axis==='h'?dx:dy;
+      const highAcePair=sameColour &&
+        ((moving.num===1&&other.num===13) ||
+         (moving.num===13&&other.num===1));
       const index=sameColour&&moving.num!==other.num
-        ? (moving.num<other.num?0:1)
+        ? (highAcePair?(moving.num===1?1:0):(moving.num<other.num?0:1))
         : (along>=0?1:0);
       // Hover over anything. A structural mismatch is only rejected on drop.
       const score=near*.40-(hover?.id===g.id?actualTile*.035:0);
