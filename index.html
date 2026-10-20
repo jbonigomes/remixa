@@ -225,10 +225,11 @@ const LEVELS=[
    groups:[
      {axis:'h',u:.26,v:.28,tiles:[[4,0],[5,0],[6,0],[7,0]]},
      {axis:'h',u:.74,v:.28,tiles:[[9,4],[10,4],[11,4],[12,4]]},
-     {axis:'h',u:.28,v:.74,tiles:[[2,0],[3,0]]},
-     {axis:'h',u:.73,v:.74,tiles:[[7,4],[8,4]]}
    ],
-   loose:[]},
+   loose:[
+     {n:2,c:0,u:.24,v:.74},{n:3,c:0,u:.39,v:.74},
+     {n:7,c:4,u:.61,v:.74},{n:8,c:4,u:.77,v:.74}
+   ]},
   {name:'The Broken Bridge',skill:'Sometimes a green group has to turn red',
    groups:[
      {axis:'h',u:.28,v:.28,tiles:[[2,0],[3,0],[4,0],[5,0],[6,0]]},
@@ -249,40 +250,40 @@ const LEVELS=[
      {n:2,c:1,u:.40,v:.85},
      {n:5,c:2,u:.73,v:.85}
    ]},
-  // The Knot now starts with type-consistent groups. Horizontal groups
-  // contain one colour only; vertical groups contain one number only.
-  // The same original 23 tiles remain, with the two green number sets
-  // serving as tempting-but-misleading anchors.
-  {name:'The Knot',skill:'Two green groups must be dismantled to solve the table',
+  // The Knot: every starting meld is green, but four red singles remain.
+  // Its six tempting number-sets must be dismantled into a different arrangement.
+  // The same original 23 numbered/coloured tiles are preserved.
+  {name:'The Knot',skill:'Rebuild the table from six perfectly legal number-sets',
    groups:[
-     {axis:'h',u:.19,v:.25,tiles:[[2,0],[3,0],[6,0],[9,0]]},
-     {axis:'h',u:.81,v:.25,tiles:[[3,1],[6,1],[7,1],[9,1]]},
-     {axis:'h',u:.20,v:.76,tiles:[[8,2],[5,2],[6,2],[7,2]]},
-     {axis:'h',u:.80,v:.76,tiles:[[3,3],[4,3],[6,3],[7,3],[9,3]]},
-     {axis:'v',u:.43,v:.51,tiles:[[4,0],[4,1],[4,2]]},
-     {axis:'v',u:.57,v:.51,tiles:[[5,0],[5,1],[5,3]]}
+     {axis:'v',u:.12,v:.43,tiles:[[3,0],[3,1],[3,3]]},
+     {axis:'v',u:.27,v:.43,tiles:[[4,0],[4,1],[4,2]]},
+     {axis:'v',u:.42,v:.43,tiles:[[5,0],[5,1],[5,3]]},
+     {axis:'v',u:.57,v:.43,tiles:[[6,0],[6,1],[6,2],[6,3]]},
+     {axis:'v',u:.72,v:.43,tiles:[[7,1],[7,2],[7,3]]},
+     {axis:'v',u:.87,v:.43,tiles:[[9,0],[9,1],[9,3]]}
    ],
-    loose:[]},
+   loose:[
+     {n:2,c:0,u:.16,v:.87},{n:5,c:2,u:.39,v:.87},
+     {n:8,c:2,u:.62,v:.87},{n:4,c:3,u:.85,v:.87}
+   ]},
   // Chapter 3 workshop: 40 tiles in 13 ordinary groups.
   // The overlapping layout is deliberately a usability experiment, not a
   // claim of expert-level puzzle difficulty.
   {name:'The Big Table',skill:'40 tiles · tap a group to spread its tiles',
    groups:[
-     {axis:'h',u:.13,v:.22,tiles:[[2,0],[3,0],[4,0]]},
-     {axis:'h',u:.37,v:.22,tiles:[[8,0],[9,0],[11,0]]},
-     {axis:'h',u:.62,v:.22,tiles:[[3,1],[4,1],[6,1]]},
-     {axis:'h',u:.86,v:.22,tiles:[[9,1],[10,1],[11,1],[12,1]]},
-     {axis:'h',u:.13,v:.75,tiles:[[4,2],[6,2],[7,2]]},
-     {axis:'h',u:.37,v:.75,tiles:[[10,2],[12,2],[13,2]]},
-     {axis:'h',u:.62,v:.75,tiles:[[2,3],[3,3],[4,3]]},
-     {axis:'h',u:.86,v:.75,tiles:[[8,3],[9,3],[10,3],[11,3]]},
-     {axis:'v',u:.24,v:.49,tiles:[[7,0],[7,1],[7,2],[7,4]]},
-     {axis:'v',u:.76,v:.49,tiles:[[8,1],[8,2],[8,3],[8,4]]},
-     {axis:'v',u:.47,v:.48,tiles:[[5,0],[5,1],[5,2],[5,3]]}
+     {axis:'h',u:.15,v:.22,tiles:[[2,0],[3,0],[4,0],[5,0]]},
+     {axis:'h',u:.38,v:.22,tiles:[[8,0],[9,0],[10,0],[11,0]]},
+     {axis:'h',u:.62,v:.22,tiles:[[3,1],[4,1],[5,1],[6,1],[7,1]]},
+     {axis:'h',u:.85,v:.22,tiles:[[8,1],[9,1],[10,1],[11,1],[12,1]]},
+     {axis:'h',u:.15,v:.77,tiles:[[4,2],[5,2],[6,2],[7,2],[8,2]]},
+     {axis:'h',u:.38,v:.77,tiles:[[10,2],[11,2],[12,2],[13,2]]},
+     {axis:'h',u:.62,v:.77,tiles:[[2,3],[3,3],[4,3],[5,3]]},
+     {axis:'h',u:.85,v:.77,tiles:[[8,3],[9,3],[10,3],[11,3]]}
    ],
    loose:[
-     {n:10,c:0,u:.38,v:.49},
-     {n:11,c:2,u:.58,v:.49}
+     {n:7,c:0,u:.16,v:.49},{n:7,c:2,u:.33,v:.49},
+     {n:7,c:4,u:.50,v:.49},{n:8,c:3,u:.67,v:.49},
+     {n:8,c:4,u:.84,v:.49}
    ]}
 ];
 const defaults={tile:58,corner:9,gap:4,spring:180,magnet:55};
@@ -952,10 +953,51 @@ $('settings').addEventListener('click',()=>lab.classList.toggle('show'));
 $('closeLab').addEventListener('click',hideLab);
 $('closeLab2').addEventListener('click',hideLab);
 $('resetLab').addEventListener('click',()=>{settings={...defaults};applySettings();});
-window.addEventListener('resize',()=>{
-  if(!active)reflowGroups();
-  layout(true);
-});
+// Rotation on mobile browsers is a sequence of changing viewports, not one
+// final resize event. Wait until the actual board rectangle stabilises and
+// reflow again when ResizeObserver reports its final dimensions.
+let boardFitFrame=0,boardFitTimeout=0,knownBoardWidth=0,knownBoardHeight=0;
+function scheduleBoardFit(){
+  if(boardFitFrame)cancelAnimationFrame(boardFitFrame);
+  let stableFrames=0,priorW=-1,priorH=-1,tries=0;
+  const tick=()=>{
+    boardFitFrame=0;
+    const w=board.clientWidth,h=board.clientHeight;
+    if(w<180||h<130||matchMedia('(orientation: portrait)').matches)
+      return; // The portrait overlay is visible; wait for landscape.
+    stableFrames=(Math.abs(w-priorW)<1&&Math.abs(h-priorH)<1)?stableFrames+1:0;
+    priorW=w;priorH=h;
+    if(stableFrames<3 && ++tries<18){
+      boardFitFrame=requestAnimationFrame(tick);
+      return;
+    }
+    if(active)cancelDrag();
+    if(Math.abs(w-knownBoardWidth)>1||Math.abs(h-knownBoardHeight)>1) {
+      // A portrait-sized tile cap must not carry over into landscape.
+      adaptiveTileCap=Infinity;
+      knownBoardWidth=w;knownBoardHeight=h;
+    }
+    reflowGroups();
+    layout(true);
+  };
+  boardFitFrame=requestAnimationFrame(tick);
+  if(boardFitTimeout)clearTimeout(boardFitTimeout);
+  // Safari sometimes updates the visual viewport after its orientation
+  // animation; this final check catches a delayed toolbar/safe-area change.
+  boardFitTimeout=setTimeout(()=>{
+    boardFitTimeout=0;
+    if(board.clientWidth&&board.clientHeight&&!matchMedia('(orientation: portrait)').matches){
+      adaptiveTileCap=Infinity;
+      reflowGroups();
+      layout(true);
+    }
+  },320);
+}
+window.addEventListener('resize',scheduleBoardFit);
+window.addEventListener('orientationchange',scheduleBoardFit);
+if(window.visualViewport)window.visualViewport.addEventListener('resize',scheduleBoardFit);
+if(window.ResizeObserver)
+  new ResizeObserver(scheduleBoardFit).observe(board);
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape')hideLab();
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}
@@ -964,7 +1006,7 @@ document.addEventListener('keydown',e=>{
 // The default opening still starts at Level 1.
 const deepLevel=/^#(?:level-?)?(\d+)$/.exec(location.hash);
 const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[1])-1)):0;
-loadLevel(firstLevel);applySettings();
+loadLevel(firstLevel);applySettings();scheduleBoardFit();
 </script>
 </body>
 </html>
