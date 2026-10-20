@@ -297,7 +297,7 @@ let projected=null,previewFrame=0,previewPoint=null;
 const isBig=()=>level===11;
 const openedId=()=>isBig()?(active?(hover?.id??null):selectedId):null;
 const isOpen=id=>!isBig()||openedId()===id;
-const groupStep=id=>isOpen(id)?actualTile+settings.gap:actualTile*.77;
+const groupStep=id=>isOpen(id)?actualTile+settings.gap:actualTile*.70;
 function bestKey(){return 'remixa_best_v1_'+String(level+1);}
 function readBest(){
   try{const n=Number(localStorage.getItem(bestKey()));return n>0?Math.floor(n):null;}catch(_){return null;}
@@ -342,6 +342,14 @@ function groupNew(contents,axis,u,v,id=nextGroup++) {
   groupsLayer.appendChild(g.el);
   return g;
 }
+function normalizeGroupOrder(g){
+  if(!g||g.tiles.length<2)return;
+  if(g.axis==='h')
+    g.tiles.sort((a,b)=>(a.num-b.num)||(a.col-b.col));
+  else
+    g.tiles.sort((a,b)=>(a.col-b.col)||(a.num-b.num));
+}
+
 function isValid(g) {
   const a=g.tiles,n=a.length;
   if(n<3)return false;
@@ -442,6 +450,7 @@ function loadLevel(i) {
   adaptiveTileCap=Infinity;
   const source=LEVELS[level];
   groups=source.groups.map(g=>groupNew(g.tiles.map(v=>tileNew(...v)),g.axis,g.u,g.v));
+  groups.forEach(normalizeGroupOrder);
   // Loose tiles use exactly the same group model, hit testing and rules.
   source.loose.forEach(p=>{
     groups.push(groupNew([tileNew(p.n,p.c)],'h',p.u,p.v));
@@ -778,7 +787,7 @@ function pointerDown(e,t) {
   e.preventDefault();
   dismissOpeningHint();
   const owner=groups.find(g=>g.tiles.includes(t));
-  if(isBig()&&owner&&!isOpen(owner.id)){
+  if(isBig()&&owner&&!isOpen(owner.id)&&owner.tiles.length>1){
     selectGroup(owner.id);
     return;
   }
@@ -834,9 +843,11 @@ function moveDrag(e) {
   const next=getHover(x,y);
   // No preventive snap locks: every nearby group opens and previews.
   hover=next;
-  // Coalesce pointermove events into one collision/layout update per frame.
-  // The held tile itself tracks the finger directly above, without a spring.
-  scheduleLivePreview(x,y);
+  // Preview only the target group while dragging. Do not physically push
+  // neighbouring groups around; legality is decided only on release.
+  clearLivePreview();
+  projected=null;
+  layout(false,true);
 }
 function cancelDrag() {
   if(!active)return;
@@ -927,7 +938,6 @@ function applySettings() {
   }
   try{localStorage.setItem('remixaLab',JSON.stringify(settings));}catch(_){}
   if(!active)reflowGroups();
-  else if(previewPoint)scheduleLivePreview(previewPoint.x,previewPoint.y);
   layout();
 }
 for(const key of ['tile','corner','gap','spring','magnet'])
@@ -944,7 +954,6 @@ $('closeLab2').addEventListener('click',hideLab);
 $('resetLab').addEventListener('click',()=>{settings={...defaults};applySettings();});
 window.addEventListener('resize',()=>{
   if(!active)reflowGroups();
-  else if(previewPoint)scheduleLivePreview(previewPoint.x,previewPoint.y);
   layout(true);
 });
 document.addEventListener('keydown',e=>{
