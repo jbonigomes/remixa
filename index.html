@@ -818,6 +818,11 @@ function pointerDown(e,t) {
     tile:t,pointerId:e.pointerId,
     dx:rect.left+rect.width/2-e.clientX,
     dy:rect.top+rect.height/2-e.clientY,
+    // Capture the tile's actual on-screen pickup position *before* its
+    // group contracts or reflows. Magnetic preview can otherwise choose
+    // a different insertion slot even when the player lets go at home.
+    originX:rect.left+rect.width/2,
+    originY:rect.top+rect.height/2,
     before:old, colors, startX:e.clientX, startY:e.clientY
   };
   // Each lifted tile carries a linked-group outline with it.  It is the
@@ -866,6 +871,11 @@ function pointerUp(e) {
   const x=e.clientX+a.dx,y=e.clientY+a.dy;
   if(Math.hypot(e.clientX-a.startX,e.clientY-a.startY)<7){cancelDrag();return;}
   if(x<br.left||x>br.right||y<br.top||y>br.bottom){cancelDrag();return;}
+  // Returning close to the original tile slot is a no-op irrespective of
+  // how far the finger travelled in between or which group the magnet
+  // happens to nominate. A purposeful one-slot reorder still counts.
+  const homeRadius=actualTile*.54;
+  if(Math.hypot(x-a.originX,y-a.originY)<=homeRadius){cancelDrag();return;}
   const target=getHover(x,y);
   let g=target&&groups.find(g=>g.id===target.id);
   // Only decide legality on drop; rejected joins revert without a move.
