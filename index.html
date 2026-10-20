@@ -386,20 +386,31 @@ function canJoin(g,t,axis=g.axis) {
 }
 // A no-op is determined from the table, not just how far the finger moved.
 // A singleton repositioned elsewhere is a real move; returning it is free.
-function isUnchangedDrop(before,moving) {
+// A puzzle move changes the *logical* groups, not their screen positions.
+// A singleton can be relocated anywhere for free. A vertical set can also
+// be reordered for free because its colour ordering is not part of the rule.
+// Horizontal runs remain order-sensitive, since 3-4-5 and 3-5-4 differ.
+function puzzleSignature(group,lookup=null) {
+  const pieces=lookup
+    ? group.ids.map(id=>lookup.get(id))
+    : group.tiles;
+  const axis=pieces.length===1?'solo':group.axis;
+  const keys=pieces.map(t=>`${t.num}:${t.col}`);
+  if(axis==='v')keys.sort();
+  return `${axis}|${keys.join(',')}`;
+}
+function samePuzzleArrangement(before) {
   if(before.groups.length!==groups.length)return false;
-  const unmatched=new Set(groups);
-  for(const old of before.groups) {
-    const found=[...unmatched].find(g=>
-      g.axis===old.axis && g.tiles.length===old.ids.length &&
-      g.tiles.every((t,i)=>t.id===old.ids[i])
-    );
-    if(!found)return false;
-    unmatched.delete(found);
-    if(old.ids.length===1 && old.ids[0]===moving.id) {
-      if(Math.hypot((found.u-old.u)*boardW,(found.v-old.v)*boardH)>Math.max(12,actualTile*.42))
-        return false;
-    }
+  const lookup=new Map(tiles.map(t=>[t.id,t]));
+  const signatures=new Map();
+  for(const old of before.groups){
+    const key=puzzleSignature(old,lookup);
+    signatures.set(key,(signatures.get(key)||0)+1);
+  }
+  for(const g of groups){
+    const key=puzzleSignature(g),left=signatures.get(key)||0;
+    if(!left)return false;
+    signatures.set(key,left-1);
   }
   return true;
 }
@@ -895,11 +906,9 @@ function pointerUp(e) {
     g=groupNew([t],'h',clamp((x-br.left)/boardW,0,1),clamp((y-br.top)/boardH,0,1));
     groups.push(g);
   }
-  // Returning a tile to the same spot/group changes nothing and is free.
-  if(isUnchangedDrop(a.before,t)) {
-    cancelDrag();
-    return;
-  }
+  // Repositioning a group (including a solo tile) is free. Count a move
+  // only if meld membership or a meaningful run order actually changed.
+  const changedPuzzle=!samePuzzleArrangement(a.before);
   t.el.classList.remove('dragging');
   t.el.style.boxShadow='';
   clearLivePreview();
@@ -909,11 +918,13 @@ function pointerUp(e) {
     restore(a.before);
     return;
   }
-  history.push(a.before);
-  moves++;
+  if(changedPuzzle){
+    history.push(a.before);
+    moves++;
+  }
   layout();
   updateScore();
-  checkWin();
+  if(changedPuzzle)checkWin();
 }
 function checkWin() {
   if(groups.length&&groups.every(isValid) && groups.reduce((n,g)=>n+g.tiles.length,0)===tiles.length) {
