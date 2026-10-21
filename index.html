@@ -326,19 +326,19 @@ const LEVELS=[
   // claim of expert-level puzzle difficulty.
   {name:'The Big Table',skill:'40 tiles · tap a group to spread its tiles',
    groups:[
-     {axis:'h',u:.15,v:.22,tiles:[[2,0],[3,0],[4,0],[5,0]]},
-     {axis:'h',u:.38,v:.22,tiles:[[8,0],[9,0],[10,0],[11,0]]},
-     {axis:'h',u:.62,v:.22,tiles:[[3,1],[4,1],[5,1],[6,1],[7,1]]},
-     {axis:'h',u:.85,v:.22,tiles:[[8,1],[9,1],[10,1],[11,1],[12,1]]},
-     {axis:'h',u:.15,v:.77,tiles:[[4,2],[5,2],[6,2],[7,2],[8,2]]},
-     {axis:'h',u:.38,v:.77,tiles:[[10,2],[11,2],[12,2],[13,2]]},
-     {axis:'h',u:.62,v:.77,tiles:[[2,3],[3,3],[4,3],[5,3]]},
-     {axis:'h',u:.85,v:.77,tiles:[[8,3],[9,3],[10,3],[11,3]]}
+     {axis:'h',u:0.13,v:0.21,tiles:[[2,0],[3,0],[4,0],[5,0]]},
+     {axis:'h',u:0.34,v:0.21,tiles:[[8,0],[9,0],[10,0],[11,0]]},
+     {axis:'h',u:0.55,v:0.21,tiles:[[3,1],[4,1],[5,1],[6,1],[7,1]]},
+     {axis:'h',u:0.13,v:0.44,tiles:[[8,1],[9,1],[10,1],[11,1],[12,1]]},
+     {axis:'h',u:0.34,v:0.44,tiles:[[4,2],[5,2],[6,2],[7,2],[8,2]]},
+     {axis:'h',u:0.55,v:0.44,tiles:[[10,2],[11,2],[12,2],[13,2]]},
+     {axis:'h',u:0.13,v:0.68,tiles:[[2,3],[3,3],[4,3],[5,3]]},
+     {axis:'h',u:0.34,v:0.68,tiles:[[8,3],[9,3],[10,3],[11,3]]}
    ],
    loose:[
-     {n:7,c:0,u:.16,v:.49},{n:7,c:2,u:.33,v:.49},
-     {n:7,c:3,u:.50,v:.49},{n:6,c:3,u:.67,v:.49},
-     {n:9,c:2,u:.84,v:.49}
+     {n:7,c:0,u:0.31,v:0.88},{n:7,c:2,u:0.40,v:0.88},
+     {n:7,c:3,u:0.49,v:0.88},{n:6,c:3,u:0.58,v:0.88},
+     {n:9,c:2,u:0.67,v:0.88}
    ]}
 ];
 const defaults={tile:58,corner:9,gap:4,spring:180,magnet:55};
@@ -350,8 +350,44 @@ let moves=0,selectedId=null;
 let actualTile=58,boardW=1,boardH=1,adaptiveTileCap=Infinity;
 // A purely visual collision preview; puzzle positions remain untouched until drop.
 let projected=null,previewFrame=0,previewPoint=null;
+// Hover intent is separate from a snap candidate. This avoids opening every
+// meld as the player merely carries a card across the crowded tabletop.
+let hoverCandidate=null,hoverTimer=0;
+const hoverPauseMs=145;
+function resetHoverIntent(){
+  if(hoverTimer)clearTimeout(hoverTimer);
+  hoverTimer=0;hoverCandidate=null;
+}
+function updateDragHover(next){
+  if(!isBig()){hover=next;return;}
+  if(!next){resetHoverIntent();hover=null;return;}
+  if(hover?.id===next.id){hover=next;return;}
+  if(hoverCandidate?.id===next.id){hoverCandidate=next;return;}
+  resetHoverIntent();
+  hover=null;
+  hoverCandidate=next;
+  hoverTimer=setTimeout(()=>{
+    hoverTimer=0;
+    if(!active||!hoverCandidate)return;
+    hover={...hoverCandidate};
+    // Pin the proposed insertion slot while the meld expands beneath
+    // a stationary finger. The slot changes only when the finger moves.
+    active.hoverOriginId=hover.id;
+    active.hoverOriginIndex=hover.index;
+    active.hoverOriginX=active.lastX;
+    active.hoverOriginY=active.lastY;
+    layout(false,true);
+  },hoverPauseMs);
+}
 const isBig=()=>level===11;
-const openedId=()=>isBig()?(active?(hover?.id??null):selectedId):null;
+// Only multi-card melds stay open after selection. A solo card may lift
+// temporarily as a hover target, but it must never remain enlarged after drop.
+const openedId=()=>{
+  if(!isBig())return null;
+  if(active)return hover?.id??null;
+  const selected=groups.find(g=>g.id===selectedId);
+  return selected?.tiles.length>1?selectedId:null;
+};
 const isOpen=id=>!isBig()||openedId()===id;
 const raisedCardScale=id=>isBig()&&isOpen(id)?1.16:1;
 const groupStep=id=>isOpen(id)
@@ -494,6 +530,7 @@ function snapshot() {
   };
 }
 function restore(s) {
+  resetHoverIntent();
   clearLivePreview();
   active=null;hover=null;won=false;$('win').classList.remove('show');
   adaptiveTileCap=s.tileCap??Infinity;
@@ -525,6 +562,7 @@ function dismissOpeningHint(){
 }
 function loadLevel(i) {
   if(active)cancelDrag();
+  resetHoverIntent();
   clearLivePreview();
   level=(i+LEVELS.length)%LEVELS.length;
   for(const t of tiles)t.el.remove();
@@ -828,22 +866,34 @@ function layout(initial=false,skipMeasure=false) {
     });
   }
 }
+function compactBox(g) {
+  if(!isBig())return geometry(g,false);
+  const n=g.tiles.length,step=actualTile*.56;
+  const w=(g.axis==='h'?(n-1)*step+actualTile:actualTile)+settings.gap*2;
+  const h=(g.axis==='v'?(n-1)*step+actualTile:actualTile)+settings.gap*2;
+  const x=clamp(g.u*boardW,w/2+3,boardW-w/2-3);
+  const y=clamp(g.v*boardH,h/2+3,boardH-h/2-3);
+  return {n,step,w,h,x,y,left:x-w/2,top:y-h/2};
+}
+// The Magnetic Reach slider now adjusts a measured *visual* catch zone,
+// rather than treating a hypothetical fully-open meld as a giant magnet.
+function magnetMargin(){
+  return actualTile*(.085+settings.magnet*.00275);
+}
 function getHover(clientX,clientY) {
   const br=board.getBoundingClientRect();
   const x=clientX-br.left,y=clientY-br.top;
   if(x<0||x>boardW||y<0||y>boardH)return null;
 
-  // When two melds visually overlap, the raised one owns the front-most
-  // hit area. Keep its insertion target stable while the finger is over it.
-  // This mirrors the drawing order instead of selecting a meld underneath.
+  // Once genuinely opened, the front-most meld owns its *visible* footprint.
+  // The pointer must stay on the card area; it cannot magnetise empty space.
   if(isBig() && active && hover) {
     const focused=groups.find(g=>g.id===hover.id);
     if(focused?.tiles.length) {
       const axis=hover.axis||focused.axis;
       const box=geometry(focused,false,axis);
-      const pad=Math.max(3,settings.gap);
-      if(x>=box.left-pad && x<=box.left+box.w+pad &&
-         y>=box.top-pad && y<=box.top+box.h+pad) {
+      if(x>=box.left && x<=box.left+box.w &&
+         y>=box.top && y<=box.top+box.h) {
         if(focused.tiles.length===1) {
           const card=focused.tiles[0],moving=active.tile;
           const sameNumber=moving.num===card.num&&moving.col!==card.col;
@@ -857,37 +907,41 @@ function getHover(clientX,clientY) {
             : (d>=0?1:0);
           return {id:focused.id,index,axis:chosenAxis};
         }
-        const step=groupStep(focused.id);
-        const along=axis==='h'?x-box.x:y-box.y;
-        const index=clamp(Math.round(along/step+focused.tiles.length/2),
-                          0,focused.tiles.length);
+        const pinned=active.hoverOriginId===focused.id;
+        const offset=pinned
+          ?(axis==='h'?x-active.hoverOriginX:y-active.hoverOriginY)
+          :(axis==='h'?x-box.x:y-box.y);
+        const index=pinned
+          ?clamp(active.hoverOriginIndex+Math.round(offset/box.step),
+                 0,focused.tiles.length)
+          :clamp(Math.round(offset/box.step+focused.tiles.length/2),
+                 0,focused.tiles.length);
         return {id:focused.id,index,axis:hover.axis};
       }
     }
   }
-  let best=null,bestDist=1e9;
+
+  let best=null,bestDist=Infinity;
   for(const g of groups) {
     if(!g.tiles.length)continue;
-    const box=geometry(g,false);
-    // A one-tile group can grow in either direction. Choose its axis from
-    // the tiles' relationship, otherwise from the approach direction.
+    const box=compactBox(g);
+    const margin=magnetMargin();
     if(g.tiles.length===1){
       const dx=x-box.x,dy=y-box.y;
-      const reach=actualTile*settings.magnet/100;
       const near=Math.hypot(dx,dy);
-      if(near>actualTile*1.27+reach*.55)continue;
+      const limit=isBig()?actualTile*.46+margin:
+        actualTile*1.27+actualTile*settings.magnet/100*.55;
+      if(near>limit)continue;
       const other=g.tiles[0], moving=active?.tile;
       const sameRank=moving&&moving.num===other.num&&moving.col!==other.col;
       const sameColour=moving&&moving.col===other.col;
       const axis=sameRank?'v':sameColour?'h':Math.abs(dx)>=Math.abs(dy)?'h':'v';
       const along=axis==='h'?dx:dy;
-      const highAcePair=sameColour &&
-        ((moving.num===1&&other.num===13) ||
-         (moving.num===13&&other.num===1));
+      const highAcePair=sameColour&&
+        ((moving.num===1&&other.num===13)||(moving.num===13&&other.num===1));
       const index=sameColour&&moving.num!==other.num
         ? (highAcePair?(moving.num===1?1:0):(moving.num<other.num?0:1))
         : (along>=0?1:0);
-      // Hover over anything. A structural mismatch is only rejected on drop.
       const score=near*.40-(hover?.id===g.id?actualTile*.035:0);
       if(score<bestDist){
         best={id:g.id,index,axis};
@@ -897,29 +951,43 @@ function getHover(clientX,clientY) {
     }
     const along=g.axis==='h'?x-box.x:y-box.y;
     const across=g.axis==='h'?y-box.y:x-box.x;
-    // Connect a tile when it approaches the end of a group, even if invalid.
-    const reach=actualTile*settings.magnet/100;
-    // Index insertions against the *expanded* spacing even before the
-    // compact group opens. This keeps its intended slot stable on approach.
-    const snapStep=isBig()?actualTile*1.16+settings.gap*1.25:box.step;
-    const end=(g.tiles.length-1)*snapStep/2;
-    const maxAlong=end+snapStep+reach;
-    const maxAcross=actualTile*.70+reach*.35;
-    if(Math.abs(along)>maxAlong||Math.abs(across)>maxAcross)continue;
-    const overshoot=Math.max(0,Math.abs(along)-end-snapStep);
-    const normalGap=Math.max(0,Math.abs(across)-actualTile/2);
-    const index=clamp(Math.round(along/snapStep+g.tiles.length/2),0,g.tiles.length);
-    const dist=normalGap*1.5+overshoot*1.2+
-               Math.abs(across)*.18+Math.max(0,Math.abs(along)-end)*.08-
-               (hover?.id===g.id?actualTile*.035:0);
-    if(dist<bestDist) {
-      best={id:g.id,index};bestDist=dist;
+    let step,end,dist,index;
+    if(isBig()){
+      // Compact cards overlap heavily. Require the finger to approach
+      // their real stack (or just past its end) to open it.
+      const headroom=actualTile*.22+margin;
+      const crossPad=margin;
+      const xReach=g.axis==='h'?headroom:crossPad;
+      const yReach=g.axis==='v'?headroom:crossPad;
+      if(x<box.left-xReach||x>box.left+box.w+xReach||
+         y<box.top-yReach||y>box.top+box.h+yReach)continue;
+      step=box.step;
+      end=(g.tiles.length-1)*step/2;
+      const outsideX=Math.max(box.left-x,0,x-(box.left+box.w));
+      const outsideY=Math.max(box.top-y,0,y-(box.top+box.h));
+      dist=(outsideX**2+outsideY**2)*.9 + Math.abs(across)*.1;
+      index=clamp(Math.round(along/step+g.tiles.length/2),0,g.tiles.length);
+    } else {
+      const reach=actualTile*settings.magnet/100;
+      step=box.step;
+      end=(g.tiles.length-1)*step/2;
+      const maxAlong=end+step+reach;
+      const maxAcross=actualTile*.70+reach*.35;
+      if(Math.abs(along)>maxAlong||Math.abs(across)>maxAcross)continue;
+      const overshoot=Math.max(0,Math.abs(along)-end-step);
+      const normalGap=Math.max(0,Math.abs(across)-actualTile/2);
+      dist=normalGap*1.5+overshoot*1.2+
+             Math.abs(across)*.18+Math.max(0,Math.abs(along)-end)*.08;
+      index=clamp(Math.round(along/step+g.tiles.length/2),0,g.tiles.length);
     }
+    dist-=hover?.id===g.id?actualTile*.035:0;
+    if(dist<bestDist){best={id:g.id,index};bestDist=dist;}
   }
   return best;
 }
 function pointerDown(e,t) {
   if(won||active||$('lab').classList.contains('show')||e.button>0)return;
+  resetHoverIntent();
   e.preventDefault();
   dismissOpeningHint();
   const owner=groups.find(g=>g.tiles.includes(t));
@@ -981,9 +1049,10 @@ function moveDrag(e) {
   x=clamp(x,b.left+actualTile/2,b.right-actualTile/2);
   y=clamp(y,b.top+actualTile/2,b.bottom-actualTile/2);
   posStyle(a.tile.el,x-actualTile/2,y-actualTile/2,1.035);
+  a.lastX=x;a.lastY=y;
   const next=getHover(x,y);
-  // No preventive snap locks: every nearby group opens and previews.
-  hover=next;
+  // Candidate doesn't become a raised target until the finger lingers there.
+  updateDragHover(next);
   // Preview only the target group while dragging. Do not physically push
   // neighbouring groups around; legality is decided only on release.
   clearLivePreview();
@@ -992,12 +1061,15 @@ function moveDrag(e) {
 }
 function cancelDrag() {
   if(!active)return;
+  resetHoverIntent();
   clearLivePreview();
   const s=active.before;
   active.tile.el.classList.remove('dragging');
   active.tile.el.style.boxShadow='';
   active=null;hover=null;
   restore(s);
+  // Even an abandoned or rejected drop releases the raised-card focus.
+  if(isBig()){selectedId=null;layout();}
 }
 function pointerUp(e) {
   if(!active||e.pointerId!==active.pointerId)return;
@@ -1037,7 +1109,10 @@ function pointerUp(e) {
   t.el.style.boxShadow='';
   clearLivePreview();
   active=null;hover=null;
-  if(isBig())selectedId=g.id;
+  // Position-only drops are free AND release the edit focus. In particular,
+  // a relocated solo card should never retain the raised 1.16x scale.
+  resetHoverIntent();
+  if(isBig())selectedId=null;
   if(!reflowGroups(g.id)) {
     restore(a.before);
     return;
