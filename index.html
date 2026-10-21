@@ -115,7 +115,9 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 .lab-foot {display:flex;gap:8px;margin-top:14px;}
 .lab-foot button {border-radius:9px;padding:9px 10px;background:#2f5759;font-size:12px;font-weight:700;flex:1;}
 #rotate {position:fixed;inset:0;background:#102a2d;z-index:200;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;text-align:center;padding:24px;}
-#rotate .rot-icon {font-size:51px;color:#f6d591;}
+#rotate .rot-icon {font-size:51px;color:#f6d591;background:none;border:0;border-radius:18px;cursor:pointer;width:76px;height:76px;display:grid;place-items:center;line-height:1;touch-action:manipulation;}
+#rotate .rot-icon:active {background:#ffffff13;transform:scale(.94);}
+#rotate .rot-icon:focus-visible {outline:2px solid #f6d591;outline-offset:3px;}
 #rotate strong {font-size:22px;}
 #rotate p {color:#abc9c1;max-width:300px;line-height:1.5;margin:0;}
 @media(orientation:portrait) {#rotate {display:flex;}}
@@ -219,12 +221,13 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
   <div class="lab-foot"><button id="resetLab">Restore defaults</button><button id="closeLab2">Done</button></div>
 </div>
 <div id="rotate">
-  <div class="rot-icon">↻</div><strong>Rotate your phone</strong><p>Remixa feels best in landscape, where there's room to play.</p>
+  <button type="button" class="rot-icon" id="portraitReload" aria-label="Reload Remixa" title="Reload Remixa">↻</button><strong>Rotate your phone</strong><p>Remixa feels best in landscape, where there's room to play.</p>
 </div>
 <script>
 'use strict';
 // Remixa DOM prototype: pure browser layout and Pointer Events, no external assets.
 const $ = id => document.getElementById(id);
+$('portraitReload').addEventListener('click',()=>window.location.reload());
 const COLORS=['#28303c','#bb3949','#28303c','#bb3949'];
 const SUITS=[
   {symbol:'♠',kind:'black',name:'spades'},
