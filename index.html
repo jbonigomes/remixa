@@ -30,8 +30,12 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 #board {position:relative;flex:1;width:100%;min-height:0;min-width:0;overflow:hidden;border-radius:17px;height:100%;background:linear-gradient(145deg,#254b4b,#1d3f42 90%);border:1px solid #456766;isolation:isolate;}
 
 #board::before {content:"";pointer-events:none;position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 59px,#ffffff04 60px 61px);opacity:.45;}
-#groupLayer,#tileLayer {position:absolute;inset:0;pointer-events:none;}
+#groupLayer,#tileLayer,#raisedLayer {position:absolute;inset:0;pointer-events:none;}
 #groupLayer {z-index:1;} #tileLayer {z-index:2;}
+/* One focused meld, background AND cards, rises above every other meld. */
+#raisedLayer {z-index:6;isolation:isolate;}
+#raisedLayer .group {z-index:1;}
+#raisedLayer .tile {pointer-events:auto;}
 .header-small-btn {height:35px;min-width:54px;padding:0 9px;background:#24474a;border-radius:11px;border:1px solid #4a6966;color:#e7eee8;font-size:11px;font-weight:750;letter-spacing:.045em;}
 .header-small-btn:active {background:#3b696b;} .header-small-btn:disabled {opacity:.33;}
 .small-btn {height:36px;min-width:0;flex:1;background:#294b50;border-radius:10px;border:1px solid #49696b;color:#e9f0e9;font-size:12px;font-weight:750;letter-spacing:.05em;}
@@ -144,7 +148,15 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 .win-score {display:flex;flex-direction:column;gap:4px;align-items:center;}
 .win-score strong {font-size:27px;color:#ffe1a3;font-variant-numeric:tabular-nums;}
 .win-score span {font-size:10px;letter-spacing:.12em;color:#aaccc0;}
-.group.open {filter:brightness(1.06);}
+/* The selected/hovered meld floats clearly above the tabletop. */
+.group.open {
+  filter:brightness(1.07);
+  box-shadow:0 17px 38px #071719a8,0 5px 15px #07171976,
+             0 0 0 1px #ffffff30;
+}
+#raisedLayer .tile.opened {
+  box-shadow:0 7px 16px #07171966, inset 0 1px 0 #ffffffd0;
+}
 .group.compact .slot {opacity:0;}
 #board.big .tile {border-color:#d5cfc4;}
 #board.big .tile.opened {filter:brightness(1.035);}
@@ -180,6 +192,7 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
     <section id="board" aria-label="Puzzle board">
       <div id="groupLayer"></div>
       <div id="tileLayer"></div>
+      <div id="raisedLayer" aria-label="Selected meld"></div>
       <div id="lessonCue" aria-live="polite">Make everything green.</div>
       <div id="bigHint">TAP A GROUP TO OPEN IT <span>·</span> DRAG A TILE TO REMIX</div>
     </section>
@@ -328,7 +341,7 @@ const LEVELS=[
 const defaults={tile:58,corner:9,gap:4,spring:180,magnet:55};
 let settings={...defaults};
 try {const saved=JSON.parse(localStorage.getItem('remixaLab')||'null'); if(saved) settings={...settings,...saved};}catch(_){}
-const board=$('board'), groupsLayer=$('groupLayer'), tilesLayer=$('tileLayer'), dragLayer=$('dragLayer');
+const board=$('board'), groupsLayer=$('groupLayer'), tilesLayer=$('tileLayer'), raisedLayer=$('raisedLayer'), dragLayer=$('dragLayer');
 let tiles=[],groups=[],active=null,hover=null,history=[],level=0,won=false,nextID=1,nextGroup=1;
 let moves=0,selectedId=null;
 let actualTile=58,boardW=1,boardH=1,adaptiveTileCap=Infinity;
@@ -337,7 +350,10 @@ let projected=null,previewFrame=0,previewPoint=null;
 const isBig=()=>level===11;
 const openedId=()=>isBig()?(active?(hover?.id??null):selectedId):null;
 const isOpen=id=>!isBig()||openedId()===id;
-const groupStep=id=>isOpen(id)?actualTile+settings.gap:actualTile*.56;
+const raisedCardScale=id=>isBig()&&isOpen(id)?1.16:1;
+const groupStep=id=>isOpen(id)
+  ? actualTile*raisedCardScale(id)+settings.gap*1.25
+  : actualTile*.56;
 function bestKey(){return 'remixa_best_v1_'+String(level+1);}
 function readBest(){
   try{const n=Number(localStorage.getItem(bestKey()));return n>0?Math.floor(n):null;}catch(_){return null;}
@@ -553,8 +569,9 @@ function measure() {
 function geometry(g,extra=false,axisOverride=null) {
   const axis=axisOverride||g.axis;
   const n=g.tiles.length+(extra?1:0), gap=settings.gap,step=groupStep(g.id);
-  const w=(axis==='h'?(n-1)*step+actualTile:actualTile)+gap*2;
-  const h=(axis==='v'?(n-1)*step+actualTile:actualTile)+gap*2;
+  const cardSize=actualTile*raisedCardScale(g.id);
+  const w=(axis==='h'?(n-1)*step+cardSize:cardSize)+gap*2;
+  const h=(axis==='v'?(n-1)*step+cardSize:cardSize)+gap*2;
   const x=clamp(g.u*boardW,w/2+3,boardW-w/2-3);
   const y=clamp(g.v*boardH,h/2+3,boardH-h/2-3);
   return {n,step,w,h,x,y,left:x-w/2,top:y-h/2};
@@ -666,8 +683,9 @@ function spaceItems(extraFor=null,extraAxis=null) {
   return groups.filter(g=>g.tiles.length).map(g=>{
     const axis=g.id===extraFor&&extraAxis?extraAxis:g.axis;
     const n=g.tiles.length+(g.id===extraFor?1:0),step=groupStep(g.id);
-    const w=(axis==='h'?(n-1)*step+actualTile:actualTile)+settings.gap*2;
-    const h=(axis==='v'?(n-1)*step+actualTile:actualTile)+settings.gap*2;
+    const cardSize=actualTile*raisedCardScale(g.id);
+    const w=(axis==='h'?(n-1)*step+cardSize:cardSize)+settings.gap*2;
+    const h=(axis==='v'?(n-1)*step+cardSize:cardSize)+settings.gap*2;
     return {id:g.id,g,w,h,x:g.u*boardW,y:g.v*boardH};
   });
 }
@@ -740,7 +758,13 @@ function layout(initial=false,skipMeasure=false) {
   for(let i=0;i<groups.length;i++) {
     const g=groups[i];
     if(!g.tiles.length){g.el.remove();continue;}
-    if(!g.el.isConnected)groupsLayer.appendChild(g.el);
+    // A group can be visually raised without changing its puzzle coordinates.
+    // Reparenting BOTH the panel and its cards prevents inconsistent stacking.
+    const elevated=isBig()&&isOpen(g.id);
+    const targetGroupLayer=elevated?raisedLayer:groupsLayer;
+    const targetTileLayer=elevated?raisedLayer:tilesLayer;
+    if(g.el.parentNode!==targetGroupLayer)targetGroupLayer.appendChild(g.el);
+    g.el.style.zIndex=elevated?'1':'';
     const pv=hover?.id===g.id?hover:null;
     const geom=geometry(g,!!pv,pv?.axis);
     // Render projected positions only, never alter the actual puzzle state.
@@ -769,21 +793,26 @@ function layout(initial=false,skipMeasure=false) {
     const renderAxis=pv?.axis||g.axis;
     g.tiles.forEach((t,j)=>{
       used.add(t.id);
-      t.el.style.zIndex=String(10+i*40+j);
-      t.el.classList.toggle('opened',isBig()&&isOpen(g.id));
+      t.el.style.zIndex=String(elevated?10+j:10+i*40+j);
+      t.el.classList.toggle('opened',elevated);
       if(t===active?.tile)return;
-      if(t.el.parentNode!==tilesLayer)tilesLayer.appendChild(t.el);
+      if(t.el.parentNode!==targetTileLayer)targetTileLayer.appendChild(t.el);
       const slot=j+((pv&&j>=pv.index)?1:0);
       const x=geom.x+(renderAxis==='h'?(slot-(geom.n-1)/2)*geom.step:0)-actualTile/2;
       const y=geom.y+(renderAxis==='v'?(slot-(geom.n-1)/2)*geom.step:0)-actualTile/2;
       // Scale in the element's transform after translation; the independent
       // CSS `scale` property was also scaling screen-space coordinates.
-      posStyle(t.el,x,y,isBig()&&isOpen(g.id)?1.025:1);
+      posStyle(t.el,x,y,raisedCardScale(g.id));
     });
     if(pv) {
+      // The insertion slot grows with the cards, too.
+      g.slot.style.width=`${actualTile*raisedCardScale(g.id)}px`;
+      g.slot.style.height=`${actualTile*raisedCardScale(g.id)}px`;
       const ix=geom.x+(renderAxis==='h'?(pv.index-(geom.n-1)/2)*geom.step:0)-actualTile/2;
       const iy=geom.y+(renderAxis==='v'?(pv.index-(geom.n-1)/2)*geom.step:0)-actualTile/2;
-      posStyle(g.slot,ix-geom.left-settings.gap,iy-geom.top-settings.gap);
+      const cardMargin=(actualTile*raisedCardScale(g.id)-actualTile)/2;
+      posStyle(g.slot,ix-geom.left-settings.gap-cardMargin,
+                      iy-geom.top-settings.gap-cardMargin);
     }
   }
   $('undo').disabled=!history.length;
@@ -800,6 +829,39 @@ function getHover(clientX,clientY) {
   const br=board.getBoundingClientRect();
   const x=clientX-br.left,y=clientY-br.top;
   if(x<0||x>boardW||y<0||y>boardH)return null;
+
+  // When two melds visually overlap, the raised one owns the front-most
+  // hit area. Keep its insertion target stable while the finger is over it.
+  // This mirrors the drawing order instead of selecting a meld underneath.
+  if(isBig() && active && hover) {
+    const focused=groups.find(g=>g.id===hover.id);
+    if(focused?.tiles.length) {
+      const axis=hover.axis||focused.axis;
+      const box=geometry(focused,false,axis);
+      const pad=Math.max(3,settings.gap);
+      if(x>=box.left-pad && x<=box.left+box.w+pad &&
+         y>=box.top-pad && y<=box.top+box.h+pad) {
+        if(focused.tiles.length===1) {
+          const card=focused.tiles[0],moving=active.tile;
+          const sameNumber=moving.num===card.num&&moving.col!==card.col;
+          const sameSuit=moving.col===card.col;
+          const chosenAxis=sameNumber?'v':sameSuit?'h':axis;
+          const d=chosenAxis==='h'?x-box.x:y-box.y;
+          const highAce=sameSuit&&
+            ((moving.num===1&&card.num===13)||(moving.num===13&&card.num===1));
+          const index=sameSuit&&moving.num!==card.num
+            ? (highAce?(moving.num===1?1:0):(moving.num<card.num?0:1))
+            : (d>=0?1:0);
+          return {id:focused.id,index,axis:chosenAxis};
+        }
+        const step=groupStep(focused.id);
+        const along=axis==='h'?x-box.x:y-box.y;
+        const index=clamp(Math.round(along/step+focused.tiles.length/2),
+                          0,focused.tiles.length);
+        return {id:focused.id,index,axis:hover.axis};
+      }
+    }
+  }
   let best=null,bestDist=1e9;
   for(const g of groups) {
     if(!g.tiles.length)continue;
@@ -836,7 +898,7 @@ function getHover(clientX,clientY) {
     const reach=actualTile*settings.magnet/100;
     // Index insertions against the *expanded* spacing even before the
     // compact group opens. This keeps its intended slot stable on approach.
-    const snapStep=isBig()?actualTile+settings.gap:box.step;
+    const snapStep=isBig()?actualTile*1.16+settings.gap*1.25:box.step;
     const end=(g.tiles.length-1)*snapStep/2;
     const maxAlong=end+snapStep+reach;
     const maxAcross=actualTile*.70+reach*.35;
