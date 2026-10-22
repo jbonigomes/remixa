@@ -643,17 +643,22 @@ function geometry(g,extra=false,axisOverride=null) {
   if(dock) {
     const index=clamp(hover.index,0,n-1);
     const m=n-1;
-    const baseX=g.u*boardW,baseY=g.v*boardH;
+    // Fix the meld's footprint to its table anchor. Only the cards inside
+    // this stable frame move in response to the incoming card.
+    const panelExtent=(n-1)*(actualTile*1.16+gap*1.1)+actualTile*1.16;
+    const frameW=(axis==='h'?panelExtent:actualTile*1.16)+gap*2;
+    const frameH=(axis==='v'?panelExtent:actualTile*1.16)+gap*2;
+    const baseX=clamp(g.u*boardW,frameW/2+3,boardW-frameW/2-3);
+    const baseY=clamp(g.v*boardH,frameH/2+3,boardH-frameH/2-3);
     const br=board.getBoundingClientRect();
     const pointerAlong=axis==='h'?active.lastX-br.left:active.lastY-br.top;
-    const baseAlong=axis==='h'?baseX:baseY;
-    const compactHalf=(m-1)*actualTile*.56/2;
-    const follow=clamp(pointerAlong-baseAlong,
-                       -compactHalf-actualTile*1.45,
-                        compactHalf+actualTile*1.45);
+    const frameAlong=axis==='h'?baseX:baseY;
 
     const raw=new Array(n),scales=new Array(n);
-    raw[index]=follow;
+    // Calculate positions relative to a temporary zero-centred insertion gap.
+    // After checking the extreme card edges, shift just the card positions
+    // so they stay inside the anchored frame.
+    raw[index]=0;
     scales[index]=1.10; // The translucent landing card.
     const spacing=d=>actualTile*(d===0?.98:
       .56+.27*Math.exp(-Math.pow((d-1)/1.15,2)));
@@ -663,28 +668,31 @@ function geometry(g,extra=false,axisOverride=null) {
     for(let j=index-1;j>=0;j--){
       const depth=index-1-j;
       travel+=spacing(depth);
-      raw[j]=follow-travel;
+      raw[j]=-travel;
       scales[j]=scale(depth);
     }
     travel=0;
     for(let j=index+1;j<n;j++){
       const depth=j-index-1;
       travel+=spacing(depth);
-      raw[j]=follow+travel;
+      raw[j]=travel;
       scales[j]=scale(depth);
     }
 
     const firstEdge=raw[0]-actualTile*scales[0]/2;
     const lastEdge=raw[n-1]+actualTile*scales[n-1]/2;
-    const middle=(firstEdge+lastEdge)/2;
-    const offsets=raw.map(p=>p-middle);
-    const extent=lastEdge-firstEdge;
-    const w=(axis==='h'?extent:actualTile*Math.max(...scales))+gap*2;
-    const h=(axis==='v'?extent:actualTile*Math.max(...scales))+gap*2;
-    const x=clamp(baseX+(axis==='h'?middle:0),w/2+3,boardW-w/2-3);
-    const y=clamp(baseY+(axis==='v'?middle:0),h/2+3,boardH-h/2-3);
-    return {n,axis,step:actualTile*.56,centers:offsets,scales,
-            dock:true,focus:index,w,h,x,y,left:x-w/2,top:y-h/2};
+    const frameHalf=panelExtent/2;
+    const low=-frameHalf-firstEdge;
+    const high=frameHalf-lastEdge;
+    // The ghost follows the pointer until it reaches the internal bounds.
+    // Critically, this does NOT translate the group panel or its table centre.
+    const follow=clamp(pointerAlong-frameAlong,
+                       Math.min(low,high),Math.max(low,high));
+    const centers=raw.map(p=>p+follow);
+    return {n,axis,step:actualTile*.56,centers,scales,
+            dock:true,focus:index,w:frameW,h:frameH,
+            x:baseX,y:baseY,
+            left:baseX-frameW/2,top:baseY-frameH/2};
   }
 
   // Compact positions, and fully opened groups when no card is being dragged.
