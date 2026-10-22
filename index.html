@@ -633,23 +633,69 @@ function measure() {
 // distant cards retain their space-saving overlaps.
 function geometry(g,extra=false,axisOverride=null) {
   const axis=axisOverride||g.axis;
-  const n=g.tiles.length+(extra?1:0);
-  const gap=settings.gap;
+  const n=g.tiles.length+(extra?1:0),gap=settings.gap;
   const open=isBig()&&isOpen(g.id);
-  const dock=open && !!extra && hover?.id===g.id && n>1;
-  const focus=dock?clamp(hover.index,0,n-1):Math.floor(n/2);
+  const dock=open && !!extra && hover?.id===g.id && n>1 && active;
+
+  // The insertion space is not a fixed slot: it follows the card being held.
+  // Adjacent cards gently repel it to make room, while their own neighbours
+  // are drawn inward toward the familiar compact overlap.
+  if(dock) {
+    const index=clamp(hover.index,0,n-1);
+    const m=n-1;
+    const baseX=g.u*boardW,baseY=g.v*boardH;
+    const br=board.getBoundingClientRect();
+    const pointerAlong=axis==='h'?active.lastX-br.left:active.lastY-br.top;
+    const baseAlong=axis==='h'?baseX:baseY;
+    const compactHalf=(m-1)*actualTile*.56/2;
+    const follow=clamp(pointerAlong-baseAlong,
+                       -compactHalf-actualTile*1.45,
+                        compactHalf+actualTile*1.45);
+
+    const raw=new Array(n),scales=new Array(n);
+    raw[index]=follow;
+    scales[index]=1.10; // The translucent landing card.
+    const spacing=d=>actualTile*(d===0?.98:
+      .56+.27*Math.exp(-Math.pow((d-1)/1.15,2)));
+    const scale=d=>1+.16*Math.exp(-Math.pow(d/1.35,2));
+
+    let travel=0;
+    for(let j=index-1;j>=0;j--){
+      const depth=index-1-j;
+      travel+=spacing(depth);
+      raw[j]=follow-travel;
+      scales[j]=scale(depth);
+    }
+    travel=0;
+    for(let j=index+1;j<n;j++){
+      const depth=j-index-1;
+      travel+=spacing(depth);
+      raw[j]=follow+travel;
+      scales[j]=scale(depth);
+    }
+
+    const firstEdge=raw[0]-actualTile*scales[0]/2;
+    const lastEdge=raw[n-1]+actualTile*scales[n-1]/2;
+    const middle=(firstEdge+lastEdge)/2;
+    const offsets=raw.map(p=>p-middle);
+    const extent=lastEdge-firstEdge;
+    const w=(axis==='h'?extent:actualTile*Math.max(...scales))+gap*2;
+    const h=(axis==='v'?extent:actualTile*Math.max(...scales))+gap*2;
+    const x=clamp(baseX+(axis==='h'?middle:0),w/2+3,boardW-w/2-3);
+    const y=clamp(baseY+(axis==='v'?middle:0),h/2+3,boardH-h/2-3);
+    return {n,axis,step:actualTile*.56,centers:offsets,scales,
+            dock:true,focus:index,w,h,x,y,left:x-w/2,top:y-h/2};
+  }
+
+  // Compact positions, and fully opened groups when no card is being dragged.
   const weights=[],scales=[],centers=[0];
   for(let i=0;i<n;i++){
-    // The two cards bordering the insertion are full-sized; farther cards
-    // gradually fall back to the original size.
-    const distance=Math.max(0,Math.abs(i-focus)-1);
-    const weight=dock?Math.exp(-Math.pow(distance/1.22,2)):open?1:0;
+    const weight=open?1:0;
     weights.push(weight);
-    scales.push(open?1+.16*weight:1);
+    scales.push(open?1.16:1);
     if(i){
-      const influence=dock?Math.max(weights[i-1],weight):open?1:0;
       const step=isBig()
-        ? actualTile*(.56+.60*influence)+gap*1.1*influence
+        ? actualTile*(open?1.16:.56)+(open?gap*1.1:0)
         : actualTile+gap;
       centers.push(centers[i-1]+step);
     }
@@ -664,7 +710,7 @@ function geometry(g,extra=false,axisOverride=null) {
   const x=clamp(g.u*boardW,w/2+3,boardW-w/2-3);
   const y=clamp(g.v*boardH,h/2+3,boardH-h/2-3);
   return {n,axis,step:n>1?(centers[n-1]-centers[0])/(n-1):actualTile+gap,
-          centers:offsets,scales,dock,focus,
+          centers:offsets,scales,dock:false,focus:Math.floor(n/2),
           w,h,x,y,left:x-w/2,top:y-h/2};
 }
 
@@ -961,16 +1007,25 @@ function getHover(clientX,clientY) {
   const x=clientX-br.left,y=clientY-br.top;
   if(x<0||x>boardW||y<0||y>boardH)return null;
 
-  // Once genuinely opened, the front-most meld owns its *visible* footprint.
-  // The pointer must stay on the card area; it cannot magnetise empty space.
+  // When a meld is raised it owns only its original card neighbourhood,
+  // not an ever-growing invisible catch area. Its landing space follows the
+  // hovering card continuously while the insertion order changes deliberately.
   if(isBig() && active && hover) {
     const focused=groups.find(g=>g.id===hover.id);
     if(focused?.tiles.length) {
       const axis=hover.axis||focused.axis;
-      const box=geometry(focused,true,axis);
-      if(x>=box.left && x<=box.left+box.w &&
-         y>=box.top && y<=box.top+box.h) {
-        if(focused.tiles.length===1) {
+      const box=compactBox(focused);
+      const along=axis==='h'?x-box.x:y-box.y;
+      const across=axis==='h'?y-box.y:x-box.x;
+      const length=(focused.tiles.length-1)*actualTile*.56/2;
+      const visible=geometry(focused,true,axis);
+      // An opened meld remains interactive all the way out to its visible
+      // outer cards, but never claims empty table space beyond that outline.
+      const onMeld=x>=visible.left && x<=visible.left+visible.w &&
+                   y>=visible.top && y<=visible.top+visible.h;
+      if(onMeld && Math.abs(along)<=length+actualTile*1.55 &&
+         Math.abs(across)<=actualTile*.66+magnetMargin()){
+        if(focused.tiles.length===1){
           const card=focused.tiles[0],moving=active.tile;
           const sameNumber=moving.num===card.num&&moving.col!==card.col;
           const sameSuit=moving.col===card.col;
@@ -983,24 +1038,20 @@ function getHover(clientX,clientY) {
             : (d>=0?1:0);
           return {id:focused.id,index,axis:chosenAxis};
         }
-        // The dock has non-uniform spacing; derive the insert position from
-        // the ACTUAL visible card centres rather than the original hover
-        // coordinate. That keeps the gap between the neighbours under the
-        // finger, even as the cards grow and fan out.
-        const along=axis==='h'?x:y;
-        const middle=axis==='h'?box.x:box.y;
-        const centres=focused.tiles.map((_,j)=>{
-          const slot=j+(j>=hover.index?1:0);
-          return middle+box.centers[slot];
-        });
-        let index=centres.filter(c=>along>c).length;
-        // Resist tiny back-and-forth shifts around the active boundary.
-        const tolerance=actualTile*.08;
-        if(index>hover.index &&
-           along<centres[hover.index]+tolerance)
+
+        // Starting with the slot that opened the meld, advance only when the
+        // finger travels along it. This avoids a feedback loop where the
+        // moving cards cause the target to jump underneath a stationary finger.
+        const pitch=actualTile*.83;
+        const origin=axis==='h'?active.hoverOriginX:active.hoverOriginY;
+        const pos=axis==='h'?clientX:clientY;
+        const delta=(pos-origin)/pitch;
+        let index=clamp(active.hoverOriginIndex+Math.round(delta),
+                        0,focused.tiles.length);
+        const tolerance=.17;
+        if(index>hover.index && delta<index-active.hoverOriginIndex-.5+tolerance)
           index=hover.index;
-        if(index<hover.index &&
-           along>centres[hover.index-1]-tolerance)
+        else if(index<hover.index && delta>index-active.hoverOriginIndex+.5-tolerance)
           index=hover.index;
         return {id:focused.id,index,axis:hover.axis};
       }
@@ -1172,6 +1223,7 @@ function pointerUp(e) {
   // Big Table: a meld can receive a drop ONLY after it has opened.
   // Never perform a fresh magnet search that could capture an unopened
   // neighbouring meld underneath the raised one.
+  a.lastX=x;a.lastY=y;
   const candidate=getHover(x,y);
   const target=isBig()
     ? (hover && candidate?.id===hover.id && isOpen(hover.id)
