@@ -654,41 +654,51 @@ function geometry(g,extra=false,axisOverride=null) {
     const pointerAlong=axis==='h'?active.lastX-br.left:active.lastY-br.top;
     const frameAlong=axis==='h'?baseX:baseY;
 
-    const raw=new Array(n),scales=new Array(n);
-    // Calculate positions relative to a temporary zero-centred insertion gap.
-    // After checking the extreme card edges, shift just the card positions
-    // so they stay inside the anchored frame.
-    raw[index]=0;
-    scales[index]=1.10; // The translucent landing card.
-    const spacing=d=>actualTile*(d===0?.98:
-      .56+.27*Math.exp(-Math.pow((d-1)/1.15,2)));
-    const scale=d=>1+.16*Math.exp(-Math.pow(d/1.35,2));
-
-    let travel=0;
-    for(let j=index-1;j>=0;j--){
-      const depth=index-1-j;
-      travel+=spacing(depth);
-      raw[j]=-travel;
-      scales[j]=scale(depth);
-    }
-    travel=0;
-    for(let j=index+1;j<n;j++){
-      const depth=j-index-1;
-      travel+=spacing(depth);
-      raw[j]=travel;
-      scales[j]=scale(depth);
-    }
-
-    const firstEdge=raw[0]-actualTile*scales[0]/2;
-    const lastEdge=raw[n-1]+actualTile*scales[n-1]/2;
+    // Every existing card has a fixed resting anchor in the table's frame.
+    // Only neighbours of the incoming card yield to make landing room;
+    // we never add a shared translation to the whole inner row.
+    const anchors=Array.from({length:m},(_,i)=>
+      (i-(m-1)/2)*actualTile*1.08);
+    const centers=new Array(n),scales=new Array(n);
+    const nearGap=actualTile*.96;
+    const shoulder=d=>actualTile*(.42+.07*Math.exp(-d*d/1.9));
+    const clearanceFor=count=>{
+      if(!count)return actualTile*.55;
+      let needed=nearGap+actualTile*.59;
+      for(let d=1;d<count;d++)needed+=shoulder(d-1);
+      return needed;
+    };
     const frameHalf=panelExtent/2;
-    const low=-frameHalf-firstEdge;
-    const high=frameHalf-lastEdge;
-    // The ghost follows the pointer until it reaches the internal bounds.
-    // Critically, this does NOT translate the group panel or its table centre.
+    const low=-frameHalf+clearanceFor(index);
+    const high=frameHalf-clearanceFor(m-index);
     const follow=clamp(pointerAlong-frameAlong,
                        Math.min(low,high),Math.max(low,high));
-    const centers=raw.map(p=>p+follow);
+    centers[index]=follow;
+    scales[index]=1.10; // The translucent landing card.
+
+    // Repulsion is strongest immediately beside the arriving card. Each
+    // more distant card moves only if the next one would otherwise crowd it;
+    // its original anchor always remains the preferred resting position.
+    let leftLimit=follow-nearGap;
+    for(let i=index-1;i>=0;i--){
+      const originalIndex=i;
+      centers[i]=Math.min(anchors[originalIndex],leftLimit);
+      leftLimit=centers[i]-shoulder(index-1-i);
+    }
+    let rightLimit=follow+nearGap;
+    for(let i=index+1;i<n;i++){
+      const originalIndex=i-1;
+      centers[i]=Math.max(anchors[originalIndex],rightLimit);
+      rightLimit=centers[i]+shoulder(i-index-1);
+    }
+    // Scale based on *actual distance to the arriving card*, so two
+    // equidistant neighbours always have the same apparent size.
+    for(let i=0;i<n;i++){
+      if(i===index)continue;
+      const distance=Math.abs(centers[i]-follow)/actualTile;
+      const beyond=Math.max(0,distance-.96);
+      scales[i]=1+.16*Math.exp(-Math.pow(beyond/1.2,2));
+    }
     return {n,axis,step:actualTile*.56,centers,scales,
             dock:true,focus:index,w:frameW,h:frameH,
             x:baseX,y:baseY,
