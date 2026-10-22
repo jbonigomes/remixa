@@ -983,16 +983,25 @@ function getHover(clientX,clientY) {
             : (d>=0?1:0);
           return {id:focused.id,index,axis:chosenAxis};
         }
-        const pinned=active.hoverOriginId===focused.id;
-        const offset=pinned
-          ?(axis==='h'?x-active.hoverOriginX:y-active.hoverOriginY)
-          :(axis==='h'?x-box.x:y-box.y);
-        const index=pinned
-          ?clamp(active.hoverOriginIndex+
-                 Math.round(offset/Math.max(actualTile*.82,box.step*.82)),
-                 0,focused.tiles.length)
-          :clamp(Math.round(offset/box.step+focused.tiles.length/2),
-                 0,focused.tiles.length);
+        // The dock has non-uniform spacing; derive the insert position from
+        // the ACTUAL visible card centres rather than the original hover
+        // coordinate. That keeps the gap between the neighbours under the
+        // finger, even as the cards grow and fan out.
+        const along=axis==='h'?x:y;
+        const middle=axis==='h'?box.x:box.y;
+        const centres=focused.tiles.map((_,j)=>{
+          const slot=j+(j>=hover.index?1:0);
+          return middle+box.centers[slot];
+        });
+        let index=centres.filter(c=>along>c).length;
+        // Resist tiny back-and-forth shifts around the active boundary.
+        const tolerance=actualTile*.08;
+        if(index>hover.index &&
+           along<centres[hover.index]+tolerance)
+          index=hover.index;
+        if(index<hover.index &&
+           along>centres[hover.index-1]-tolerance)
+          index=hover.index;
         return {id:focused.id,index,axis:hover.axis};
       }
     }
