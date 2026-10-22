@@ -1083,7 +1083,25 @@ function pointerUp(e) {
   // happens to nominate. A purposeful one-slot reorder still counts.
   const homeRadius=actualTile*.54;
   if(Math.hypot(x-a.originX,y-a.originY)<=homeRadius){cancelDrag();return;}
-  const target=getHover(x,y);
+  // Big Table: a meld can receive a drop ONLY after it has opened.
+  // Never perform a fresh magnet search that could capture an unopened
+  // neighbouring meld underneath the raised one.
+  const candidate=getHover(x,y);
+  const target=isBig()
+    ? (hover && candidate?.id===hover.id && isOpen(hover.id)
+        ? candidate : null)
+    : candidate;
+  // An unraised meld is solid table space, not a place to create a solo
+  // card on top of it. Return home instead of making a surprise insertion.
+  if(isBig() && !target && groups.some(group=>{
+    const box=compactBox(group);
+    const localX=x-br.left,localY=y-br.top;
+    return localX>=box.left && localX<=box.left+box.w &&
+           localY>=box.top && localY<=box.top+box.h;
+  })){
+    cancelDrag();
+    return;
+  }
   let g=target&&groups.find(g=>g.id===target.id);
   // Only decide legality on drop; rejected joins revert without a move.
   if(g && !canJoin(g,t,target.axis||g.axis)) {
