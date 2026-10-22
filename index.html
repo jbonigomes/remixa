@@ -637,72 +637,84 @@ function geometry(g,extra=false,axisOverride=null) {
   const open=isBig()&&isOpen(g.id);
   const dock=open && !!extra && hover?.id===g.id && n>1 && active;
 
-  // The insertion space is not a fixed slot: it follows the card being held.
-  // Adjacent cards gently repel it to make room, while their own neighbours
-  // are drawn inward toward the familiar compact overlap.
+  // Resting card positions belong to the table, not to the moving pointer.
+  // An insertion changes a discrete *slot*: cards wait in their compact
+  // places until the pointer crosses one of their original centres.
+  // Then just the nearest neighbours yield; there is no moving-row offset.
   if(dock) {
-    const index=clamp(hover.index,0,n-1);
-    const m=n-1;
-    // Fix the meld's footprint to its table anchor. Only the cards inside
-    // this stable frame move in response to the incoming card.
-    const panelExtent=(n-1)*(actualTile*1.16+gap*1.1)+actualTile*1.16;
-    const frameW=(axis==='h'?panelExtent:actualTile*1.16)+gap*2;
-    const frameH=(axis==='v'?panelExtent:actualTile*1.16)+gap*2;
-    const baseX=clamp(g.u*boardW,frameW/2+3,boardW-frameW/2-3);
-    const baseY=clamp(g.v*boardH,frameH/2+3,boardH-frameH/2-3);
+    const m=g.tiles.length,index=clamp(hover.index,0,m);
+    const pitch=actualTile*.56;
+    const home=Array.from({length:m},(_,i)=>(i-(m-1)/2)*pitch);
+    const placed=home.slice();
+    const scales=new Array(m+1);
+    const centers=new Array(m+1);
+    const gentlePitch=actualTile*.38; // keep indices visible with generous overlap
+    const near=actualTile*.80;         // slight overlap around the landing card
+    let restingSlot;
+    if(index===0)restingSlot=home[0]-near;
+    else if(index===m)restingSlot=home[m-1]+near;
+    else restingSlot=(home[index-1]+home[index])/2;
+    // At a screen edge, keep the landing card completely on the board
+    // without changing the resting positions of the existing meld.
+    const alongAnchor=axis==='h'?g.u*boardW:g.v*boardH;
+    const alongLength=axis==='h'?boardW:boardH;
+    const safeInset=actualTile*.53+gap+3;
+    restingSlot=clamp(restingSlot,
+      safeInset-alongAnchor,alongLength-safeInset-alongAnchor);
+
+    // On entering the run at its right end, 10/J/Q stay tucked in; only
+    // K reacts. As the pointer crosses K's original centre it changes sides.
+    if(index>0){
+      placed[index-1]=Math.min(placed[index-1],restingSlot-near);
+      for(let i=index-2;i>=0;i--)
+        placed[i]=Math.min(home[i],placed[i+1]-gentlePitch);
+    }
+    if(index<m){
+      placed[index]=Math.max(placed[index],restingSlot+near);
+      for(let i=index+1;i<m;i++)
+        placed[i]=Math.max(home[i],placed[i-1]+gentlePitch);
+    }
+
+    // The pointer can shift the translucent landing card a little within
+    // its slot, but cannot pull the other cards (or the meld) along with it.
     const br=board.getBoundingClientRect();
-    const pointerAlong=axis==='h'?active.lastX-br.left:active.lastY-br.top;
-    const frameAlong=axis==='h'?baseX:baseY;
+    const along=axis==='h'?active.lastX-br.left:active.lastY-br.top;
+    const anchor=axis==='h'?g.u*boardW:g.v*boardH;
+    const ghost=clamp(
+      clamp(along-anchor,
+        restingSlot-actualTile*.16,restingSlot+actualTile*.16),
+      safeInset-alongAnchor,alongLength-safeInset-alongAnchor);
 
-    // Every existing card has a fixed resting anchor in the table's frame.
-    // Only neighbours of the incoming card yield to make landing room;
-    // we never add a shared translation to the whole inner row.
-    const anchors=Array.from({length:m},(_,i)=>
-      (i-(m-1)/2)*actualTile*1.08);
-    const centers=new Array(n),scales=new Array(n);
-    const nearGap=actualTile*.96;
-    const shoulder=d=>actualTile*(.42+.07*Math.exp(-d*d/1.9));
-    const clearanceFor=count=>{
-      if(!count)return actualTile*.55;
-      let needed=nearGap+actualTile*.59;
-      for(let d=1;d<count;d++)needed+=shoulder(d-1);
-      return needed;
-    };
-    const frameHalf=panelExtent/2;
-    const low=-frameHalf+clearanceFor(index);
-    const high=frameHalf-clearanceFor(m-index);
-    const follow=clamp(pointerAlong-frameAlong,
-                       Math.min(low,high),Math.max(low,high));
-    centers[index]=follow;
-    scales[index]=1.10; // The translucent landing card.
+    for(let i=0;i<m;i++){
+      const slot=i<index?i:i+1;
+      centers[slot]=placed[i];
+      const neighbourDistance=i<index?index-1-i:i-index;
+      scales[slot]=1+.16*Math.exp(-Math.pow(neighbourDistance/1.2,2));
+    }
+    centers[index]=ghost;
+    scales[index]=1.06;
 
-    // Repulsion is strongest immediately beside the arriving card. Each
-    // more distant card moves only if the next one would otherwise crowd it;
-    // its original anchor always remains the preferred resting position.
-    let leftLimit=follow-nearGap;
-    for(let i=index-1;i>=0;i--){
-      const originalIndex=i;
-      centers[i]=Math.min(anchors[originalIndex],leftLimit);
-      leftLimit=centers[i]-shoulder(index-1-i);
+    // Fit the actual cards and the landing slot, rather than reserving
+    // a huge hypothetical fully-expanded row. Nothing is re-centred.
+    let lower=Infinity,upper=-Infinity;
+    for(let i=0;i<centers.length;i++){
+      const half=actualTile*scales[i]/2;
+      lower=Math.min(lower,centers[i]-half);
+      upper=Math.max(upper,centers[i]+half);
     }
-    let rightLimit=follow+nearGap;
-    for(let i=index+1;i<n;i++){
-      const originalIndex=i-1;
-      centers[i]=Math.max(anchors[originalIndex],rightLimit);
-      rightLimit=centers[i]+shoulder(i-index-1);
-    }
-    // Scale based on *actual distance to the arriving card*, so two
-    // equidistant neighbours always have the same apparent size.
-    for(let i=0;i<n;i++){
-      if(i===index)continue;
-      const distance=Math.abs(centers[i]-follow)/actualTile;
-      const beyond=Math.max(0,distance-.96);
-      scales[i]=1+.16*Math.exp(-Math.pow(beyond/1.2,2));
-    }
-    return {n,axis,step:actualTile*.56,centers,scales,
-            dock:true,focus:index,w:frameW,h:frameH,
-            x:baseX,y:baseY,
-            left:baseX-frameW/2,top:baseY-frameH/2};
+    const axisExtent=upper-lower+gap*2;
+    const crossExtent=actualTile*Math.max(...scales)+gap*2;
+    const w=axis==='h'?axisExtent:crossExtent;
+    const h=axis==='v'?axisExtent:crossExtent;
+    // The same table coordinate anchors all card centres at every slot.
+    const anchorX=g.u*boardW,anchorY=g.v*boardH;
+    const left=axis==='h'?anchorX+lower-gap:anchorX-w/2;
+    const top=axis==='v'?anchorY+lower-gap:anchorY-h/2;
+    const x=left+w/2,y=top+h/2;
+    // Convert local card offsets to the centre used by the renderer.
+    const shift=axis==='h'?anchorX-x:anchorY-y;
+    return {n,axis,step:pitch,centers:centers.map(c=>c+shift),scales,
+            dock:true,focus:index,w,h,x,y,left,top};
   }
 
   // Compact positions, and fully opened groups when no card is being dragged.
@@ -1057,20 +1069,15 @@ function getHover(clientX,clientY) {
           return {id:focused.id,index,axis:chosenAxis};
         }
 
-        // Starting with the slot that opened the meld, advance only when the
-        // finger travels along it. This avoids a feedback loop where the
-        // moving cards cause the target to jump underneath a stationary finger.
-        const pitch=actualTile*.83;
-        const origin=axis==='h'?active.hoverOriginX:active.hoverOriginY;
-        const pos=axis==='h'?clientX:clientY;
-        const delta=(pos-origin)/pitch;
-        let index=clamp(active.hoverOriginIndex+Math.round(delta),
-                        0,focused.tiles.length);
-        const tolerance=.17;
-        if(index>hover.index && delta<index-active.hoverOriginIndex-.5+tolerance)
-          index=hover.index;
-        else if(index<hover.index && delta>index-active.hoverOriginIndex+.5-tolerance)
-          index=hover.index;
+        // Slot changes only as the finger crosses a card's original,
+        // stationary centre. A little hysteresis prevents rapid flicker.
+        const m=focused.tiles.length;
+        const pitch=actualTile*.56;
+        const home=Array.from({length:m},(_,i)=>(i-(m-1)/2)*pitch);
+        let index=hover.index;
+        const hysteresis=actualTile*.10;
+        while(index<m && along>home[index]+hysteresis)index++;
+        while(index>0 && along<home[index-1]-hysteresis)index--;
         return {id:focused.id,index,axis:hover.axis};
       }
     }
