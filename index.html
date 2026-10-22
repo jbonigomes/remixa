@@ -44,7 +44,7 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 .group.valid {border-color:var(--green);background:var(--green);}
 .group.incomplete {border-color:var(--red);background:var(--red);}
 .group.invalid {border-color:var(--red);background:var(--red);}
-.group .slot {position:absolute;width:var(--tile);height:var(--tile);left:0;top:0;border-radius:var(--corner);background:#d0ffe92e;outline:1px solid #ffffff3a;opacity:0;pointer-events:none;transition:opacity .12s,transform var(--snap-ms);}
+.group .slot {position:absolute;width:var(--tile);height:var(--tile);left:0;top:0;border-radius:var(--corner);background:#d0ffe92e;outline:1px solid #ffffff3a;opacity:0;pointer-events:none;transition:opacity .16s,transform var(--snap-ms) cubic-bezier(.2,.85,.25,1),width var(--snap-ms),height var(--snap-ms);}
 .group.has-slot .slot {opacity:1;}
 /* Modern square playing cards: number in the upper-left, big suit at centre.
    A restrained paper finish avoids a flat UI look without adding visual noise. */
@@ -60,7 +60,7 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
   box-shadow:inset 0 1px 0 #ffffffd0,0 1px 2px #00000014;
   color:#202631;
   transform:translate3d(0,0,0);
-  transition:transform var(--snap-ms) cubic-bezier(.15,1.2,.35,1);
+  transition:transform var(--snap-ms) cubic-bezier(.18,.85,.3,1);
   backface-visibility:hidden;will-change:transform;
   pointer-events:auto;touch-action:none;cursor:grab;
   -webkit-user-select:none;user-select:none;
@@ -94,14 +94,29 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 .tile.dragging {animation:none!important;transition:none;z-index:50;cursor:grabbing;box-shadow:0 15px 26px #0009,0 5px 9px #0006;filter:brightness(1.045);}
 #dragLayer {position:fixed;inset:0;pointer-events:none;z-index:90;overflow:visible;}
 #dragLayer .tile {pointer-events:none;}
-#win {position:fixed;inset:0;background:#071e20ca;backdrop-filter:blur(5px);z-index:110;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s;}
-#win.show {opacity:1;pointer-events:auto;}
-.win-card {background:#214745;border:1px solid #6a8c72;border-radius:22px;padding:32px 36px;text-align:center;box-shadow:0 24px 80px #071414aa;min-width:min(370px,90vw);transform:translateY(25px) scale(.97);transition:transform .42s cubic-bezier(.2,1.3,.35,1);}
-#win.show .win-card {transform:translateY(0) scale(1);}
-.win-icon {font-size:42px;color:#f7d28c;margin-bottom:5px;}
-.win-heading {font-weight:850;font-size:27px;color:white;letter-spacing:-.04em;}
-.win-sub {font-size:14px;color:#bdd6c8;margin:9px 0 22px;}
-.primary-btn {background:#f2ce84;color:#193438;border-radius:12px;padding:12px 25px;font-weight:800;}
+/* The finished table stays visible: completion is a small, dismissible
+   score tray rather than a dimmed full-screen modal. */
+#win {position:fixed;inset:0;z-index:110;display:flex;align-items:flex-end;
+  justify-content:flex-end;padding:0 max(12px,env(safe-area-inset-right))
+  max(12px,env(safe-area-inset-bottom));pointer-events:none;opacity:0;
+  transition:opacity .3s ease;}
+#win.show {opacity:1;pointer-events:none;}
+.win-card {pointer-events:none;width:min(332px,calc(100vw - 26px));
+  background:#143539ed;border:1px solid #6a9385;border-radius:16px;
+  padding:11px 14px 12px;text-align:left;
+  box-shadow:0 12px 32px #03191cb3,0 0 0 1px #ffffff0a;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  transform:translateY(16px) scale(.98);
+  transition:transform .36s cubic-bezier(.2,1.15,.3,1);}
+#win.show .win-card {pointer-events:auto;transform:translateY(0) scale(1);}
+.win-icon {font-size:21px;color:#f7d28c;float:right;margin:0 2px;}
+.win-heading {font-weight:850;font-size:18px;color:white;letter-spacing:-.035em;}
+.win-sub {font-size:11px;color:#bdd6c8;margin:2px 0 9px;}
+.primary-btn {background:#f2ce84;color:#193438;border-radius:9px;
+  padding:9px 13px;font-weight:800;font-size:11px;}
+#viewTable {background:#2b5352;color:#f0f6ee;border:1px solid #567872;
+  border-radius:9px;padding:9px 11px;font-size:11px;font-weight:750;}
+.win-actions {display:flex;gap:8px;align-items:center;}
 #lab {position:fixed;z-index:130;right:12px;top:58px;background:#102f32f5;border:1px solid #61817b;border-radius:18px;width:min(320px,calc(100vw - 24px));padding:17px 18px 18px;box-shadow:0 20px 45px #0009;display:none;}
 #lab.show {display:block;}
 .lab-head {display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;}
@@ -145,11 +160,11 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 #bigHint {display:none;position:absolute;top:12px;left:50%;transform:translateX(-50%);font-size:10px;color:#accac0;letter-spacing:.14em;font-weight:750;z-index:5;pointer-events:none;white-space:nowrap;opacity:.86;}
 #bigHint.visible {display:block;}
 #bigHint span {color:#f3d08d;margin:0 5px;}
-#winStats {display:flex;justify-content:center;gap:25px;margin:-7px 0 19px;}
+#winStats {display:flex;justify-content:flex-start;gap:23px;margin:0 0 9px;}
 #winStats:empty {display:none;}
 .win-score {display:flex;flex-direction:column;gap:4px;align-items:center;}
-.win-score strong {font-size:27px;color:#ffe1a3;font-variant-numeric:tabular-nums;}
-.win-score span {font-size:10px;letter-spacing:.12em;color:#aaccc0;}
+.win-score strong {font-size:18px;color:#ffe1a3;font-variant-numeric:tabular-nums;}
+.win-score span {font-size:9px;letter-spacing:.08em;color:#aaccc0;}
 /* The selected/hovered meld floats clearly above the tabletop. */
 .group.open {
   filter:brightness(1.07);
@@ -172,6 +187,12 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
   #scoreHud {padding:3px 5px;}
 }
 
+@media(max-height:430px) {
+  .win-card {padding:9px 12px 10px;width:min(292px,calc(100vw - 24px));}
+  .win-sub {margin-bottom:5px;}
+  #winStats {margin-bottom:6px;}
+  .win-heading {font-size:16px;}
+}
 @media(prefers-reduced-motion:reduce) {
  .tile,.group,#win,.win-card {transition-duration:.01ms!important;}
 }
@@ -207,7 +228,7 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
     <div class="win-heading" id="winHeading">Beautifully done.</div>
     <div class="win-sub" id="winSub">Every tile has found its place.</div>
     <div id="winStats"></div>
-    <button class="primary-btn" id="nextWin">NEXT LEVEL →</button>
+    <div class="win-actions"><button class="primary-btn" id="nextWin">NEXT LEVEL →</button><button id="viewTable" aria-label="Hide results and view the completed table">VIEW TABLE</button></div>
   </div>
 </div>
 <div id="lab" role="dialog" aria-label="Remixa tuning controls">
@@ -607,15 +628,44 @@ function measure() {
   document.documentElement.style.setProperty('--corner',`${Math.min(settings.corner,actualTile*.34)}px`);
   document.documentElement.style.setProperty('--snap-ms',`${settings.spring}ms`);
 }
+// One shape model for both compact groups and the active card-dock animation.
+// The dock layout allocates more room around an insertion slot while the
+// distant cards retain their space-saving overlaps.
 function geometry(g,extra=false,axisOverride=null) {
   const axis=axisOverride||g.axis;
-  const n=g.tiles.length+(extra?1:0), gap=settings.gap,step=groupStep(g.id);
-  const cardSize=actualTile*raisedCardScale(g.id);
-  const w=(axis==='h'?(n-1)*step+cardSize:cardSize)+gap*2;
-  const h=(axis==='v'?(n-1)*step+cardSize:cardSize)+gap*2;
+  const n=g.tiles.length+(extra?1:0);
+  const gap=settings.gap;
+  const open=isBig()&&isOpen(g.id);
+  const dock=open && !!extra && hover?.id===g.id && n>1;
+  const focus=dock?clamp(hover.index,0,n-1):Math.floor(n/2);
+  const weights=[],scales=[],centers=[0];
+  for(let i=0;i<n;i++){
+    // The two cards bordering the insertion are full-sized; farther cards
+    // gradually fall back to the original size.
+    const distance=Math.max(0,Math.abs(i-focus)-1);
+    const weight=dock?Math.exp(-Math.pow(distance/1.22,2)):open?1:0;
+    weights.push(weight);
+    scales.push(open?1+.16*weight:1);
+    if(i){
+      const influence=dock?Math.max(weights[i-1],weight):open?1:0;
+      const step=isBig()
+        ? actualTile*(.56+.60*influence)+gap*1.1*influence
+        : actualTile+gap;
+      centers.push(centers[i-1]+step);
+    }
+  }
+  const firstEdge=centers[0]-actualTile*scales[0]/2;
+  const lastEdge=centers[n-1]+actualTile*scales[n-1]/2;
+  const origin=(firstEdge+lastEdge)/2;
+  const offsets=centers.map(c=>c-origin);
+  const extent=lastEdge-firstEdge;
+  const w=(axis==='h'?extent:actualTile*Math.max(...scales))+gap*2;
+  const h=(axis==='v'?extent:actualTile*Math.max(...scales))+gap*2;
   const x=clamp(g.u*boardW,w/2+3,boardW-w/2-3);
   const y=clamp(g.v*boardH,h/2+3,boardH-h/2-3);
-  return {n,step,w,h,x,y,left:x-w/2,top:y-h/2};
+  return {n,axis,step:n>1?(centers[n-1]-centers[0])/(n-1):actualTile+gap,
+          centers:offsets,scales,dock,focus,
+          w,h,x,y,left:x-w/2,top:y-h/2};
 }
 
 // Solve rectangular linked-group collisions without DOM reads or mutations.
@@ -722,12 +772,8 @@ function solveSpaces(items,preferredId=null,preview=false) {
 }
 function spaceItems(extraFor=null,extraAxis=null) {
   return groups.filter(g=>g.tiles.length).map(g=>{
-    const axis=g.id===extraFor&&extraAxis?extraAxis:g.axis;
-    const n=g.tiles.length+(g.id===extraFor?1:0),step=groupStep(g.id);
-    const cardSize=actualTile*raisedCardScale(g.id);
-    const w=(axis==='h'?(n-1)*step+cardSize:cardSize)+settings.gap*2;
-    const h=(axis==='v'?(n-1)*step+cardSize:cardSize)+settings.gap*2;
-    return {id:g.id,g,w,h,x:g.u*boardW,y:g.v*boardH};
+    const shape=geometry(g,g.id===extraFor,extraAxis);
+    return {id:g.id,g,w:shape.w,h:shape.h,x:g.u*boardW,y:g.v*boardH};
   });
 }
 // Permanent reflow happens only on drop or setup.
@@ -804,7 +850,25 @@ function layout(initial=false,skipMeasure=false) {
     const elevated=isBig()&&isOpen(g.id);
     const targetGroupLayer=elevated?raisedLayer:groupsLayer;
     const targetTileLayer=elevated?raisedLayer:tilesLayer;
-    if(g.el.parentNode!==targetGroupLayer)targetGroupLayer.appendChild(g.el);
+    if(g.el.parentNode!==targetGroupLayer){
+      // Preserve the visible size and position across the foreground-layer
+      // switch, then let its width, height and transform ease to the target.
+      // Without this, the panel snaps instantly while the cards animate.
+      const previous=g.el.isConnected?getComputedStyle(g.el):null;
+      const widthBefore=previous?previous.width:null;
+      const heightBefore=previous?previous.height:null;
+      const transformBefore=previous?previous.transform:null;
+      targetGroupLayer.appendChild(g.el);
+      if(widthBefore&&heightBefore&&!initial&&!g.fresh){
+        g.el.style.transition='none';
+        g.el.style.width=widthBefore;
+        g.el.style.height=heightBefore;
+        if(transformBefore&&transformBefore!=='none')
+          g.el.style.transform=transformBefore;
+        g.el.getBoundingClientRect();
+        g.el.style.transition='';
+      }
+    }
     g.el.style.zIndex=elevated?'1':'';
     const pv=hover?.id===g.id?hover:null;
     const geom=geometry(g,!!pv,pv?.axis);
@@ -837,23 +901,35 @@ function layout(initial=false,skipMeasure=false) {
       t.el.style.zIndex=String(elevated?10+j:10+i*40+j);
       t.el.classList.toggle('opened',elevated);
       if(t===active?.tile)return;
-      if(t.el.parentNode!==targetTileLayer)targetTileLayer.appendChild(t.el);
       const slot=j+((pv&&j>=pv.index)?1:0);
-      const x=geom.x+(renderAxis==='h'?(slot-(geom.n-1)/2)*geom.step:0)-actualTile/2;
-      const y=geom.y+(renderAxis==='v'?(slot-(geom.n-1)/2)*geom.step:0)-actualTile/2;
-      // Scale in the element's transform after translation; the independent
-      // CSS `scale` property was also scaling screen-space coordinates.
-      posStyle(t.el,x,y,raisedCardScale(g.id));
+      const x=geom.x+(renderAxis==='h'?geom.centers[slot]:0)-actualTile/2;
+      const y=geom.y+(renderAxis==='v'?geom.centers[slot]:0)-actualTile/2;
+      // Preserve the current rendered transform when crossing the foreground
+      // layer. Reparenting ordinarily cancels CSS transitions and causes the
+      // abrupt snap users notice on opening and closing a meld.
+      if(t.el.parentNode!==targetTileLayer){
+        const existing=t.el.isConnected?getComputedStyle(t.el).transform:null;
+        targetTileLayer.appendChild(t.el);
+        if(existing&&existing!=='none'&&!initial){
+          t.el.style.transition='none';
+          t.el.style.transform=existing;
+          t.el.getBoundingClientRect();
+          t.el.style.transition='';
+        }
+      }
+      posStyle(t.el,x,y,geom.scales[slot]);
     });
     if(pv) {
-      // The insertion slot grows with the cards, too.
-      g.slot.style.width=`${actualTile*raisedCardScale(g.id)}px`;
-      g.slot.style.height=`${actualTile*raisedCardScale(g.id)}px`;
-      const ix=geom.x+(renderAxis==='h'?(pv.index-(geom.n-1)/2)*geom.step:0)-actualTile/2;
-      const iy=geom.y+(renderAxis==='v'?(pv.index-(geom.n-1)/2)*geom.step:0)-actualTile/2;
-      const cardMargin=(actualTile*raisedCardScale(g.id)-actualTile)/2;
-      posStyle(g.slot,ix-geom.left-settings.gap-cardMargin,
-                      iy-geom.top-settings.gap-cardMargin);
+      // A ghost card reserves its own room within the dock, with the same
+      // scale and smooth movement as its immediate neighbours.
+      const ghostScale=geom.scales[pv.index];
+      const ghostSize=actualTile*ghostScale;
+      g.slot.style.width=`${ghostSize}px`;
+      g.slot.style.height=`${ghostSize}px`;
+      const ix=geom.x+(renderAxis==='h'?geom.centers[pv.index]:0)-ghostSize/2;
+      const iy=geom.y+(renderAxis==='v'?geom.centers[pv.index]:0)-ghostSize/2;
+      posStyle(g.slot,ix-geom.left-settings.gap,
+                      iy-geom.top-settings.gap);
     }
   }
   $('undo').disabled=!history.length;
@@ -891,7 +967,7 @@ function getHover(clientX,clientY) {
     const focused=groups.find(g=>g.id===hover.id);
     if(focused?.tiles.length) {
       const axis=hover.axis||focused.axis;
-      const box=geometry(focused,false,axis);
+      const box=geometry(focused,true,axis);
       if(x>=box.left && x<=box.left+box.w &&
          y>=box.top && y<=box.top+box.h) {
         if(focused.tiles.length===1) {
@@ -912,7 +988,8 @@ function getHover(clientX,clientY) {
           ?(axis==='h'?x-active.hoverOriginX:y-active.hoverOriginY)
           :(axis==='h'?x-box.x:y-box.y);
         const index=pinned
-          ?clamp(active.hoverOriginIndex+Math.round(offset/box.step),
+          ?clamp(active.hoverOriginIndex+
+                 Math.round(offset/Math.max(actualTile*.82,box.step*.82)),
                  0,focused.tiles.length)
           :clamp(Math.round(offset/box.step+focused.tiles.length/2),
                  0,focused.tiles.length);
@@ -1170,6 +1247,7 @@ $('reset').addEventListener('click',()=>loadLevel(level));
 $('prev').addEventListener('click',()=>loadLevel(level-1));
 $('next').addEventListener('click',()=>loadLevel(level+1));
 $('nextWin').addEventListener('click',()=>loadLevel(isBig()?level:level+1));
+$('viewTable').addEventListener('click',()=>{ $('win').classList.remove('show'); });
 function applySettings() {
   for(const key of ['tile','corner','gap','spring','magnet']){
     $(key+'Range').value=settings[key];
