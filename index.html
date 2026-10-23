@@ -196,6 +196,13 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 @media(prefers-reduced-motion:reduce) {
  .tile,.group,#win,.win-card {transition-duration:.01ms!important;}
 }
+
+/* Damped JS springs own translation, scale, and group dimensions.
+   Colour, shadow, glow and opacity retain their usual CSS transitions. */
+.group {transition:border-color .18s,background-color .18s,box-shadow .2s,filter .2s;}
+.group .slot {transition:opacity .16s;}
+.tile {transition:box-shadow .2s,filter .15s;}
+.tile.dragging {transition:none;}
 </style>
 </head>
 <body>
@@ -435,9 +442,97 @@ board.addEventListener('pointerdown',e=>{
 const clamp=(v,a,b)=>Math.min(Math.max(v,a),Math.max(a,b));
 const colorAt=c=>COLORS[c%COLORS.length];
 const rankLabel=n=>({1:'A',11:'J',12:'Q',13:'K'})[n]||String(n);
-const posStyle=(el,x,y,scale=1)=>{
-  el.style.transform=`translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,0)${scale!==1?` scale(${scale})`:''}`;
-};
+// Motion-only experiment: an analytic damped spring for movement, scaling
+// and frame size. Positions are GPU-composited; the held card tracks directly.
+const springStates=new WeakMap(), springRunning=new Set();
+let springFrame=0,springClock=0,springInstant=false;
+const reduceSpringMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function springPaint(s){
+  const p=s.current,el=s.el;
+  if(p.x!==undefined)
+    el.style.transform=`translate3d(${p.x.toFixed(2)}px,${p.y.toFixed(2)}px,0) scale(${p.scale.toFixed(5)})`;
+  if(p.w!==undefined)el.style.width=`${Math.max(1,p.w).toFixed(2)}px`;
+  if(p.h!==undefined)el.style.height=`${Math.max(1,p.h).toFixed(2)}px`;
+}
+function springStep(value,velocity,target,dt,omega,damping) {
+  const dx=value-target;
+  const wd=omega*Math.sqrt(1-damping*damping);
+  const decay=Math.exp(-damping*omega*dt);
+  const c=Math.cos(wd*dt),sn=Math.sin(wd*dt);
+  const b=(velocity+damping*omega*dx)/wd;
+  const next=decay*(dx*c+b*sn);
+  const nextV=decay*((b*wd-damping*omega*dx)*c-
+                      (dx*wd+damping*omega*b)*sn);
+  return [target+next,nextV];
+}
+function springTick(now){
+  springFrame=0;
+  const dt=Math.min(.05,Math.max(.001,(now-(springClock||now))/1000));
+  springClock=now;
+  // "Snap spring" slider = approximate time to become almost settled.
+  const omega=4.8/(Math.max(80,settings.spring)/1000);
+  const damping=.70;
+  for(const s of springRunning){
+    if(!s.el.isConnected){springRunning.delete(s);continue;}
+    let moving=false;
+    for(const key of Object.keys(s.target)){
+      const target=s.target[key],epsilon=key==='scale'?.0004:.035;
+      const speedLimit=key==='scale'?.008:.65;
+      if(Math.abs(s.current[key]-target)<epsilon &&
+         Math.abs(s.velocity[key])<speedLimit){
+        s.current[key]=target;s.velocity[key]=0;
+      } else {
+        [s.current[key],s.velocity[key]]=springStep(
+          s.current[key],s.velocity[key],target,dt,omega,damping);
+        moving=true;
+      }
+    }
+    springPaint(s);
+    if(!moving)springRunning.delete(s);
+  }
+  if(springRunning.size)springFrame=requestAnimationFrame(springTick);
+  else springClock=0;
+}
+function springSet(el,props,immediate=false){
+  let s=springStates.get(el);
+  if(!s){
+    s={el,current:{...props},target:{...props},velocity:{}};
+    for(const key of Object.keys(props))s.velocity[key]=0;
+    springStates.set(el,s);
+    springPaint(s);
+    return;
+  }
+  let changed=false;
+  for(const [key,value] of Object.entries(props)){
+    if(s.current[key]===undefined){
+      s.current[key]=value;s.velocity[key]=0;
+    }
+    if(immediate||springInstant||reduceSpringMotion){
+      s.current[key]=value;s.target[key]=value;s.velocity[key]=0;
+    }else if(s.target[key]!==value){
+      s.target[key]=value;changed=true;
+    }
+  }
+  if(immediate||springInstant||reduceSpringMotion){
+    springRunning.delete(s);
+    springPaint(s);
+  }else if(changed){
+    springRunning.add(s);
+    if(!springFrame){springClock=0;springFrame=requestAnimationFrame(springTick);}
+  }
+}
+const posStyle=(el,x,y,scale=1,immediate=false)=>
+  springSet(el,{x,y,scale},immediate||el.classList.contains('dragging'));
+const sizeStyle=(el,w,h)=>springSet(el,{w,h});
+// A dragged card switches from board coordinates to viewport coordinates and
+// back again. Give the spring the correct starting frame for its return.
+function springBoardHandoff(tile,x,y){
+  const br=board.getBoundingClientRect();
+  springSet(tile.el,{
+    x:x-br.left-actualTile/2,y:y-br.top-actualTile/2,scale:1.035
+  },true);
+}
+
 function tileNew(num,col) {
   const t={id:nextID++,num,col,el:document.createElement('div')};
   const suit=SUITS[col%SUITS.length];
@@ -643,23 +738,18 @@ function geometry(g,extra=false,axisOverride=null) {
   // Then just the nearest neighbours yield; there is no moving-row offset.
   if(dock) {
     const m=g.tiles.length,index=clamp(hover.index,0,m);
-    const slotPitch=actualTile*.57;
-    // Keep a fixed stack footprint, while letting the two immediate cards
-    // give the landing slot a little more air. Their *other* neighbours
-    // overlap more tightly; all distant cards stay in their resting slots.
+    const slotPitch=actualTile*.58;
+    // A docked meld has one fixed "expanded" footprint and one fixed set of
+    // insertion slots. The dragged card can change *which* slot is active,
+    // but it must not stretch or drag the whole meld around.
     const slotPositions=Array.from({length:m+1},(_,i)=>(i-m/2)*slotPitch);
-    const landingRoom=actualTile*.12;
-    if(index>0)slotPositions[index-1]-=landingRoom;
-    if(index<m)slotPositions[index+1]+=landingRoom;
     const scales=slotPositions.map((_,i)=>{
       const dist=Math.abs(i-index);
       return i===index?1.10:dist===1?1.06:1;
     });
     const maxScale=1.10;
-    // Use the maximum possible extent for *every* slot, so the green frame
-    // never resizes as the landing space changes sides.
-    const firstEdge=-(m/2)*slotPitch-landingRoom-actualTile*maxScale/2;
-    const lastEdge=(m/2)*slotPitch+landingRoom+actualTile*maxScale/2;
+    const firstEdge=slotPositions[0]-actualTile*maxScale/2;
+    const lastEdge=slotPositions[m]+actualTile*maxScale/2;
     const axisExtent=(lastEdge-firstEdge)+gap*2;
     const crossExtent=actualTile*maxScale+gap*2;
     const w=axis==='h'?axisExtent:crossExtent;
@@ -873,6 +963,7 @@ function layout(initial=false,skipMeasure=false) {
   // During drag previews geometry is unchanged: avoid re-measuring and
   // rewriting CSS variables on every pointer animation frame.
   if(!skipMeasure)measure();
+  springInstant=initial;
   // Border panels sit behind tiles and leave an equal-width coloured channel.
   const used=new Set();
   for(let i=0;i<groups.length;i++) {
@@ -883,25 +974,7 @@ function layout(initial=false,skipMeasure=false) {
     const elevated=isBig()&&isOpen(g.id);
     const targetGroupLayer=elevated?raisedLayer:groupsLayer;
     const targetTileLayer=elevated?raisedLayer:tilesLayer;
-    if(g.el.parentNode!==targetGroupLayer){
-      // Preserve the visible size and position across the foreground-layer
-      // switch, then let its width, height and transform ease to the target.
-      // Without this, the panel snaps instantly while the cards animate.
-      const previous=g.el.isConnected?getComputedStyle(g.el):null;
-      const widthBefore=previous?previous.width:null;
-      const heightBefore=previous?previous.height:null;
-      const transformBefore=previous?previous.transform:null;
-      targetGroupLayer.appendChild(g.el);
-      if(widthBefore&&heightBefore&&!initial&&!g.fresh){
-        g.el.style.transition='none';
-        g.el.style.width=widthBefore;
-        g.el.style.height=heightBefore;
-        if(transformBefore&&transformBefore!=='none')
-          g.el.style.transform=transformBefore;
-        g.el.getBoundingClientRect();
-        g.el.style.transition='';
-      }
-    }
+    if(g.el.parentNode!==targetGroupLayer)targetGroupLayer.appendChild(g.el);
     g.el.style.zIndex=elevated?'1':'';
     const pv=hover?.id===g.id?hover:null;
     const geom=geometry(g,!!pv,pv?.axis);
@@ -919,15 +992,9 @@ function layout(initial=false,skipMeasure=false) {
     if(pv)g.el.classList.add('has-slot');
     g.el.classList.toggle('open',isBig()&&isOpen(g.id));
     g.el.classList.toggle('compact',isBig()&&!isOpen(g.id));
-    g.el.style.width=`${geom.w}px`;g.el.style.height=`${geom.h}px`;
+    sizeStyle(g.el,geom.w,geom.h);
     posStyle(g.el,geom.left,geom.top);
-    if(g.fresh){
-      g.fresh=false;
-      // Flush only once for a newly-created group, while transitions are off.
-      // Subsequent repositioning continues to use the normal smooth transition.
-      g.el.getBoundingClientRect();
-      g.el.style.transition='';
-    }
+    if(g.fresh){g.fresh=false;g.el.style.transition='';}
     const renderAxis=pv?.axis||g.axis;
     g.tiles.forEach((t,j)=>{
       used.add(t.id);
@@ -940,16 +1007,7 @@ function layout(initial=false,skipMeasure=false) {
       // Preserve the current rendered transform when crossing the foreground
       // layer. Reparenting ordinarily cancels CSS transitions and causes the
       // abrupt snap users notice on opening and closing a meld.
-      if(t.el.parentNode!==targetTileLayer){
-        const existing=t.el.isConnected?getComputedStyle(t.el).transform:null;
-        targetTileLayer.appendChild(t.el);
-        if(existing&&existing!=='none'&&!initial){
-          t.el.style.transition='none';
-          t.el.style.transform=existing;
-          t.el.getBoundingClientRect();
-          t.el.style.transition='';
-        }
-      }
+      if(t.el.parentNode!==targetTileLayer)targetTileLayer.appendChild(t.el);
       posStyle(t.el,x,y,geom.scales[slot]);
     });
     if(pv) {
@@ -957,8 +1015,7 @@ function layout(initial=false,skipMeasure=false) {
       // scale and smooth movement as its immediate neighbours.
       const ghostScale=geom.scales[pv.index];
       const ghostSize=actualTile*ghostScale;
-      g.slot.style.width=`${ghostSize}px`;
-      g.slot.style.height=`${ghostSize}px`;
+      sizeStyle(g.slot,ghostSize,ghostSize);
       const ix=geom.x+(renderAxis==='h'?geom.centers[pv.index]:0)-ghostSize/2;
       const iy=geom.y+(renderAxis==='v'?geom.centers[pv.index]:0)-ghostSize/2;
       posStyle(g.slot,ix-geom.left-settings.gap,
@@ -966,14 +1023,7 @@ function layout(initial=false,skipMeasure=false) {
     }
   }
   $('undo').disabled=!history.length;
-  if(initial) {
-    for(const t of tiles)t.el.style.transition='none';
-    for(const g of groups)g.el.style.transition='none';
-    requestAnimationFrame(()=>{
-      for(const t of tiles)t.el.style.transition='';
-      for(const g of groups)g.el.style.transition='';
-    });
-  }
+  springInstant=false;
 }
 function compactBox(g) {
   if(!isBig())return geometry(g,false);
@@ -1183,8 +1233,10 @@ function cancelDrag() {
   resetHoverIntent();
   clearLivePreview();
   const s=active.before;
+  const rect=active.tile.el.getBoundingClientRect();
   active.tile.el.classList.remove('dragging');
   active.tile.el.style.boxShadow='';
+  springBoardHandoff(active.tile,rect.left+rect.width/2,rect.top+rect.height/2);
   active=null;hover=null;
   restore(s);
   // Even an abandoned or rejected drop releases the raised-card focus.
@@ -1245,6 +1297,7 @@ function pointerUp(e) {
   const changedPuzzle=!samePuzzleArrangement(a.before);
   t.el.classList.remove('dragging');
   t.el.style.boxShadow='';
+  springBoardHandoff(t,x,y);
   clearLivePreview();
   active=null;hover=null;
   // Position-only drops are free AND release the edit focus. In particular,
