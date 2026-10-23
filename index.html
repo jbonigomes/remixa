@@ -648,13 +648,11 @@ function geometry(g,extra=false,axisOverride=null) {
     // insertion slots. The dragged card can change *which* slot is active,
     // but it must not stretch or drag the whole meld around.
     const slotPositions=Array.from({length:m+1},(_,i)=>(i-m/2)*slotPitch);
-    // Stronger dock focus: the two cards beside the landing slot lift most.
-    // The response tapers smoothly while their positions stay anchored.
     const scales=slotPositions.map((_,i)=>{
       const dist=Math.abs(i-index);
-      return dist===0?1.16:dist===1?1.32:dist===2?1.13:1;
+      return i===index?1.10:dist===1?1.06:1;
     });
-    const maxScale=1.32;
+    const maxScale=1.10;
     const firstEdge=slotPositions[0]-actualTile*maxScale/2;
     const lastEdge=slotPositions[m]+actualTile*maxScale/2;
     const axisExtent=(lastEdge-firstEdge)+gap*2;
