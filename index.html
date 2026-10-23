@@ -545,7 +545,23 @@ function springSet(el,props,immediate=false){
     }
   }
   if(immediate||springInstant||reduceSpringMotion){
-    springRunning.delete(s);
+    // An immediate grip-drag changes x/y without cancelling a pending
+    // width/height spring on the very same meld panel.
+    // Only an instant full layout (or reduced motion) may stop all springs.
+    if(springInstant||reduceSpringMotion){
+      springRunning.delete(s);
+    }else{
+      const stillSettling=Object.keys(s.target).some(key=>{
+        const epsilon=key==='scale'?.0004:.035;
+        const speedLimit=key==='scale'?.008:.65;
+        return Math.abs(s.current[key]-s.target[key])>epsilon ||
+               Math.abs(s.velocity[key])>speedLimit;
+      });
+      if(stillSettling){
+        springRunning.add(s);
+        if(!springFrame){springClock=0;springFrame=requestAnimationFrame(springTick);}
+      }else springRunning.delete(s);
+    }
     springPaint(s);
   }else if(changed){
     springRunning.add(s);
