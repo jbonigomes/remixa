@@ -605,7 +605,10 @@ function tileNew(num,col) {
 }
 function groupNew(contents,axis,u,v,id=nextGroup++) {
   const g={id,tiles:contents,axis,u,v,el:document.createElement('div')};
-  g.el.className='group';
+  // A new/restored group must be born in its true visual state. The default
+  // .group rule uses green; temporarily mounting a red singleton without its
+  // invalid class used to trigger a misleading green-to-red flash.
+  g.el.className='group '+(isValid(g)?'valid':'invalid');
   // A brand-new outline must be painted at its target, never fly in from (0,0).
   g.el.style.transition='none';
   g.fresh=true;
