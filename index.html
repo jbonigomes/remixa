@@ -1122,7 +1122,10 @@ function getHover(clientX,clientY) {
   // hovering card continuously while the insertion order changes deliberately.
   if(isBig() && active && hover) {
     const focused=groups.find(g=>g.id===hover.id);
-    if(focused?.tiles.length) {
+    // An already-open meld must not keep displaying a slot once the
+    // incoming card is structurally incompatible with that run or set.
+    if(focused?.tiles.length &&
+       canJoin(focused,active.tile,hover.axis||focused.axis)) {
       const axis=hover.axis||focused.axis;
       const box=compactBox(focused);
       const along=axis==='h'?x-box.x:y-box.y;
@@ -1139,8 +1142,12 @@ function getHover(clientX,clientY) {
           const card=focused.tiles[0],moving=active.tile;
           const sameNumber=moving.num===card.num&&moving.col!==card.col;
           const sameSuit=moving.col===card.col;
-          const chosenAxis=sameNumber?'v':sameSuit?'h':axis;
+          const chosenAxis=sameNumber?'v':sameSuit?'h':null;
+          if(!chosenAxis || !canJoin(focused,moving,chosenAxis))return null;
           const d=chosenAxis==='h'?x-box.x:y-box.y;
+          const cross=chosenAxis==='h'?y-box.y:x-box.x;
+          // A set invites a vertical insertion, a run a horizontal one.
+          if(Math.abs(cross)>Math.abs(d)+actualTile*.18)return null;
           const highAce=sameSuit&&
             ((moving.num===1&&card.num===13)||(moving.num===13&&card.num===1));
           const index=sameSuit&&moving.num!==card.num
@@ -1149,6 +1156,7 @@ function getHover(clientX,clientY) {
           return {id:focused.id,index,axis:chosenAxis};
         }
 
+        if(!canJoin(focused,active.tile,axis))return null;
         // Slot changes only as the finger crosses a card's original,
         // stationary centre. A little hysteresis prevents rapid flicker.
         const m=focused.tiles.length;
@@ -1166,6 +1174,10 @@ function getHover(clientX,clientY) {
   let best=null,bestDist=Infinity;
   for(const g of groups) {
     if(!g.tiles.length)continue;
+    // Preview eligibility and drop eligibility share exactly the same
+    // structural test, so red/green insertion hints don't lie to players.
+    if(active?.tile && g.tiles.length>1 && !canJoin(g,active.tile,g.axis))
+      continue;
     const box=compactBox(g);
     const margin=magnetMargin();
     if(g.tiles.length===1){
@@ -1177,8 +1189,14 @@ function getHover(clientX,clientY) {
       const other=g.tiles[0], moving=active?.tile;
       const sameRank=moving&&moving.num===other.num&&moving.col!==other.col;
       const sameColour=moving&&moving.col===other.col;
-      const axis=sameRank?'v':sameColour?'h':Math.abs(dx)>=Math.abs(dy)?'h':'v';
+      // A solo card may form a set vertically (same rank, different suit),
+      // or a run horizontally (same suit). Never advertise an impossible
+      // meld, even though the drop would eventually be rejected.
+      const axis=sameRank?'v':sameColour?'h':null;
+      if(!axis || !canJoin(g,moving,axis))continue;
       const along=axis==='h'?dx:dy;
+      const across=axis==='h'?dy:dx;
+      if(Math.abs(across)>Math.abs(along)+actualTile*.18)continue;
       const highAcePair=sameColour&&
         ((moving.num===1&&other.num===13)||(moving.num===13&&other.num===1));
       const index=sameColour&&moving.num!==other.num
