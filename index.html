@@ -643,18 +643,23 @@ function geometry(g,extra=false,axisOverride=null) {
   // Then just the nearest neighbours yield; there is no moving-row offset.
   if(dock) {
     const m=g.tiles.length,index=clamp(hover.index,0,m);
-    const slotPitch=actualTile*.58;
-    // A docked meld has one fixed "expanded" footprint and one fixed set of
-    // insertion slots. The dragged card can change *which* slot is active,
-    // but it must not stretch or drag the whole meld around.
+    const slotPitch=actualTile*.57;
+    // Keep a fixed stack footprint, while letting the two immediate cards
+    // give the landing slot a little more air. Their *other* neighbours
+    // overlap more tightly; all distant cards stay in their resting slots.
     const slotPositions=Array.from({length:m+1},(_,i)=>(i-m/2)*slotPitch);
+    const landingRoom=actualTile*.12;
+    if(index>0)slotPositions[index-1]-=landingRoom;
+    if(index<m)slotPositions[index+1]+=landingRoom;
     const scales=slotPositions.map((_,i)=>{
       const dist=Math.abs(i-index);
       return i===index?1.10:dist===1?1.06:1;
     });
     const maxScale=1.10;
-    const firstEdge=slotPositions[0]-actualTile*maxScale/2;
-    const lastEdge=slotPositions[m]+actualTile*maxScale/2;
+    // Use the maximum possible extent for *every* slot, so the green frame
+    // never resizes as the landing space changes sides.
+    const firstEdge=-(m/2)*slotPitch-landingRoom-actualTile*maxScale/2;
+    const lastEdge=(m/2)*slotPitch+landingRoom+actualTile*maxScale/2;
     const axisExtent=(lastEdge-firstEdge)+gap*2;
     const crossExtent=actualTile*maxScale+gap*2;
     const w=axis==='h'?axisExtent:crossExtent;
