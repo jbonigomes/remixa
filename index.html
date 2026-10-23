@@ -1167,11 +1167,9 @@ function getHover(clientX,clientY) {
           const d=chosenAxis==='h'?x-box.x:y-box.y;
           // Even a sideways approach to a matching rank produces a vertical
           // slot. Use the side of the target's centre along the legal axis.
-          const highAce=sameSuit&&
-            ((moving.num===1&&card.num===13)||(moving.num===13&&card.num===1));
-          const index=sameSuit&&moving.num!==card.num
-            ? (highAce?(moving.num===1?1:0):(moving.num<card.num?0:1))
-            : (d>=0?1:0);
+          // The *preview* opens on the physical approach side. Numeric
+          // sorting belongs to the committed run, not to the hover animation.
+          const index=d>=0?1:0;
           return {id:focused.id,index,axis:chosenAxis};
         }
 
@@ -1214,11 +1212,9 @@ function getHover(clientX,clientY) {
       const along=axis==='h'?dx:dy;
       // Approach direction must not affect legality or whether the target
       // raises. Only the slot orientation follows run/set rules.
-      const highAcePair=sameColour&&
-        ((moving.num===1&&other.num===13)||(moving.num===13&&other.num===1));
-      const index=sameColour&&moving.num!==other.num
-        ? (highAcePair?(moving.num===1?1:0):(moving.num<other.num?0:1))
-        : (along>=0?1:0);
+      // Show an opening on the side the incoming card actually touches.
+      // If it forms a run, we'll arrange the ranks correctly on release.
+      const index=along>=0?1:0;
       const score=near*.40-(hover?.id===g.id?actualTile*.035:0);
       if(score<bestDist){
         best={id:g.id,index,axis};
@@ -1484,7 +1480,20 @@ function pointerUp(e) {
     return;
   }
   if(g) {
-    g.tiles.splice(target.index,0,t);
+    let insertionIndex=target.index;
+    // For a new two-card run, sort on *drop*, not on hover. For example,
+    // a 6 approaching a 7 from the right previews space on the RIGHT,
+    // then settles as 6–7 (never the invalid 7–6). Ace can finish K–A.
+    if(g.tiles.length===1 && (target.axis||g.axis)==='h' &&
+       g.tiles[0].col===t.col && g.tiles[0].num!==t.num) {
+      const other=g.tiles[0];
+      const highAce=(t.num===1&&other.num===13)||
+                    (t.num===13&&other.num===1);
+      insertionIndex=highAce
+        ? (t.num===1?1:0)
+        : (t.num<other.num?0:1);
+    }
+    g.tiles.splice(insertionIndex,0,t);
     if(target.axis)g.axis=target.axis;
     if(g.tiles.length===2) {
       const [first,second]=g.tiles;
