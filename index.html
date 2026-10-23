@@ -434,6 +434,9 @@ const isBig=()=>level===11;
 // temporarily as a hover target, but it must never remain enlarged after drop.
 const openedId=()=>{
   if(!isBig())return null;
+  // Moving an entire meld is a different gesture from editing its cards.
+  // Show its compact, final footprint from pickup through release.
+  if(movingGroup)return null;
   if(active)return hover?.id??null;
   const selected=groups.find(g=>g.id===selectedId);
   return selected?.tiles.length>1?selectedId:null;
@@ -1000,7 +1003,7 @@ function layout(initial=false,skipMeasure=false) {
     if(!g.tiles.length){g.el.remove();continue;}
     // A group can be visually raised without changing its puzzle coordinates.
     // Reparenting BOTH the panel and its cards prevents inconsistent stacking.
-    const elevated=isBig()&&isOpen(g.id);
+    const elevated=isBig()&&(isOpen(g.id)||movingGroup?.id===g.id);
     const targetGroupLayer=elevated?raisedLayer:groupsLayer;
     const targetTileLayer=elevated?raisedLayer:tilesLayer;
     if(g.el.parentNode!==targetGroupLayer)targetGroupLayer.appendChild(g.el);
@@ -1267,7 +1270,10 @@ function finishMeldMove(e,cancel=false){
   if(!m||e?.pointerId!==undefined&&e.pointerId!==m.pointerId)return;
   const g=groups.find(p=>p.id===m.id);
   movingGroup=null;
-  if(!g)return;
+  // Leave the meld compact on release. Use its *compact* dimensions when
+  // finding a free position so the drop does not unexpectedly relocate it.
+  selectedId=null;
+  if(!g){layout();return;}
   if(cancel){
     g.u=m.originalU;g.v=m.originalV;
   }else{
@@ -1276,7 +1282,7 @@ function finishMeldMove(e,cancel=false){
     if(spot){g.u=spot.x/boardW;g.v=spot.y/boardH;}
     else{g.u=m.originalU;g.v=m.originalV;}
   }
-  // A spatial move is free and does not create an Undo entry.
+  // Spatial organisation is free; moving a meld never enters Undo.
   layout();
 }
 meldGrip.addEventListener('pointerdown',beginMeldMove);
