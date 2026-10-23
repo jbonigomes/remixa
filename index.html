@@ -471,19 +471,25 @@ function springTick(now){
   springClock=now;
   // "Snap spring" slider = approximate time to become almost settled.
   const omega=4.8/(Math.max(80,settings.spring)/1000);
-  const damping=.70;
   for(const s of springRunning){
     if(!s.el.isConnected){springRunning.delete(s);continue;}
     let moving=false;
+    // Cards and the landing marker switch slots briskly; their enlargement,
+    // shrinking and the green panel keep the original softer spring.
+    const isCard=s.el.classList.contains('tile') ||
+                 s.el.classList.contains('slot');
     for(const key of Object.keys(s.target)){
       const target=s.target[key],epsilon=key==='scale'?.0004:.035;
       const speedLimit=key==='scale'?.008:.65;
+      const quickTravel=isCard&&(key==='x'||key==='y');
+      const springOmega=quickTravel?omega*1.45:omega;
+      const damping=quickTravel?.77:.70;
       if(Math.abs(s.current[key]-target)<epsilon &&
          Math.abs(s.velocity[key])<speedLimit){
         s.current[key]=target;s.velocity[key]=0;
       } else {
         [s.current[key],s.velocity[key]]=springStep(
-          s.current[key],s.velocity[key],target,dt,omega,damping);
+          s.current[key],s.velocity[key],target,dt,springOmega,damping);
         moving=true;
       }
     }
