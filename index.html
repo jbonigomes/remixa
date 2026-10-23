@@ -36,6 +36,25 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 #raisedLayer {z-index:6;isolation:isolate;}
 #raisedLayer .group {z-index:1;}
 #raisedLayer .tile {pointer-events:auto;}
+/* A single grip floats above the currently selected meld; never over its cards. */
+#meldGrip {
+  position:absolute;left:0;top:0;width:38px;height:29px;z-index:9;
+  border:1px solid #b99e6d;border-radius:12px;
+  background:linear-gradient(160deg,#ffebbc,#ebcb89);
+  color:#233938;display:grid;place-items:center;
+  font-size:23px;font-weight:800;line-height:1;
+  box-shadow:0 5px 12px #0317197a,0 1px 0 #ffffffb8 inset;
+  transform:translate3d(-100px,-100px,0);
+  opacity:0;pointer-events:none;touch-action:none;cursor:grab;
+  transition:opacity .17s ease,background .15s,box-shadow .15s;
+  user-select:none;-webkit-user-select:none;
+}
+#meldGrip.visible {opacity:1;pointer-events:auto;}
+#meldGrip.moving {cursor:grabbing;background:#fff0c9;
+  box-shadow:0 8px 19px #031719b0;}
+#meldGrip span {pointer-events:none;transform:translateY(-1px);}
+#meldGrip:focus-visible {outline:2px solid #fff4c3;outline-offset:3px;}
+
 .header-small-btn {height:35px;min-width:54px;padding:0 9px;background:#24474a;border-radius:11px;border:1px solid #4a6966;color:#e7eee8;font-size:11px;font-weight:750;letter-spacing:.045em;}
 .header-small-btn:active {background:#3b696b;} .header-small-btn:disabled {opacity:.33;}
 .small-btn {height:36px;min-width:0;flex:1;background:#294b50;border-radius:10px;border:1px solid #49696b;color:#e9f0e9;font-size:12px;font-weight:750;letter-spacing:.05em;}
@@ -223,8 +242,11 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
       <div id="groupLayer"></div>
       <div id="tileLayer"></div>
       <div id="raisedLayer" aria-label="Selected meld"></div>
+      <button id="meldGrip" aria-label="Drag to reposition this meld" title="Move entire meld · free">
+        <span aria-hidden="true">⠿</span>
+      </button>
       <div id="lessonCue" aria-live="polite">Make everything green.</div>
-      <div id="bigHint">TAP A GROUP TO OPEN IT <span>·</span> DRAG A TILE TO REMIX</div>
+      <div id="bigHint">TAP A MELD <span>·</span> DRAG ⠿ TO MOVE IT <span>·</span> DRAG CARDS TO REMIX</div>
     </section>
   </main>
 </div>
@@ -372,9 +394,9 @@ const LEVELS=[
 const defaults={tile:58,corner:9,gap:4,spring:180,magnet:55};
 let settings={...defaults};
 try {const saved=JSON.parse(localStorage.getItem('remixaLab')||'null'); if(saved) settings={...settings,...saved};}catch(_){}
-const board=$('board'), groupsLayer=$('groupLayer'), tilesLayer=$('tileLayer'), raisedLayer=$('raisedLayer'), dragLayer=$('dragLayer');
+const board=$('board'), groupsLayer=$('groupLayer'), tilesLayer=$('tileLayer'), raisedLayer=$('raisedLayer'), dragLayer=$('dragLayer'), meldGrip=$('meldGrip');
 let tiles=[],groups=[],active=null,hover=null,history=[],level=0,won=false,nextID=1,nextGroup=1;
-let moves=0,selectedId=null;
+let moves=0,selectedId=null,movingGroup=null;
 let actualTile=58,boardW=1,boardH=1,adaptiveTileCap=Infinity;
 // A purely visual collision preview; puzzle positions remain untouched until drop.
 let projected=null,previewFrame=0,previewPoint=null;
@@ -430,13 +452,13 @@ function updateScore(){
   $('best').textContent=readBest()??'—';
 }
 function selectGroup(id){
-  if(!isBig()||active)return;
+  if(!isBig()||active||movingGroup)return;
   const previous=selectedId;selectedId=id;
   if(!reflowGroups(id)){selectedId=previous;reflowGroups(previous);}
   layout();
 }
 board.addEventListener('pointerdown',e=>{
-  if(e.target===board && !active && selectedId!==null)selectGroup(null);
+  if(e.target===board && !active && !movingGroup && selectedId!==null)selectGroup(null);
 });
 
 const clamp=(v,a,b)=>Math.min(Math.max(v,a),Math.max(a,b));
@@ -683,6 +705,7 @@ function dismissOpeningHint(){
   $('lessonCue').classList.remove('show');
 }
 function loadLevel(i) {
+  if(movingGroup)finishMeldMove(null,true);
   if(active)cancelDrag();
   resetHoverIntent();
   clearLivePreview();
@@ -690,7 +713,7 @@ function loadLevel(i) {
   for(const t of tiles)t.el.remove();
   for(const g of groups)g.el.remove();
   tiles=[];groups=[];hover=null;active=null;history=[];won=false;nextID=1;nextGroup=1;
-  moves=0;selectedId=null;
+  moves=0;selectedId=null;movingGroup=null;
   adaptiveTileCap=Infinity;
   const source=LEVELS[level];
   groups=source.groups.map(g=>groupNew(g.tiles.map(v=>tileNew(...v)),g.axis,g.u,g.v));
@@ -999,7 +1022,7 @@ function layout(initial=false,skipMeasure=false) {
     g.el.classList.toggle('open',isBig()&&isOpen(g.id));
     g.el.classList.toggle('compact',isBig()&&!isOpen(g.id));
     sizeStyle(g.el,geom.w,geom.h);
-    posStyle(g.el,geom.left,geom.top);
+    posStyle(g.el,geom.left,geom.top,1,movingGroup?.id===g.id);
     if(g.fresh){g.fresh=false;g.el.style.transition='';}
     const renderAxis=pv?.axis||g.axis;
     g.tiles.forEach((t,j)=>{
@@ -1014,7 +1037,7 @@ function layout(initial=false,skipMeasure=false) {
       // layer. Reparenting ordinarily cancels CSS transitions and causes the
       // abrupt snap users notice on opening and closing a meld.
       if(t.el.parentNode!==targetTileLayer)targetTileLayer.appendChild(t.el);
-      posStyle(t.el,x,y,geom.scales[slot]);
+      posStyle(t.el,x,y,geom.scales[slot],movingGroup?.id===g.id);
     });
     if(pv) {
       // A ghost card reserves its own room within the dock, with the same
@@ -1027,6 +1050,21 @@ function layout(initial=false,skipMeasure=false) {
       posStyle(g.slot,ix-geom.left-settings.gap,
                       iy-geom.top-settings.gap);
     }
+  }
+  // One handle for the selected raised meld. It is not a card, and never
+  // enters the puzzle state or the move counter.
+  const gripGroup=isBig()&&!active
+    ? groups.find(g=>g.id===(movingGroup?.id??selectedId) && g.tiles.length>1)
+    : null;
+  meldGrip.classList.toggle('visible',!!gripGroup);
+  meldGrip.classList.toggle('moving',!!movingGroup);
+  meldGrip.tabIndex=gripGroup?0:-1;
+  meldGrip.setAttribute('aria-hidden',gripGroup?'false':'true');
+  if(gripGroup){
+    const gripBox=geometry(gripGroup,false);
+    const gx=clamp(gripBox.x-19,4,boardW-42);
+    const gy=clamp(gripBox.top-29,3,boardH-33);
+    meldGrip.style.transform=`translate3d(${gx.toFixed(2)}px,${gy.toFixed(2)}px,0)`;
   }
   $('undo').disabled=!history.length;
   springInstant=false;
@@ -1160,8 +1198,95 @@ function getHover(clientX,clientY) {
   }
   return best;
 }
+// Move a whole meld, not a tile. Other melds remain anchored during the
+// gesture. On release, only the dragged meld is allowed to seek free space.
+function nearestFreeMeldCenter(g,x0,y0){
+  const box=geometry(g,false);
+  const w=box.w,h=box.h,margin=Math.max(7,settings.gap*1.6);
+  const minX=w/2+3,maxX=boardW-w/2-3;
+  const minY=h/2+3,maxY=boardH-h/2-3;
+  if(minX>maxX||minY>maxY)return null;
+  const x=clamp(x0,minX,maxX),y=clamp(y0,minY,maxY);
+  const neighbours=groups.filter(p=>p!==g&&p.tiles.length).map(p=>geometry(p,false));
+  const xs=[x,minX,maxX],ys=[y,minY,maxY];
+  for(const p of neighbours){
+    xs.push(p.x-(p.w+w)/2-margin,p.x+(p.w+w)/2+margin);
+    ys.push(p.y-(p.h+h)/2-margin,p.y+(p.h+h)/2+margin);
+  }
+  let best=null,cost=Infinity;
+  const examine=(xx,yy)=>{
+    if(xx<minX-.01||xx>maxX+.01||yy<minY-.01||yy>maxY+.01)return;
+    if(neighbours.some(p=>Math.abs(xx-p.x)<(w+p.w)/2+margin-.01 &&
+                          Math.abs(yy-p.y)<(h+p.h)/2+margin-.01))return;
+    const d=(xx-x)**2+(yy-y)**2;
+    if(d<cost){cost=d;best={x:xx,y:yy};}
+  };
+  for(const xx of xs)for(const yy of ys)examine(xx,yy);
+  if(!best){
+    const step=Math.max(8,Math.floor(actualTile/3));
+    for(let yy=minY;yy<=maxY+step;yy+=step)
+      for(let xx=minX;xx<=maxX+step;xx+=step)
+        examine(Math.min(xx,maxX),Math.min(yy,maxY));
+  }
+  return best;
+}
+function beginMeldMove(e){
+  if(!isBig()||won||active||movingGroup||e.button>0 ||
+     $('lab').classList.contains('show'))return;
+  const g=groups.find(p=>p.id===selectedId&&p.tiles.length>1);
+  if(!g)return;
+  e.preventDefault();e.stopPropagation();
+  resetHoverIntent();
+  const box=geometry(g,false),br=board.getBoundingClientRect();
+  movingGroup={
+    id:g.id,pointerId:e.pointerId,
+    originalU:g.u,originalV:g.v,
+    offsetX:box.x-(e.clientX-br.left),
+    offsetY:box.y-(e.clientY-br.top),
+    startX:e.clientX,startY:e.clientY
+  };
+  if(meldGrip.setPointerCapture){
+    try{meldGrip.setPointerCapture(e.pointerId);}catch(_){}
+  }
+  layout(false,true);
+}
+function moveMeld(e){
+  const m=movingGroup;
+  if(!m||e.pointerId!==m.pointerId)return;
+  e.preventDefault();
+  const g=groups.find(p=>p.id===m.id);
+  if(!g){movingGroup=null;return;}
+  const box=geometry(g,false),br=board.getBoundingClientRect();
+  const x=clamp(e.clientX-br.left+m.offsetX,box.w/2+3,boardW-box.w/2-3);
+  const y=clamp(e.clientY-br.top+m.offsetY,box.h/2+3,boardH-box.h/2-3);
+  g.u=x/boardW;g.v=y/boardH;
+  layout(false,true);
+}
+function finishMeldMove(e,cancel=false){
+  const m=movingGroup;
+  if(!m||e?.pointerId!==undefined&&e.pointerId!==m.pointerId)return;
+  const g=groups.find(p=>p.id===m.id);
+  movingGroup=null;
+  if(!g)return;
+  if(cancel){
+    g.u=m.originalU;g.v=m.originalV;
+  }else{
+    const box=geometry(g,false);
+    const spot=nearestFreeMeldCenter(g,box.x,box.y);
+    if(spot){g.u=spot.x/boardW;g.v=spot.y/boardH;}
+    else{g.u=m.originalU;g.v=m.originalV;}
+  }
+  // A spatial move is free and does not create an Undo entry.
+  layout();
+}
+meldGrip.addEventListener('pointerdown',beginMeldMove);
+window.addEventListener('pointermove',moveMeld,{passive:false});
+window.addEventListener('pointerup',e=>finishMeldMove(e),{passive:false});
+window.addEventListener('pointercancel',e=>finishMeldMove(e,true));
+window.addEventListener('blur',()=>finishMeldMove(null,true));
+
 function pointerDown(e,t) {
-  if(won||active||$('lab').classList.contains('show')||e.button>0)return;
+  if(won||active||movingGroup||$('lab').classList.contains('show')||e.button>0)return;
   resetHoverIntent();
   e.preventDefault();
   dismissOpeningHint();
