@@ -38,14 +38,13 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 #raisedLayer .tile {pointer-events:auto;}
 /* A single grip floats above the currently selected meld; never over its cards. */
 #meldGrip {
-  /* Stay exactly centred over the visible meld, even as the frame springs. */
-  position:absolute;left:50%;top:-6px;width:38px;height:29px;z-index:9;
+  position:absolute;left:0;top:0;width:38px;height:29px;z-index:9;
   border:1px solid #b99e6d;border-radius:12px;
   background:linear-gradient(160deg,#ffebbc,#ebcb89);
   color:#233938;display:grid;place-items:center;
   font-size:23px;font-weight:800;line-height:1;
   box-shadow:0 5px 12px #0317197a,0 1px 0 #ffffffb8 inset;
-  transform:translate(-50%,-100%);
+  transform:translate3d(-100px,-100px,0);
   opacity:0;pointer-events:none;touch-action:none;cursor:grab;
   transition:opacity .17s ease,background .15s,box-shadow .15s;
   user-select:none;-webkit-user-select:none;
@@ -53,7 +52,11 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 #meldGrip.visible {opacity:1;pointer-events:auto;}
 #meldGrip.moving {cursor:grabbing;background:#fff0c9;
   box-shadow:0 8px 19px #031719b0;}
-#meldGrip span {pointer-events:none;transform:translateY(-1px);}
+#meldGrip .grip-icon {
+  position:absolute;left:50%;top:50%;width:16px;height:22px;
+  transform:translate(-50%,-50%);
+  pointer-events:none;display:block;overflow:visible;
+}
 #meldGrip:focus-visible {outline:2px solid #fff4c3;outline-offset:3px;}
 
 .header-small-btn {height:35px;min-width:54px;padding:0 9px;background:#24474a;border-radius:11px;border:1px solid #4a6966;color:#e7eee8;font-size:11px;font-weight:750;letter-spacing:.045em;}
@@ -244,7 +247,13 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
       <div id="tileLayer"></div>
       <div id="raisedLayer" aria-label="Selected meld"></div>
       <button id="meldGrip" aria-label="Drag to reposition this meld" title="Move entire meld · free">
-        <span aria-hidden="true">⠿</span>
+        <svg class="grip-icon" aria-hidden="true" viewBox="0 0 16 22" focusable="false">
+          <g fill="currentColor">
+            <circle cx="4.5" cy="4" r="1.9"/><circle cx="11.5" cy="4" r="1.9"/>
+            <circle cx="4.5" cy="11" r="1.9"/><circle cx="11.5" cy="11" r="1.9"/>
+            <circle cx="4.5" cy="18" r="1.9"/><circle cx="11.5" cy="18" r="1.9"/>
+          </g>
+        </svg>
       </button>
       <div id="lessonCue" aria-live="polite">Make everything green.</div>
       <div id="bigHint">TAP A MELD <span>·</span> DRAG ⠿ TO MOVE IT <span>·</span> DRAG CARDS TO REMIX</div>
@@ -1080,10 +1089,11 @@ function layout(initial=false,skipMeasure=false) {
   meldGrip.classList.toggle('moving',!!movingGroup);
   meldGrip.tabIndex=gripGroup?0:-1;
   meldGrip.setAttribute('aria-hidden',gripGroup?'false':'true');
-  if(gripGroup && meldGrip.parentNode!==gripGroup.el){
-    // Attach to the rendered frame itself. Its actual width may be changing
-    // under spring physics, so centring by board coordinates can drift.
-    gripGroup.el.appendChild(meldGrip);
+  if(gripGroup){
+    const gripBox=geometry(gripGroup,false);
+    const gx=clamp(gripBox.x-19,4,boardW-42);
+    const gy=clamp(gripBox.top-29,3,boardH-33);
+    meldGrip.style.transform=`translate3d(${gx.toFixed(2)}px,${gy.toFixed(2)}px,0)`;
   }
   $('undo').disabled=!history.length;
   springInstant=false;
