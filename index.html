@@ -1112,6 +1112,16 @@ function compactBox(g) {
 function magnetMargin(){
   return actualTile*(.085+settings.magnet*.00275);
 }
+// A joining card may approach from ANY direction. Eligibility is based on
+// actual card-to-card contact, not on the approach angle. The chosen axis
+// still comes exclusively from the legal relationship of the two cards.
+function soloContact(x,y,box){
+  const allowance=isBig()
+    ? actualTile*(.025+settings.magnet*.0012)
+    : actualTile*(.05+settings.magnet*.002);
+  return Math.abs(x-box.x)<=actualTile+allowance &&
+         Math.abs(y-box.y)<=actualTile+allowance;
+}
 function getHover(clientX,clientY) {
   const br=board.getBoundingClientRect();
   const x=clientX-br.left,y=clientY-br.top;
@@ -1132,12 +1142,22 @@ function getHover(clientX,clientY) {
       const across=axis==='h'?y-box.y:x-box.x;
       const length=(focused.tiles.length-1)*actualTile*.56/2;
       const visible=geometry(focused,true,axis);
-      // An opened meld remains interactive all the way out to its visible
-      // outer cards, but never claims empty table space beyond that outline.
-      const onMeld=x>=visible.left && x<=visible.left+visible.w &&
-                   y>=visible.top && y<=visible.top+visible.h;
-      if(onMeld && Math.abs(along)<=length+actualTile*1.55 &&
-         Math.abs(across)<=actualTile*.66+magnetMargin()){
+      // A single tile can invite a matching card from the side even though
+      // the resulting set must open vertically. Keep that initial contact
+      // active while the spring expands the set, instead of closing it
+      // merely because the pointer is outside the tall preview outline.
+      // The held card can overlap a raised multi-card meld from either
+      // side, not only by placing its centre inside the green outline.
+      const contactPad=actualTile*.48+magnetMargin()*.12;
+      const onMeld=focused.tiles.length===1
+        ? soloContact(x,y,box)
+        : x>=visible.left-contactPad &&
+          x<=visible.left+visible.w+contactPad &&
+          y>=visible.top-contactPad &&
+          y<=visible.top+visible.h+contactPad;
+      if(onMeld && (focused.tiles.length===1 ||
+         (Math.abs(along)<=length+actualTile*1.55 &&
+          Math.abs(across)<=actualTile+magnetMargin()*.14))){
         if(focused.tiles.length===1){
           const card=focused.tiles[0],moving=active.tile;
           const sameNumber=moving.num===card.num&&moving.col!==card.col;
@@ -1145,9 +1165,8 @@ function getHover(clientX,clientY) {
           const chosenAxis=sameNumber?'v':sameSuit?'h':null;
           if(!chosenAxis || !canJoin(focused,moving,chosenAxis))return null;
           const d=chosenAxis==='h'?x-box.x:y-box.y;
-          const cross=chosenAxis==='h'?y-box.y:x-box.x;
-          // A set invites a vertical insertion, a run a horizontal one.
-          if(Math.abs(cross)>Math.abs(d)+actualTile*.18)return null;
+          // Even a sideways approach to a matching rank produces a vertical
+          // slot. Use the side of the target's centre along the legal axis.
           const highAce=sameSuit&&
             ((moving.num===1&&card.num===13)||(moving.num===13&&card.num===1));
           const index=sameSuit&&moving.num!==card.num
@@ -1183,9 +1202,7 @@ function getHover(clientX,clientY) {
     if(g.tiles.length===1){
       const dx=x-box.x,dy=y-box.y;
       const near=Math.hypot(dx,dy);
-      const limit=isBig()?actualTile*.46+margin:
-        actualTile*1.27+actualTile*settings.magnet/100*.55;
-      if(near>limit)continue;
+      if(!soloContact(x,y,box))continue;
       const other=g.tiles[0], moving=active?.tile;
       const sameRank=moving&&moving.num===other.num&&moving.col!==other.col;
       const sameColour=moving&&moving.col===other.col;
@@ -1195,8 +1212,8 @@ function getHover(clientX,clientY) {
       const axis=sameRank?'v':sameColour?'h':null;
       if(!axis || !canJoin(g,moving,axis))continue;
       const along=axis==='h'?dx:dy;
-      const across=axis==='h'?dy:dx;
-      if(Math.abs(across)>Math.abs(along)+actualTile*.18)continue;
+      // Approach direction must not affect legality or whether the target
+      // raises. Only the slot orientation follows run/set rules.
       const highAcePair=sameColour&&
         ((moving.num===1&&other.num===13)||(moving.num===13&&other.num===1));
       const index=sameColour&&moving.num!==other.num
@@ -1215,8 +1232,11 @@ function getHover(clientX,clientY) {
     if(isBig()){
       // Compact cards overlap heavily. Require the finger to approach
       // their real stack (or just past its end) to open it.
-      const headroom=actualTile*.22+margin;
-      const crossPad=margin;
+      // Require physical card overlap, but allow that overlap from any
+      // direction. Compatibility (above) decides if the preview is legal;
+      // approach angle must not determine whether the meld opens.
+      const headroom=actualTile*.48+margin*.12;
+      const crossPad=headroom;
       const xReach=g.axis==='h'?headroom:crossPad;
       const yReach=g.axis==='v'?headroom:crossPad;
       if(x<box.left-xReach||x>box.left+box.w+xReach||
@@ -1232,7 +1252,9 @@ function getHover(clientX,clientY) {
       step=box.step;
       end=(g.tiles.length-1)*step/2;
       const maxAlong=end+step+reach;
-      const maxAcross=actualTile*.70+reach*.35;
+      // Like compact melds, ordinary runs/sets can be approached from
+      // the side once the incoming card physically overlaps their cards.
+      const maxAcross=actualTile*.97+reach*.2;
       if(Math.abs(along)>maxAlong||Math.abs(across)>maxAcross)continue;
       const overshoot=Math.max(0,Math.abs(along)-end-step);
       const normalGap=Math.max(0,Math.abs(across)-actualTile/2);
