@@ -67,7 +67,7 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 .group.valid {border-color:var(--green);background:var(--green);}
 .group.incomplete {border-color:var(--red);background:var(--red);}
 .group.invalid {border-color:var(--red);background:var(--red);}
-.group .slot {position:absolute;width:var(--tile);height:var(--tile);left:0;top:0;border-radius:var(--corner);background:#d0ffe92e;outline:1px solid #ffffff3a;opacity:0;pointer-events:none;transition:opacity .16s,transform var(--snap-ms) cubic-bezier(.2,.85,.25,1),width var(--snap-ms),height var(--snap-ms);}
+.group .slot {position:absolute;width:var(--tile);height:var(--tile);left:0;top:0;border-radius:var(--corner);background:#d9e2e96b;outline:1px solid #e1edf0a8;opacity:0;pointer-events:none;transition:opacity .16s,transform var(--snap-ms) cubic-bezier(.2,.85,.25,1),width var(--snap-ms),height var(--snap-ms);}
 .group.has-slot .slot {opacity:1;}
 /* Modern square playing cards: number in the upper-left, big suit at centre.
    A restrained paper finish avoids a flat UI look without adding visual noise. */
@@ -114,7 +114,7 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
   45% {filter:brightness(1.16);box-shadow:0 0 0 6px #f6d49a33;}
 }
 
-.tile.dragging {animation:none!important;transition:none;z-index:50;cursor:grabbing;box-shadow:0 15px 26px #0009,0 5px 9px #0006;filter:brightness(1.045);}
+.tile.dragging {animation:none!important;transition:none;z-index:50;cursor:grabbing;box-shadow:0 15px 26px #0009,0 5px 9px #0006;filter:grayscale(1) saturate(0) brightness(1.045);}
 #dragLayer {position:fixed;inset:0;pointer-events:none;z-index:90;overflow:visible;}
 #dragLayer .tile {pointer-events:none;}
 /* The finished table stays visible: completion is a small, dismissible
@@ -1136,10 +1136,9 @@ function getHover(clientX,clientY) {
   // hovering card continuously while the insertion order changes deliberately.
   if(isBig() && active && hover) {
     const focused=groups.find(g=>g.id===hover.id);
-    // An already-open meld must not keep displaying a slot once the
-    // incoming card is structurally incompatible with that run or set.
-    if(focused?.tiles.length &&
-       canJoin(focused,active.tile,hover.axis||focused.axis)) {
+    // The raised meld keeps offering a landing slot regardless of whether
+    // the incoming card belongs. Validity is revealed only on release.
+    if(focused?.tiles.length) {
       const axis=hover.axis||focused.axis;
       const box=compactBox(focused);
       const along=axis==='h'?x-box.x:y-box.y;
@@ -1166,8 +1165,11 @@ function getHover(clientX,clientY) {
           const card=focused.tiles[0],moving=active.tile;
           const sameNumber=moving.num===card.num&&moving.col!==card.col;
           const sameSuit=moving.col===card.col;
-          const chosenAxis=sameNumber?'v':sameSuit?'h':null;
-          if(!chosenAxis || !canJoin(focused,moving,chosenAxis))return null;
+          // Keep the familiar automatic orientation for promising pairs,
+          // but never refuse to preview an incompatible card. An arbitrary
+          // pair follows the axis of approach and may remain red on release.
+          const chosenAxis=sameNumber?'v':sameSuit?'h':
+            Math.abs(x-box.x)>=Math.abs(y-box.y)?'h':'v';
           const d=chosenAxis==='h'?x-box.x:y-box.y;
           // Even a sideways approach to a matching rank produces a vertical
           // slot. Use the side of the target's centre along the legal axis.
@@ -1177,7 +1179,6 @@ function getHover(clientX,clientY) {
           return {id:focused.id,index,axis:chosenAxis};
         }
 
-        if(!canJoin(focused,active.tile,axis))return null;
         // Slot changes only as the finger crosses a card's original,
         // stationary centre. A little hysteresis prevents rapid flicker.
         const m=focused.tiles.length;
@@ -1195,10 +1196,8 @@ function getHover(clientX,clientY) {
   let best=null,bestDist=Infinity;
   for(const g of groups) {
     if(!g.tiles.length)continue;
-    // Preview eligibility and drop eligibility share exactly the same
-    // structural test, so red/green insertion hints don't lie to players.
-    if(active?.tile && g.tiles.length>1 && !canJoin(g,active.tile,g.axis))
-      continue;
+    // Every nearby meld is a potential target: a preview must not reveal
+    // whether the card belongs. Invalid joins are allowed and become red.
     const box=compactBox(g);
     const margin=magnetMargin();
     if(g.tiles.length===1){
@@ -1208,11 +1207,11 @@ function getHover(clientX,clientY) {
       const other=g.tiles[0], moving=active?.tile;
       const sameRank=moving&&moving.num===other.num&&moving.col!==other.col;
       const sameColour=moving&&moving.col===other.col;
-      // A solo card may form a set vertically (same rank, different suit),
-      // or a run horizontally (same suit). Never advertise an impossible
-      // meld, even though the drop would eventually be rejected.
-      const axis=sameRank?'v':sameColour?'h':null;
-      if(!axis || !canJoin(g,moving,axis))continue;
+      // For a solo card, retain automatic orientation for a promising
+      // relationship; for an unrelated pair, use the physical approach.
+      // All options are previewable, even when the final pair is invalid.
+      const axis=sameRank?'v':sameColour?'h':
+        Math.abs(dx)>=Math.abs(dy)?'h':'v';
       const along=axis==='h'?dx:dy;
       // Approach direction must not affect legality or whether the target
       // raises. Only the slot orientation follows run/set rules.
@@ -1443,10 +1442,10 @@ function pointerDown(e,t) {
     originY:rect.top+rect.height/2,
     before:old, colors, pendingRun, startX:e.clientX, startY:e.clientY
   };
-  // Each lifted tile carries a linked-group outline with it.  It is the
-  // colour it had before pickup; a new verdict waits until drop.
+  // A neutral outline and desaturated card conceal the incoming card's
+  // suit while it moves. Only a committed meld receives a red/green verdict.
   t.el.style.boxShadow=
-    `0 0 0 ${settings.gap}px ${heldColor?'var(--green)':'var(--red)'}, `+
+    `0 0 0 ${settings.gap}px #a6b4bc, `+
     '0 15px 26px #0009, 0 5px 9px #0006';
   clearLivePreview();
   hover=null;
@@ -1537,11 +1536,8 @@ function pointerUp(e) {
     return;
   }
   let g=target&&groups.find(g=>g.id===target.id);
-  // Only decide legality on drop; rejected joins revert without a move.
-  if(g && !canJoin(g,t,target.axis||g.axis)) {
-    cancelDrag();
-    return;
-  }
+  // Deliberately allow an incorrect insertion. The meld is marked red
+  // after release and can be repaired, rather than helping by refusing it.
   if(g) {
     let insertionIndex=target.index;
     // For a new two-card run, sort on *drop*, not on hover. For example,
