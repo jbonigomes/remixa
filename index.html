@@ -447,7 +447,8 @@ const openedId=()=>{
   // Moving an entire meld is a different gesture from editing its cards.
   // Show its compact, final footprint from pickup through release.
   if(movingGroup)return null;
-  if(active)return hover?.id??null;
+  // Keep a run open while its lifted card still overlaps the original meld.
+  if(active)return hover?.id??active.pendingRun?.id??null;
   const selected=groups.find(g=>g.id===selectedId);
   return selected?.tiles.length>1?selectedId:null;
 };
@@ -1353,6 +1354,43 @@ window.addEventListener('pointerup',e=>finishMeldMove(e),{passive:false});
 window.addEventListener('pointercancel',e=>finishMeldMove(e,true));
 window.addEventListener('blur',()=>finishMeldMove(null,true));
 
+// While a card overlaps its original run, keep that run whole. The split
+// occurs once most of the held card has cleared the original meld's outline.
+function hasPulledClearOfRun(a,x,y) {
+  const p=a.pendingRun;
+  if(!p)return true;
+  const b=p.bounds,half=actualTile*.52;
+  const overlapW=Math.max(0,Math.min(b.right,x+half)-Math.max(b.left,x-half));
+  const overlapH=Math.max(0,Math.min(b.bottom,y+half)-Math.max(b.top,y-half));
+  const overlapRatio=overlapW*overlapH/(2*half)**2;
+  return overlapRatio<.20 &&
+    Math.hypot(x-a.originX,y-a.originY)>actualTile*.5;
+}
+function extractPendingRun() {
+  const a=active,p=a?.pendingRun;
+  if(!p)return;
+  a.pendingRun=null;
+  const idx=groups.findIndex(g=>g.id===p.id);
+  if(idx<0)return;
+  const g=groups[idx],pos=g.tiles.indexOf(a.tile);
+  if(pos<0)return;
+  const before=g.tiles.length;
+  const original=p.original,pitch=original.step;
+  const left=g.tiles.slice(0,pos),right=g.tiles.slice(pos+1);
+  const leftCenter=original.x+(pos-before)*pitch/2;
+  const rightCenter=original.x+(pos+1)*pitch/2;
+  if(left.length&&right.length) {
+    g.tiles=left;
+    g.u=clamp(leftCenter/boardW,0,1);
+    const other=groupNew(right,'h',clamp(rightCenter/boardW,0,1),g.v);
+    a.colors.set(other.id,a.colors.get(g.id));
+    groups.splice(idx+1,0,other);
+  } else {
+    g.tiles=left.length?left:right;
+    if(g.tiles.length)g.u=clamp((left.length?leftCenter:rightCenter)/boardW,0,1);
+    else{g.el.remove();groups.splice(idx,1);}
+  }
+}
 function pointerDown(e,t) {
   if(won||active||movingGroup||$('lab').classList.contains('show')||e.button>0)return;
   resetHoverIntent();
@@ -1366,37 +1404,30 @@ function pointerDown(e,t) {
   const old=snapshot(),rect=t.el.getBoundingClientRect();
   const colors=new Map(groups.map(g=>[g.id,isValid(g)]));
   let heldColor=false;
+  let pendingRun=null;
   {
     const idx=groups.findIndex(g=>g.tiles.includes(t));
     if(idx<0)return;
-    const g=groups[idx],pos=g.tiles.indexOf(t),before=g.tiles.length;
+    const g=groups[idx],pos=g.tiles.indexOf(t);
     heldColor=colors.get(g.id);
-    // Runs split at the removed card, even if either fragment has only one
-    // card. Sets are deliberately different: their remaining cards stay
-    // together in the original vertical group.
-    if(g.axis==='h' && before>1) {
-      // Preserve the positions of the *compact* card slots so taking one
-      // card doesn't slide every other card along the table.
-      const original=isBig()?compactBox(g):geometry(g);
-      const pitch=original.step;
-      const left=g.tiles.slice(0,pos);
-      const right=g.tiles.slice(pos+1);
-      const leftCenter=original.x + (pos-before)*pitch/2;
-      const rightCenter=original.x + (pos+1)*pitch/2;
-      if(left.length && right.length) {
-        g.tiles=left;
-        g.u=clamp(leftCenter/boardW,0,1);
-        const rightGroup=groupNew(right,'h',clamp(rightCenter/boardW,0,1),g.v);
-        colors.set(rightGroup.id,heldColor);
-        groups.splice(idx+1,0,rightGroup);
-      } else {
-        g.tiles=left.length?left:right;
-        g.u=clamp((left.length?leftCenter:rightCenter)/boardW,0,1);
-      }
+    if(g.axis==='h' && g.tiles.length>1) {
+      // Picking up a card is not yet a split. Keep the entire run in its
+      // original order until the held card is actually pulled out of it.
+      const geom=geometry(g);
+      const br=board.getBoundingClientRect();
+      pendingRun={
+        id:g.id,index:pos,
+        original:isBig()?compactBox(g):geom,
+        bounds:{
+          left:br.left+geom.left,right:br.left+geom.left+geom.w,
+          top:br.top+geom.top,bottom:br.top+geom.top+geom.h
+        }
+      };
     } else {
+      // Sets keep the remaining cards together, as before.
       g.tiles.splice(pos,1);
+      if(!g.tiles.length){g.el.remove();groups.splice(idx,1);}
     }
-    if(!g.tiles.length){g.el.remove();groups.splice(idx,1);}
   }
   active={
     tile:t,pointerId:e.pointerId,
@@ -1407,7 +1438,7 @@ function pointerDown(e,t) {
     // a different insertion slot even when the player lets go at home.
     originX:rect.left+rect.width/2,
     originY:rect.top+rect.height/2,
-    before:old, colors, startX:e.clientX, startY:e.clientY
+    before:old, colors, pendingRun, startX:e.clientX, startY:e.clientY
   };
   // Each lifted tile carries a linked-group outline with it.  It is the
   // colour it had before pickup; a new verdict waits until drop.
@@ -1431,6 +1462,16 @@ function moveDrag(e) {
   y=clamp(y,b.top+actualTile/2,b.bottom-actualTile/2);
   posStyle(a.tile.el,x-actualTile/2,y-actualTile/2,1.035);
   a.lastX=x;a.lastY=y;
+  if(a.pendingRun) {
+    if(!hasPulledClearOfRun(a,x,y)) {
+      // The held card may wiggle or slide within the run without splitting it.
+      resetHoverIntent();hover=null;
+      clearLivePreview();projected=null;
+      layout(false,true);
+      return;
+    }
+    extractPendingRun();
+  }
   const next=getHover(x,y);
   // Candidate doesn't become a raised target until the finger lingers there.
   updateDragHover(next);
@@ -1461,6 +1502,12 @@ function pointerUp(e) {
   const x=e.clientX+a.dx,y=e.clientY+a.dy;
   if(Math.hypot(e.clientX-a.startX,e.clientY-a.startY)<7){cancelDrag();return;}
   if(x<br.left||x>br.right||y<br.top||y>br.bottom){cancelDrag();return;}
+  // A run is only split when a lifted card actually clears its old meld.
+  // Releasing while it is still overlapping restores the untouched run.
+  if(a.pendingRun) {
+    if(!hasPulledClearOfRun(a,x,y)){cancelDrag();return;}
+    extractPendingRun();
+  }
   // Returning close to the original tile slot is a no-op irrespective of
   // how far the finger travelled in between or which group the magnet
   // happens to nominate. A purposeful one-slot reorder still counts.
