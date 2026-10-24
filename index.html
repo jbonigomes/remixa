@@ -98,7 +98,7 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 .tile .center-suit {
   position:absolute;left:50%;top:52%;
   transform:translate(-50%,-50%) scaleX(1.25);
-  font-size:calc(var(--tile) * 0.5292);
+  font-size:calc(var(--tile) * 0.5238);
   line-height:1;font-family:Georgia,"Times New Roman",serif;
   font-weight:700;pointer-events:none;
 }
@@ -1086,14 +1086,14 @@ function tileNew(num,col) {
   const suit=SUITS[col%SUITS.length];
   t.el.className='tile suit-'+suit.kind;
   t.el.innerHTML=`<span class="corner">${rankLabel(num)}</span>${suitArtwork(t.id,col,suit.symbol)}`;
-  // Reduce centre suits by a further 8% from the approved 3%-smaller build.
+  // Reduce centre suits by a further 2% from the latest 8%-smaller build.
   // Only the artwork dimensions change; ranks, centring and hitboxes do not.
   const suitMark=t.el.querySelector('.center-suit');
   if(suitMark?.classList.contains('suit-art')){
-    suitMark.style.width='calc(var(--tile) * 0.4319216)';
-    suitMark.style.height='calc(var(--tile) * 0.4408456)';
+    suitMark.style.width='calc(var(--tile) * 0.423283168)';
+    suitMark.style.height='calc(var(--tile) * 0.432028688)';
   }else if(suitMark?.classList.contains('center-diamond')){
-    suitMark.style.fontSize='calc(var(--tile) * 0.8013752)';
+    suitMark.style.fontSize='calc(var(--tile) * 0.785347696)';
   }
   t.el.setAttribute('aria-label', `${rankLabel(num)} of ${suit.name}`);
   t.el.style.setProperty('--tile-color',colorAt(col));
