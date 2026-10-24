@@ -1126,6 +1126,13 @@ function soloContact(x,y,box){
   return Math.abs(x-box.x)<=actualTile+allowance &&
          Math.abs(y-box.y)<=actualTile+allowance;
 }
+// When two solo cards are first linked, their values establish the axis:
+// a matching-rank pair of different suits starts a vertical set; every
+// other pair starts a horizontal run (possibly red). Approach direction
+// never turns two unrelated cards into a sideways/vertical "fake set".
+function soloPairAxis(card,moving) {
+  return moving && card && moving.num===card.num && moving.col!==card.col ? 'v' : 'h';
+}
 function getHover(clientX,clientY) {
   const br=board.getBoundingClientRect();
   const x=clientX-br.left,y=clientY-br.top;
@@ -1163,13 +1170,9 @@ function getHover(clientX,clientY) {
           Math.abs(across)<=actualTile+magnetMargin()*.14))){
         if(focused.tiles.length===1){
           const card=focused.tiles[0],moving=active.tile;
-          const sameNumber=moving.num===card.num&&moving.col!==card.col;
-          const sameSuit=moving.col===card.col;
-          // Keep the familiar automatic orientation for promising pairs,
-          // but never refuse to preview an incompatible card. An arbitrary
-          // pair follows the axis of approach and may remain red on release.
-          const chosenAxis=sameNumber?'v':sameSuit?'h':
-            Math.abs(x-box.x)>=Math.abs(y-box.y)?'h':'v';
+          // A two-card set can only start with matching ranks. Other
+          // combinations stay horizontally oriented, even from above.
+          const chosenAxis=soloPairAxis(card,moving);
           const d=chosenAxis==='h'?x-box.x:y-box.y;
           // Even a sideways approach to a matching rank produces a vertical
           // slot. Use the side of the target's centre along the legal axis.
@@ -1205,13 +1208,10 @@ function getHover(clientX,clientY) {
       const near=Math.hypot(dx,dy);
       if(!soloContact(x,y,box))continue;
       const other=g.tiles[0], moving=active?.tile;
-      const sameRank=moving&&moving.num===other.num&&moving.col!==other.col;
-      const sameColour=moving&&moving.col===other.col;
-      // For a solo card, retain automatic orientation for a promising
-      // relationship; for an unrelated pair, use the physical approach.
-      // All options are previewable, even when the final pair is invalid.
-      const axis=sameRank?'v':sameColour?'h':
-        Math.abs(dx)>=Math.abs(dy)?'h':'v';
+      // A matching-rank pair opens vertically from ANY direction.
+      // Unrelated cards can still combine incorrectly, but as a red run
+      // rather than a misleading sideways/vertical set.
+      const axis=soloPairAxis(other,moving);
       const along=axis==='h'?dx:dy;
       // Approach direction must not affect legality or whether the target
       // raises. Only the slot orientation follows run/set rules.
@@ -1539,11 +1539,16 @@ function pointerUp(e) {
   // Deliberately allow an incorrect insertion. The meld is marked red
   // after release and can be repaired, rather than helping by refusing it.
   if(g) {
+    // Match the final axis to the same rule used by the hover preview.
+    // This also guards against an out-of-date hovered slot at release.
+    const dropAxis=g.tiles.length===1
+      ? soloPairAxis(g.tiles[0],t)
+      : g.axis;
     let insertionIndex=target.index;
     // For a new two-card run, sort on *drop*, not on hover. For example,
     // a 6 approaching a 7 from the right previews space on the RIGHT,
     // then settles as 6–7 (never the invalid 7–6). Ace can finish K–A.
-    if(g.tiles.length===1 && (target.axis||g.axis)==='h' &&
+    if(g.tiles.length===1 && dropAxis==='h' &&
        g.tiles[0].col===t.col && g.tiles[0].num!==t.num) {
       const other=g.tiles[0];
       const highAce=(t.num===1&&other.num===13)||
@@ -1553,7 +1558,7 @@ function pointerUp(e) {
         : (t.num<other.num?0:1);
     }
     g.tiles.splice(insertionIndex,0,t);
-    if(target.axis)g.axis=target.axis;
+    g.axis=dropAxis;
     if(g.tiles.length===2) {
       const [first,second]=g.tiles;
       if(first.num===second.num&&first.col!==second.col)g.axis='v';
