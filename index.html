@@ -1089,6 +1089,14 @@ function tileNew(num,col) {
   // Reduce centre suits by a further 2% from the latest 8%-smaller build.
   // Only the artwork dimensions change; ranks, centring and hitboxes do not.
   const suitMark=t.el.querySelector('.center-suit');
+  // Suit-only optical offset: the intended -46.5% offset moves down by
+  // another 2 percentage points, twice the previous one-point nudge.
+  // Preserve the diamond's existing horizontal stretch and all artwork sizes.
+  if(suitMark){
+    suitMark.style.transform=suitMark.classList.contains('center-diamond')
+      ? 'translate(-50%, -44.5%) scaleX(1.25)'
+      : 'translate(-50%, -44.5%)';
+  }
   if(suitMark?.classList.contains('suit-art')){
     suitMark.style.width='calc(var(--tile) * 0.423283168)';
     suitMark.style.height='calc(var(--tile) * 0.432028688)';
@@ -2271,6 +2279,23 @@ loadLevel(firstLevel);applySettings();scheduleBoardFit();
       prev=now;
     });
     obs.observe(win,{attributes:true, attributeFilter:['class']});
+  }
+})();
+
+
+// Restore the victory panel's centre. An earlier generic translate edit
+// accidentally nudged this keyframe instead of the central suit artwork.
+(function restoreVictoryCentre(){
+  for(const sheet of Array.from(document.styleSheets)){
+    let rules;
+    try{rules=Array.from(sheet.cssRules);}catch(_){continue;}
+    for(const rule of rules){
+      if(rule.name!=='cozyCenteredCard'||!rule.cssRules)continue;
+      for(const keyframe of Array.from(rule.cssRules)){
+        if(keyframe.keyText==='100%'||keyframe.keyText==='to')
+          keyframe.style.transform='translate(-50%, -50%) scale(1)';
+      }
+    }
   }
 })();
 
