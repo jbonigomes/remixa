@@ -1086,6 +1086,15 @@ function tileNew(num,col) {
   const suit=SUITS[col%SUITS.length];
   t.el.className='tile suit-'+suit.kind;
   t.el.innerHTML=`<span class="corner">${rankLabel(num)}</span>${suitArtwork(t.id,col,suit.symbol)}`;
+  // Reduce centre suits by a further 8% from the approved 3%-smaller build.
+  // Only the artwork dimensions change; ranks, centring and hitboxes do not.
+  const suitMark=t.el.querySelector('.center-suit');
+  if(suitMark?.classList.contains('suit-art')){
+    suitMark.style.width='calc(var(--tile) * 0.4319216)';
+    suitMark.style.height='calc(var(--tile) * 0.4408456)';
+  }else if(suitMark?.classList.contains('center-diamond')){
+    suitMark.style.fontSize='calc(var(--tile) * 0.8013752)';
+  }
   t.el.setAttribute('aria-label', `${rankLabel(num)} of ${suit.name}`);
   t.el.style.setProperty('--tile-color',colorAt(col));
   t.el.dataset.id=t.id;
