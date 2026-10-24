@@ -226,6 +226,194 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 .group .slot {transition:opacity .16s;}
 .tile {transition:box-shadow .2s,filter .15s;}
 .tile.dragging {transition:none;}
+
+/* === Cozy Update visual polish === */
+:root{
+  --bg:#0d0e1d;
+  --panel:#16182c;
+  --board:#1c2340;
+  --ink:#eef2f1;
+  --muted:#b5bfd0;
+  --cream:#f9d79a;
+  --green:#5ce0b1;
+  --red:#f7768a;
+}
+html,body{
+  background:
+    radial-gradient(1000px 460px at 20% 0%, #342257 0%, transparent 46%),
+    radial-gradient(760px 380px at 100% 0%, #153552 0%, transparent 42%),
+    linear-gradient(135deg,#081019 0%,#11152b 38%,#090d18 100%);
+}
+#app::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;
+  background:
+    radial-gradient(950px 500px at 12% 5%, #ffffff08 0%, transparent 52%),
+    radial-gradient(850px 540px at 92% 0%, #8ad0ff0d 0%, transparent 48%);
+}
+#header{padding-inline:18px;}
+.brand{
+  color:#ffdf98;
+  text-shadow:0 1px 0 #fff3, 0 8px 20px #00000022;
+}
+.header-center{color:#c6cfdb;}
+.icon-btn,.header-small-btn,.small-btn{
+  border-color:#4d5678;
+  background:linear-gradient(180deg,#263053c7,#1c2545c7);
+  box-shadow:inset 0 1px 0 #ffffff14, 0 8px 18px #0000001a;
+}
+.icon-btn:active,.header-small-btn:active,.small-btn:active{background:linear-gradient(180deg,#2b355b,#202a4b);}
+#board{
+  background:
+    radial-gradient(120% 120% at 50% 0%, #8a6be11f 0%, transparent 44%),
+    radial-gradient(70% 85% at 18% 12%, #8dc7e314 0%, transparent 42%),
+    linear-gradient(135deg,#181733 0%,#1e2143 44%,#183046 100%);
+  border:1px solid rgba(167,212,203,.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    inset 0 0 0 1px rgba(255,255,255,.02),
+    0 18px 44px rgba(0,0,0,.26);
+}
+#board::before{
+  opacity:.17;
+  background:
+    repeating-linear-gradient(90deg,transparent 0 69px,rgba(255,255,255,.028) 69px 70px),
+    repeating-linear-gradient(0deg,transparent 0 69px,rgba(255,255,255,.018) 69px 70px);
+}
+#board::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:
+    radial-gradient(140% 120% at 50% 105%, rgba(255,255,255,.03) 0%, transparent 36%),
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,.020) 0 1px, transparent 1.2px);
+  background-size:auto, 8px 8px;
+  mix-blend-mode:screen;
+  opacity:.28;
+}
+#bigHint{color:#e8dfc0;}
+#bigHint span{color:#d3b980;}
+
+.group{
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.12),
+    0 10px 24px rgba(0,0,0,.10);
+}
+.group.valid{background:linear-gradient(180deg, rgba(96,232,182,.90), rgba(83,220,173,.90));}
+.group.invalid,.group.incomplete{background:linear-gradient(180deg, rgba(250,125,141,.90), rgba(240,103,121,.90));}
+.group .slot{
+  background:rgba(245,250,255,.18);
+  outline-color:rgba(255,255,255,.38);
+}
+
+.tile{
+  border:1px solid #d9cfbf;
+  border-radius:calc(var(--corner) * .9);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.88) 0%, rgba(255,255,255,.35) 12%, rgba(255,255,255,0) 14%),
+    radial-gradient(ellipse 88% 72% at 18% 10%, rgba(255,255,255,.96), transparent 72%),
+    repeating-linear-gradient(135deg, rgba(146,114,63,.024) 0 2px, rgba(255,255,255,.024) 2px 4px),
+    linear-gradient(145deg,#fffdf9 0%,#f8f2e8 58%,#ede2d0 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.98),
+    inset 0 -1px 0 rgba(168,144,99,.16),
+    0 2px 4px rgba(0,0,0,.09),
+    0 10px 22px rgba(0,0,0,.06);
+  color:#1f2533;
+}
+.tile .corner{
+  font-weight:875;
+  text-shadow:0 1px 0 rgba(255,255,255,.74);
+}
+.tile .center-suit{
+  transform:translate(-50%,-50%) scaleX(1.42);
+  font-size:calc(var(--tile) * .58);
+  font-weight:800;
+  filter:drop-shadow(0 1px 0 rgba(255,255,255,.36));
+}
+.tile.suit-red{
+  color:#b84257;
+  text-shadow:0 1px 0 rgba(255,255,255,.34);
+}
+.tile.suit-black{
+  color:#263147;
+  text-shadow:0 1px 0 rgba(255,255,255,.30);
+}
+.tile.dragging{
+  border-color:#c8cad0 !important;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.52) 0%, rgba(255,255,255,.18) 10%, rgba(255,255,255,0) 12%),
+    linear-gradient(145deg,#eceef2 0%,#dadde4 58%,#cfd5df 100%) !important;
+  color:#51586b !important;
+  filter:none !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.9),
+    0 12px 28px rgba(0,0,0,.22),
+    0 0 0 1px rgba(255,255,255,.16) !important;
+}
+.tile.dragging .corner,
+.tile.dragging .center-suit{
+  text-shadow:none !important;
+  filter:none !important;
+}
+#dragLayer .tile{opacity:.98;}
+
+#win{
+  transition:none;
+  opacity:0;
+}
+#win.show{
+  animation:cozyWinIn .42s cubic-bezier(.18,.92,.22,1) .62s both;
+}
+@keyframes cozyWinIn{
+  from{opacity:0;transform:translateY(14px) scale(.985);}
+  to{opacity:1;transform:translateY(0) scale(1);}
+}
+.win-card{
+  background:linear-gradient(180deg, rgba(23,28,53,.92), rgba(18,22,43,.95));
+  border-color:rgba(150,197,188,.42);
+  box-shadow:0 18px 34px rgba(0,0,0,.26), inset 0 1px 0 rgba(255,255,255,.08);
+}
+.win-icon{
+  background:linear-gradient(180deg,#ffebc1,#f0cd7e);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+#cozyConfetti{
+  position:fixed;inset:0;pointer-events:none;z-index:108;overflow:hidden;
+}
+#cozyConfetti .piece{
+  position:absolute;top:-10px;width:9px;height:15px;border-radius:999px;
+  opacity:.95;transform:translate3d(0,0,0) rotate(0deg);
+  animation:cozyConfettiFall var(--dur,1.8s) cubic-bezier(.2,.72,.18,1) forwards;
+  box-shadow:0 1px 0 rgba(255,255,255,.18) inset, 0 6px 12px rgba(0,0,0,.16);
+}
+@keyframes cozyConfettiFall{
+  0%{opacity:0;transform:translate3d(0,-10px,0) rotate(0deg) scale(.85);}
+  8%{opacity:1;}
+  100%{opacity:0;transform:translate3d(var(--dx),var(--dy),0) rotate(var(--rot)) scale(1);}
+}
+
+#lab .lab-help{
+  color:#c4cbe0;
+}
+#lab .lab-row output{color:#f7dda0;}
+#lab .lab-foot button{
+  background:linear-gradient(180deg,#2a365d,#202a48);
+  border:1px solid #465781;
+}
+.lab-roadmap{
+  margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08);
+}
+.lab-version{
+  display:inline-block;margin-bottom:10px;padding:4px 8px;border-radius:999px;
+  background:#ffffff10;border:1px solid #ffffff18;color:#ffe0a4;
+  font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+}
+.lab-roadmap h4{
+  margin:0 0 7px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#f0e6c5;
+}
+.lab-roadmap ul{
+  margin:0;padding-left:16px;color:#cfd6e7;font-size:11px;line-height:1.55;
+}
+.lab-roadmap li+li{margin-top:5px;}
+
 </style>
 </head>
 <body>
@@ -1694,6 +1882,87 @@ document.addEventListener('keydown',e=>{
 // The default opening still starts at Level 1.
 const deepLevel=/^#(?:level-?)?(\d+)$/.exec(location.hash);
 const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[1])-1)):0;
-loadLevel(firstLevel);applySettings();scheduleBoardFit();</script>
+loadLevel(firstLevel);applySettings();scheduleBoardFit();
+/* === Cozy Update behaviour and roadmap === */
+(function(){
+  const APP_VERSION='0.2 · Cozy Update';
+  const ROADMAP_ITEMS = [
+    'Done now: cozy felt table, tactile cards, subtle confetti, roadmap panel, version badge.',
+    'Next: save & resume unfinished tables automatically.',
+    'Next: teach meld dragging explicitly in Chapter One.',
+    'Next: puzzle IDs / revisioning so personal bests stay fair.',
+    'Explore: frozen or locked hand cards that unlock when the table is ready.',
+    'Explore: fuller, rounder suit symbols with subtle gradients.',
+    'Explore: end-of-level flow with a pause, celebration, then redesigned results tray.',
+    'Explore: daily challenge, streaks, leaderboard, replay completed stages.',
+    'Explore: sound, haptics, logo/app icon, profile name/avatar, feedback & legal links.'
+  ];
+
+  // Make the PWA chrome and browser UI match the cozier table theme.
+  const themeMeta=document.querySelector('meta[name="theme-color"]');
+  if(themeMeta) themeMeta.setAttribute('content','#15182d');
+  document.title='Remixa · Cozy Update';
+
+  // Add a compact roadmap / version note inside Remixa Lab.
+  const lab=document.getElementById('lab');
+  if(lab && !document.getElementById('roadmapBlock')){
+    const block=document.createElement('section');
+    block.className='lab-roadmap';
+    block.id='roadmapBlock';
+    block.innerHTML=
+      '<div class="lab-version">Build '+APP_VERSION+'</div>'+
+      '<h4>Roadmap</h4>'+
+      '<ul>'+ROADMAP_ITEMS.map(item=>'<li>'+item+'</li>').join('')+'</ul>';
+    const foot=lab.querySelector('.lab-foot');
+    lab.insertBefore(block, foot || null);
+  }
+
+  // Subtle confetti so the player can still admire the final table.
+  let confettiTimer=0;
+  function burstConfetti(){
+    const host=document.getElementById('cozyConfetti') || (()=>{
+      const node=document.createElement('div');
+      node.id='cozyConfetti';
+      document.body.appendChild(node);
+      return node;
+    })();
+    host.innerHTML='';
+    const colors=['#f7dda0','#66dfb4','#7dc3ff','#ff8ca1','#ffffff'];
+    const count=26;
+    for(let i=0;i<count;i++){
+      const piece=document.createElement('span');
+      piece.className='piece';
+      const x=28 + Math.random()*44;
+      const dx=(-190 + Math.random()*380).toFixed(1)+'px';
+      const dy=(150 + Math.random()*190).toFixed(1)+'px';
+      const rot=(-240 + Math.random()*480).toFixed(1)+'deg';
+      const dur=(1.5 + Math.random()*.65).toFixed(2)+'s';
+      const delay=(Math.random()*.22).toFixed(2)+'s';
+      piece.style.left=x+'vw';
+      piece.style.background=colors[Math.floor(Math.random()*colors.length)];
+      piece.style.setProperty('--dx',dx);
+      piece.style.setProperty('--dy',dy);
+      piece.style.setProperty('--rot',rot);
+      piece.style.setProperty('--dur',dur);
+      piece.style.animationDelay=delay;
+      host.appendChild(piece);
+    }
+    clearTimeout(confettiTimer);
+    confettiTimer=setTimeout(()=>{ host.innerHTML=''; }, 2500);
+  }
+
+  const win=document.getElementById('win');
+  if(win){
+    let prev=win.classList.contains('show');
+    const obs=new MutationObserver(()=>{
+      const now=win.classList.contains('show');
+      if(now && !prev) burstConfetti();
+      prev=now;
+    });
+    obs.observe(win,{attributes:true, attributeFilter:['class']});
+  }
+})();
+
+</script>
 </body>
 </html>
