@@ -137,7 +137,7 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 .win-sub {font-size:11px;color:#bdd6c8;margin:2px 0 9px;}
 .primary-btn {background:#f2ce84;color:#193438;border-radius:9px;
   padding:9px 13px;font-weight:800;font-size:11px;}
-#viewTable {background:#2b5352;color:#f0f6ee;border:1px solid #567872;
+#replayWin {background:#2b5352;color:#f0f6ee;border:1px solid #567872;
   border-radius:9px;padding:9px 11px;font-size:11px;font-weight:750;}
 .win-actions {display:flex;gap:8px;align-items:center;}
 #lab {position:fixed;z-index:130;right:12px;top:58px;background:#102f32f5;border:1px solid #61817b;border-radius:18px;width:min(320px,calc(100vw - 24px));padding:17px 18px 18px;box-shadow:0 20px 45px #0009;display:none;}
@@ -428,7 +428,7 @@ html,body{
     linear-gradient(145deg,#17172f 0%,#11182b 48%,#0b1424 100%);
 }
 #scoreHud{background:#19223e;border-color:#485579;color:#abb8ce;}
-#viewTable{background:#2a3658;border-color:#56648b;color:#f2f1ec;}
+#replayWin{background:#2a3658;border-color:#56648b;color:#f2f1ec;}
 #lab{background:#161d36f7;border-color:#5a638a;}
 #rotate{background:radial-gradient(ellipse at 50% 8%,#293155,#111a31 76%);}
 #rotate p{color:#b9c4d7;}
@@ -515,6 +515,78 @@ html,body{
   #win.show{animation:none;opacity:1;}
   #win.show .win-card{animation:none;opacity:1;transform:translate(-50%,-50%);}
 }
+
+/* Remixa 0.2.2 · The paper belongs on the cards; the colour lives in the ink.
+   Fine linen weave is intentionally near-invisible at arm's length. */
+.tile{
+  background:
+    repeating-linear-gradient(0deg,
+      rgba(86,72,51,.016) 0 1px,
+      transparent 1px 3px),
+    repeating-linear-gradient(90deg,
+      rgba(86,72,51,.014) 0 1px,
+      transparent 1px 3px),
+    radial-gradient(ellipse at 20% 12%,#fffefb 0%,transparent 68%),
+    linear-gradient(160deg,#fffdf9 0%,#fbf9f4 68%,#f9f6ef 100%);
+  border-color:#e3dacd;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.92),
+             inset 0 -1px 0 rgba(173,156,123,.08),
+             0 2px 4px rgba(0,0,0,.08),0 8px 18px rgba(0,0,0,.045);
+}
+.tile .center-suit.suit-art{
+  display:block;
+  width:calc(var(--tile) * .59);
+  height:calc(var(--tile) * .59);
+  font-size:initial;
+  top:52%;
+  transform:translate(-50%,-50%);
+  overflow:visible;
+  filter:drop-shadow(0 1px 0 rgba(255,255,255,.27));
+}
+.tile .center-suit.center-diamond{
+  transform:translate(-50%,-50%) scaleX(1.25);
+  font-size:calc(var(--tile) * .54);
+}
+/* The corner still contains ONLY the rank: no new corner pip. */
+.tile.suit-red .corner{
+  background:linear-gradient(170deg,#c25b6b 0%,#a72f49 100%);
+  -webkit-background-clip:text;background-clip:text;
+  color:#b84257;-webkit-text-fill-color:transparent;
+}
+.tile.suit-black .corner{
+  background:linear-gradient(170deg,#485165 0%,#202a3d 100%);
+  -webkit-background-clip:text;background-clip:text;
+  color:#273044;-webkit-text-fill-color:transparent;
+}
+/* Preserve our grey, non-revealing card while dragging. */
+.tile.dragging .center-suit.suit-art{
+  filter:grayscale(1) brightness(1.05) !important;
+}
+.tile.dragging .corner{
+  background:none !important;
+  color:#596072 !important;
+  -webkit-text-fill-color:#596072 !important;
+}
+.tile.dragging .center-diamond{
+  color:#596072 !important;
+  -webkit-text-fill-color:#596072 !important;
+}
+/* Safari long press should never bring up text selection, iOS look-up,
+   HTML5 drag ghosts or the floating selection loupe over card interactions. */
+#board,#board *,#dragLayer,#dragLayer *{
+  -webkit-user-select:none !important;
+  user-select:none !important;
+  -webkit-touch-callout:none !important;
+  -webkit-user-drag:none;
+  -webkit-tap-highlight-color:transparent;
+}
+#board,#dragLayer{touch-action:none;}
+#board .tile,#board .tile *,#dragLayer .tile,#dragLayer .tile *{
+  touch-action:none;
+  -webkit-user-drag:none;
+}
+html,body{-webkit-text-size-adjust:100%;}
+
 </style>
 </head>
 <body>
@@ -556,7 +628,7 @@ html,body{
     <div class="win-heading" id="winHeading">Beautifully done.</div>
     <div class="win-sub" id="winSub">Every tile has found its place.</div>
     <div id="winStats"></div>
-    <div class="win-actions"><button class="primary-btn" id="nextWin">NEXT LEVEL →</button><button id="viewTable" aria-label="Hide results and view the completed table">VIEW TABLE</button></div>
+    <div class="win-actions"><button class="primary-btn" id="nextWin">NEXT LEVEL →</button><button id="replayWin" aria-label="Replay this puzzle from the beginning">REPLAY</button></div>
   </div>
 </div>
 <div id="lab" role="dialog" aria-label="Remixa tuning controls">
@@ -880,11 +952,45 @@ function springBoardHandoff(tile,x,y){
   },true);
 }
 
+
+// Fuller, deliberately hand-shaped silhouettes (diamond retains the original
+// print-style glyph). The ink's soft vertical gradient stays inside each suit.
+const SUIT_PATHS={
+  0:'M50 5 C43 17 13 38 9 53 C5 68 15 79 28 77 C37 76 44 69 47 62 L47 72 C47 83 43 89 39 94 L61 94 C57 89 53 83 53 72 L53 62 C56 69 63 76 72 77 C85 79 95 68 91 53 C87 38 57 17 50 5 Z',
+  1:'M50 89 C43 83 8 58 8 34 C8 20 17 12 30 12 C39 12 46 17 50 25 C54 17 61 12 70 12 C83 12 92 20 92 34 C92 58 57 83 50 89 Z',
+  2:'M50 8 C36 8 27 19 27 31 C27 34 28 37 29 39 C25 36 21 35 17 35 C7 35 2 44 4 54 C6 65 14 70 24 70 C33 70 39 65 44 58 L44 71 C44 82 39 88 36 93 L64 93 C61 88 56 82 56 71 L56 58 C61 65 67 70 76 70 C86 70 94 65 96 54 C98 44 93 35 83 35 C79 35 75 36 71 39 C72 37 73 34 73 31 C73 19 64 8 50 8 Z'
+};
+function suitArtwork(id,col,symbol){
+  if(col===3)return `<span class="center-suit center-diamond" aria-hidden="true">${symbol}</span>`;
+  const red=col===1,top=red?'#d47a82':'#5a6477',bottom=red?'#a82c45':'#202a3f';
+  const grad='suit-ink-'+id;
+  return `<svg class="center-suit suit-art" aria-hidden="true" draggable="false" viewBox="0 0 100 100" focusable="false">
+    <defs><linearGradient id="${grad}" x1="0%" y1="0%" x2="35%" y2="100%">
+      <stop offset="0%" stop-color="${top}"/>
+      <stop offset="100%" stop-color="${bottom}"/>
+    </linearGradient></defs>
+    <path d="${SUIT_PATHS[col]}" fill="url(#${grad})" stroke="${bottom}" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/>
+  </svg>`;
+}
+
+
+// Keep iOS Safari's native long-press text loupe, share callout and HTML5
+// drag preview away from the cards. Pointer Events still own the real drag.
+board.addEventListener('selectstart',event=>{
+  if(event.target.closest('.tile'))event.preventDefault();
+});
+board.addEventListener('contextmenu',event=>{
+  if(event.target.closest('.tile')||event.target===board)event.preventDefault();
+});
+board.addEventListener('dragstart',event=>{
+  if(event.target.closest('.tile'))event.preventDefault();
+});
+
 function tileNew(num,col) {
   const t={id:nextID++,num,col,el:document.createElement('div')};
   const suit=SUITS[col%SUITS.length];
   t.el.className='tile suit-'+suit.kind;
-  t.el.innerHTML=`<span class="corner">${rankLabel(num)}</span><span class="center-suit" aria-hidden="true">${suit.symbol}</span>`;
+  t.el.innerHTML=`<span class="corner">${rankLabel(num)}</span>${suitArtwork(t.id,col,suit.symbol)}`;
   t.el.setAttribute('aria-label', `${rankLabel(num)} of ${suit.name}`);
   t.el.style.setProperty('--tile-color',colorAt(col));
   t.el.dataset.id=t.id;
@@ -1908,7 +2014,7 @@ $('reset').addEventListener('click',()=>loadLevel(level));
 $('prev').addEventListener('click',()=>loadLevel(level-1));
 $('next').addEventListener('click',()=>loadLevel(level+1));
 $('nextWin').addEventListener('click',()=>loadLevel(isBig()?level:level+1));
-$('viewTable').addEventListener('click',()=>{ $('win').classList.remove('show'); });
+$('replayWin').addEventListener('click',()=>loadLevel(level));
 function applySettings() {
   for(const key of ['tile','corner','gap','spring','magnet']){
     $(key+'Range').value=settings[key];
@@ -1986,15 +2092,15 @@ const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[
 loadLevel(firstLevel);applySettings();scheduleBoardFit();
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.2.1 · Cozy Update';
+  const APP_VERSION='0.2.2 · Paper & Suits';
   const ROADMAP_ITEMS = [
-    'Done now: cozy felt table, tactile cards, subtle confetti, roadmap panel, version badge.',
+    'Done now: midnight felt, linen-paper cards, gradient suits, centred celebration, Replay, version badge.',
     'Next: save & resume unfinished tables automatically.',
     'Next: teach meld dragging explicitly in Chapter One.',
     'Next: puzzle IDs / revisioning so personal bests stay fair.',
     'Explore: frozen or locked hand cards that unlock when the table is ready.',
-    'Explore: fuller, rounder suit symbols with subtle gradients.',
-    'Explore: end-of-level flow with a pause, celebration, then redesigned results tray.',
+    'Done now: fuller, rounder hearts, clubs and spades with subtle ink gradients.',
+    'Explore: a refined end-of-level flow and richer results beyond Replay / Next.',
     'Explore: daily challenge, streaks, leaderboard, replay completed stages.',
     'Explore: sound, haptics, logo/app icon, profile name/avatar, feedback & legal links.'
   ];
