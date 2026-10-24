@@ -621,6 +621,49 @@ html,body{-webkit-text-size-adjust:100%;}
   font-size:calc(var(--tile) * 1.04);
   transform:translate(-50%,-50%) scaleX(1.25);
 }
+
+/* Approved card finish: softly pressed cardstock, quieter than the linen grid.
+   Suit outlines and ink are separate SVG artwork. */
+.tile{
+  border-color:#d7cfc3;
+  background:
+    radial-gradient(ellipse 98% 79% at 32% 15%,rgba(255,255,255,.58),transparent 80%),
+    repeating-linear-gradient(142deg,rgba(128,95,55,.018) 0 1px,transparent 1px 4px),
+    linear-gradient(160deg,#fffdf7 0%,#faf6ed 58%,#f6eee1 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.88),
+    inset 0 -1px 0 rgba(127,109,75,.05),
+    0 2px 4px rgba(0,0,0,.085),0 6px 14px rgba(0,0,0,.035);
+}
+.tile .center-suit.suit-art{
+  display:block;
+  width:calc(var(--tile) * .56);
+  height:calc(var(--tile) * .57);
+  top:52%;
+  transform:translate(-50%,-50%);
+  overflow:visible;
+  filter:none;
+}
+.tile.suit-red .corner{
+  background:none;
+  color:#CD424C;
+  -webkit-text-fill-color:#CD424C;
+  text-shadow:0 1px 0 rgba(255,255,255,.46);
+}
+.tile.suit-black .corner{
+  background:none;
+  color:#3F3E46;
+  -webkit-text-fill-color:#3F3E46;
+  text-shadow:0 1px 0 rgba(255,255,255,.46);
+}
+.tile.suit-red .center-suit.center-diamond{
+  color:#CD424C;
+  text-shadow:none;
+}
+/* Maintain the neutral, desaturated dragged card. */
+.tile.dragging .center-suit.suit-art{
+  filter:grayscale(1) brightness(1.05)!important;
+}
+
 </style>
 </head>
 <body>
@@ -987,28 +1030,33 @@ function springBoardHandoff(tile,x,y){
 }
 
 
-// Fuller, deliberately hand-shaped silhouettes (diamond retains the original
-// print-style glyph). The ink's soft vertical gradient stays inside each suit.
+// Final approved SVG silhouettes. Each icon uses a single closed path.
 const SUIT_PATHS={
-  // The only new shapes are the three suit silhouettes. Preserve gradients,
-  // linen texture, number, corner detail, diamond, proportion and interaction.
-  0:'M50 5 C58 19 84 38 91 53 C98 68 86 79 72 77 C62 76 55 70 51 61 C52 75 54 83 63 93 L37 93 C46 83 48 75 49 61 C45 70 38 76 28 77 C14 79 2 68 9 53 C16 38 42 19 50 5 Z',
-  1:'M50 91 C41 80 20 62 11 49 C-1 32 9 12 29 12 C40 12 47 18 50 23 C53 18 60 12 71 12 C91 12 101 32 89 49 C80 62 59 80 50 91 Z',
-  2:'M50 6 C63 6 74 16 74 28 C74 33 72 38 69 41 C77 36 85 39 91 46 C99 56 96 70 88 77 C81 84 69 83 60 77 C57 74 55 71 53 67 C54 78 57 85 63 91 L37 91 C43 85 46 78 47 67 C45 71 43 74 40 77 C31 83 19 84 12 77 C4 70 1 56 9 46 C15 39 23 36 31 41 C28 38 26 33 26 28 C26 16 37 6 50 6 Z'
+  0: 'M 42.03,372.19 L 54.62,378.70 L 61.63,381.56 L 76.09,385.81 L 91.21,387.92 L 109.46,387.94 L 122.07,386.91 L 140.13,383.14 L 156.94,376.80 L 172.26,368.05 L 181.54,360.93 L 185.88,357.00 L 193.88,348.43 L 197.54,343.79 L 204.11,333.85 L 207.01,328.56 L 212.00,317.34 L 215.85,305.31 L 217.32,299.01 L 219.32,285.86 L 220.09,266.36 L 219.04,250.17 L 217.31,239.92 L 214.80,230.07 L 211.56,220.59 L 207.62,211.44 L 203.03,202.58 L 195.01,189.76 L 188.98,181.48 L 179.01,169.37 L 160.28,149.69 L 109.25,100.81 L 57.28,52.32 L -0.00,0.00 L -72.88,66.75 L -129.23,119.83 L -168.06,157.51 L -179.01,169.37 L -188.98,181.48 L -197.83,193.98 L -205.40,206.98 L -211.56,220.59 L -214.80,230.07 L -218.28,244.99 L -219.60,255.45 L -220.09,266.36 L -219.32,285.86 L -217.32,299.01 L -214.07,311.42 L -209.65,323.05 L -207.01,328.56 L -200.95,338.93 L -193.88,348.43 L -189.99,352.83 L -181.54,360.93 L -172.26,368.05 L -156.94,376.80 L -140.13,383.14 L -128.21,385.95 L -115.82,387.58 L -95.09,388.10 L -83.56,387.14 L -68.78,383.94 L -54.62,378.70 L -42.03,372.19 L -47.66,390.87 L -55.15,409.02 L -64.06,425.16 L -72.00,436.00 L 72.00,436.00 L 67.95,430.84 L 62.18,422.13 L 53.53,405.52 L 47.66,390.87 L 42.03,372.19 Z',
+  1: 'M 0.00,50.00 L -18.39,32.70 L -34.41,20.57 L -44.37,14.45 L -51.17,10.91 L -61.63,6.44 L -68.78,4.06 L -79.81,1.46 L -87.36,0.40 L -95.09,-0.10 L -109.46,0.06 L -128.21,2.05 L -145.88,6.70 L -162.22,13.85 L -177.00,23.39 L -185.88,31.00 L -189.99,35.17 L -197.54,44.21 L -200.95,49.07 L -207.01,59.44 L -209.65,64.95 L -214.07,76.58 L -215.85,82.69 L -218.48,95.47 L -219.32,102.14 L -220.09,121.64 L -219.60,132.55 L -218.28,143.01 L -216.15,153.05 L -211.56,167.41 L -207.62,176.56 L -200.50,189.75 L -192.06,202.40 L -182.45,214.63 L -164.21,234.41 L -114.33,282.38 L -62.46,330.90 L 0.00,388.00 L 62.46,330.90 L 114.33,282.38 L 164.21,234.41 L 182.45,214.63 L 192.06,202.40 L 200.50,189.75 L 207.62,176.56 L 211.56,167.41 L 216.15,153.05 L 218.28,143.01 L 219.60,132.55 L 220.09,121.64 L 219.32,102.14 L 218.48,95.47 L 215.85,82.69 L 214.07,76.58 L 209.65,64.95 L 207.01,59.44 L 200.95,49.07 L 197.54,44.21 L 189.99,35.17 L 185.88,31.00 L 177.00,23.39 L 162.22,13.85 L 145.88,6.70 L 128.21,2.05 L 109.46,0.06 L 95.09,-0.10 L 87.36,0.40 L 79.81,1.46 L 68.78,4.06 L 61.63,6.44 L 51.17,10.91 L 44.37,14.45 L 34.41,20.57 L 18.39,32.70 L 0.00,50.00 Z',
+  2: 'M 105.97,101.40 L 104.65,87.16 L 101.44,73.23 L 96.91,61.04 L 90.24,48.39 L 81.94,36.75 L 72.14,26.34 L 61.04,17.34 L 49.97,10.52 L 36.93,4.64 L 24.49,0.87 L 10.39,-1.49 L -3.90,-1.93 L -18.12,-0.44 L -32.01,2.95 L -44.14,7.63 L -56.71,14.45 L -63.14,18.86 L -70.22,24.59 L -76.77,30.91 L -82.76,37.76 L -88.14,45.11 L -92.23,51.75 L -96.37,59.86 L -99.36,67.07 L -102.16,75.73 L -103.96,83.32 L -105.35,92.32 L -105.97,101.40 L -105.87,109.20 L -105.04,118.27 L -103.42,127.22 L -101.27,135.29 L -116.58,135.28 L -131.57,137.50 L -146.07,141.90 L -159.77,148.38 L -172.37,156.80 L -183.60,166.98 L -193.21,178.69 L -201.00,191.69 L -206.40,204.49 L -209.77,216.67 L -211.72,230.42 L -211.88,243.05 L -210.48,255.61 L -207.19,269.11 L -202.11,282.04 L -196.02,293.10 L -189.42,302.36 L -181.83,310.83 L -173.36,318.42 L -164.10,325.02 L -154.18,330.56 L -143.70,334.98 L -132.80,338.21 L -121.61,340.23 L -110.26,340.99 L -98.90,340.50 L -87.67,338.77 L -76.69,335.80 L -66.11,331.64 L -56.05,326.35 L -46.63,319.97 L -37.47,312.11 L -38.99,324.49 L -41.34,335.33 L -44.52,346.08 L -48.43,356.66 L -52.95,367.01 L -59.74,380.36 L -73.00,402.00 L 73.00,402.00 L 59.74,380.36 L 52.95,367.01 L 48.43,356.66 L 44.52,346.08 L 41.34,335.33 L 38.99,324.49 L 37.47,312.11 L 48.66,321.48 L 60.45,328.84 L 73.11,334.55 L 87.67,338.77 L 101.42,340.72 L 116.58,340.72 L 130.33,338.77 L 143.70,334.98 L 156.44,329.43 L 168.31,322.21 L 180.02,312.60 L 189.42,302.36 L 197.99,289.86 L 204.16,277.42 L 208.60,264.25 L 211.37,249.35 L 211.97,240.53 L 211.72,230.42 L 210.69,221.64 L 208.60,211.75 L 205.98,203.30 L 202.64,195.11 L 197.99,186.14 L 193.21,178.69 L 185.32,168.83 L 175.31,159.19 L 164.10,150.98 L 153.04,144.89 L 141.31,140.20 L 127.85,136.74 L 114.05,135.12 L 101.27,135.29 L 103.42,127.22 L 105.04,118.27 L 105.87,109.20 L 105.97,101.40 Z',
+};
+const SUIT_VIEWBOXES={
+  0:'-235 -6 470 450',
+  1:'-230 -8 460 405',
+  2:'-230 -10 460 428'
 };
 function suitArtwork(id,col,symbol){
+  // Keep the original diamond silhouette and structure intact.
   if(col===3)return `<span class="center-suit center-diamond" aria-hidden="true">${symbol}</span>`;
-  const red=col===1,top=red?'#d47a82':'#5a6477',bottom=red?'#a82c45':'#202a3f';
   const grad='suit-ink-'+id;
-  return `<svg class="center-suit suit-art" aria-hidden="true" draggable="false" viewBox="0 0 100 100" focusable="false">
-    <defs><linearGradient id="${grad}" x1="0%" y1="0%" x2="35%" y2="100%">
-      <stop offset="0%" stop-color="${top}"/>
-      <stop offset="100%" stop-color="${bottom}"/>
+  const stops=col===1
+    ? [['#D94A56',0],['#CD424C',.53],['#BC3746',1]]
+    : [['#4C4B53',0],['#3F3E46',.58],['#333440',1]];
+  const shades=stops.map(([color,pos])=>`<stop offset="${pos*100}%" stop-color="${color}"/>`).join('');
+  return `<svg class="center-suit suit-art" aria-hidden="true" draggable="false"
+    viewBox="${SUIT_VIEWBOXES[col]}" preserveAspectRatio="xMidYMid meet" focusable="false">
+    <defs><linearGradient id="${grad}" x1="10%" y1="0%" x2="95%" y2="100%">
+      ${shades}
     </linearGradient></defs>
-    <path d="${SUIT_PATHS[col]}" fill="url(#${grad})" stroke="${bottom}" stroke-opacity=".28" stroke-width="1" stroke-linejoin="round"/>
+    <path d="${SUIT_PATHS[col]}" fill="url(#${grad})"/>
   </svg>`;
 }
-
 
 // Keep iOS Safari's native long-press text loupe, share callout and HTML5
 // drag preview away from the cards. Pointer Events still own the real drag.
