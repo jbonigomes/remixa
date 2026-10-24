@@ -414,6 +414,107 @@ html,body{
 }
 .lab-roadmap li+li{margin-top:5px;}
 
+
+
+/* Cozy 0.2.1: one explicit viewport-centred modal layout.
+   The previous flex/overlay animation rules were competing on mobile Safari.
+   Keep the celebration delay, but position the dialog independently of them. */
+
+/* The OUTER surround around the felt board was still the old teal-green. */
+#app{
+  background:
+    radial-gradient(ellipse 72% 115% at 24% -12%,rgba(87,66,144,.40),transparent 65%),
+    radial-gradient(ellipse 55% 85% at 100% 0%,rgba(40,78,120,.30),transparent 72%),
+    linear-gradient(145deg,#17172f 0%,#11182b 48%,#0b1424 100%);
+}
+#scoreHud{background:#19223e;border-color:#485579;color:#abb8ce;}
+#viewTable{background:#2a3658;border-color:#56648b;color:#f2f1ec;}
+#lab{background:#161d36f7;border-color:#5a638a;}
+#rotate{background:radial-gradient(ellipse at 50% 8%,#293155,#111a31 76%);}
+#rotate p{color:#b9c4d7;}
+
+/* Place the card using the viewport midpoint, not flex alignment or an
+   animated transform on the full-screen overlay. */
+#win{
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100%;
+  height:100dvh;
+  display:block;
+  padding:0;
+  align-items:unset;
+  justify-content:unset;
+  transform:none !important;
+  background:rgba(6,9,25,.72);
+  backdrop-filter:blur(7px) saturate(.82);
+  -webkit-backdrop-filter:blur(7px) saturate(.82);
+  opacity:0;
+  pointer-events:none;
+}
+#win.show{
+  pointer-events:auto;
+  animation:cozyModalBackdrop .48s ease-out 1.12s both;
+}
+@keyframes cozyModalBackdrop{
+  from{opacity:0;}
+  to{opacity:1;}
+}
+#win .win-card{
+  position:absolute;
+  top:50%;
+  left:50%;
+  right:auto;
+  bottom:auto;
+  width:min(420px,calc(100vw - 36px));
+  max-height:calc(100dvh - 28px);
+  margin:0;
+  overflow:auto;
+  padding:25px 28px 24px;
+  border-radius:22px;
+  text-align:center;
+  background:linear-gradient(160deg,rgba(35,41,72,.97),rgba(19,26,49,.98));
+  border:1px solid rgba(174,211,205,.42);
+  box-shadow:0 26px 80px rgba(1,3,15,.55),
+             0 0 0 1px rgba(255,255,255,.05),
+             inset 0 1px 0 rgba(255,255,255,.10);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  transform:translate(-50%,-50%);
+  transition:none;
+}
+#win.show .win-card{
+  pointer-events:auto;
+  animation:cozyCenteredCard .48s cubic-bezier(.16,1.12,.30,1) 1.14s both;
+}
+@keyframes cozyCenteredCard{
+  from{opacity:0;transform:translate(-50%,calc(-50% + 18px)) scale(.965);}
+  to{opacity:1;transform:translate(-50%,-50%) scale(1);}
+}
+.win-icon{float:none;font-size:36px;margin:0 0 7px;}
+.win-heading{font-size:25px;line-height:1.15;}
+.win-sub{font-size:12px;line-height:1.55;margin:8px 0 17px;}
+#winStats{justify-content:center;gap:42px;margin:0 0 20px;}
+.win-score strong{font-size:31px;}
+.win-actions{justify-content:center;gap:10px;}
+.win-actions button{min-height:38px;}
+
+@media(max-height:430px){
+  #win .win-card{
+    width:min(400px,calc(100vw - 32px));
+    max-height:calc(100dvh - 22px);
+    padding:16px 22px 17px;
+  }
+  .win-icon{font-size:28px;margin-bottom:3px;}
+  .win-heading{font-size:21px;}
+  .win-sub{margin:5px 0 11px;}
+  #winStats{gap:32px;margin:0 0 12px;}
+  .win-score strong{font-size:27px;}
+}
+@media(prefers-reduced-motion:reduce){
+  #win.show{animation:none;opacity:1;}
+  #win.show .win-card{animation:none;opacity:1;transform:translate(-50%,-50%);}
+}
 </style>
 </head>
 <body>
@@ -1885,7 +1986,7 @@ const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[
 loadLevel(firstLevel);applySettings();scheduleBoardFit();
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.2 · Cozy Update';
+  const APP_VERSION='0.2.1 · Cozy Update';
   const ROADMAP_ITEMS = [
     'Done now: cozy felt table, tactile cards, subtle confetti, roadmap panel, version badge.',
     'Next: save & resume unfinished tables automatically.',
