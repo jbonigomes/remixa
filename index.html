@@ -664,6 +664,15 @@ html,body{-webkit-text-size-adjust:100%;}
   filter:grayscale(1) brightness(1.05)!important;
 }
 
+/* Final visual tweak — all four approved suit artworks 8% smaller.
+   Keep paths, ink colours, paper and gameplay untouched. */
+.tile .center-suit.suit-art {
+  width:calc(var(--tile) * .515);
+  height:calc(var(--tile) * .525);
+}
+.tile .center-suit.center-diamond {
+  font-size:calc(var(--tile) * .955);
+}
 </style>
 </head>
 <body>
