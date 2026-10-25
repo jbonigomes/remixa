@@ -8,7 +8,7 @@
 <style>
 :root {
   color-scheme:dark;
-  --tile:58px; --gap:4px; --border:4px; --corner:9px; --snap-ms:180ms;
+  --tile:58px; --gap:2px; --border:2px; --corner:4px; --snap-ms:180ms;
   --ink:#f1f5eb; --muted:#a6bfbd; --cream:#ffdc8e;
   --bg:#0e2528; --panel:#18363a; --board:#204244;
   --green:#55e3ad; --red:#fa7176; --amber:#efb75b;
@@ -17,7 +17,7 @@
 }
 * {box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body {width:100%;height:100%;margin:0;overflow:hidden;overscroll-behavior:none;background:var(--bg);touch-action:none;user-select:none;-webkit-user-select:none;}
-button,input {font:inherit;}
+button {font:inherit;}
 button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 #app {position:fixed;inset:0;display:flex;flex-direction:column;background:radial-gradient(ellipse 100% 130% at 50% 2%,#23484b 0,#102a2e 65%,#0c2225 100%);overflow:hidden;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);}
 #header {height:53px;min-height:53px;display:flex;align-items:center;justify-content:space-between;padding:0 17px;gap:12px;}
@@ -185,7 +185,6 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 .lab-head {display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;}
 .lab-head strong {font-size:17px;}
 .lab-head button {background:none;font-size:22px;color:#dce8e3;}
-.lab-help {color:#a9c5bc;font-size:11px;line-height:1.5;margin-bottom:10px;}
 #lab {max-height:calc(100dvh - 70px);overflow:auto;overscroll-behavior:contain;touch-action:pan-y;}
 .lab-save {margin:12px 0 16px;padding:10px 12px;border:1px solid #58776a;border-radius:10px;background:#ffffff06;font-size:11px;line-height:1.5;}
 .lab-save strong {display:block;color:#d5e9d9;font-size:12px;margin-bottom:2px;}
@@ -201,10 +200,6 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 #saveNotice.show {opacity:1;transform:translate(-50%,0);}
 #saveNotice.unavailable {border-color:#b58b56;color:#f5d29c;}
 @media(prefers-reduced-motion:reduce){#saveNotice {transition:none;}}
-.lab-row {display:grid;grid-template-columns:1fr auto;gap:0 12px;margin:12px 0 6px;align-items:center;}
-.lab-row label {font-size:12px;font-weight:700;}
-.lab-row output {color:#f8dc98;font-size:12px;font-variant-numeric:tabular-nums;}
-.lab-row input {grid-column:1 / -1;width:100%;accent-color:#60d8af;margin:10px 0 0;height:18px;}
 .lab-foot {display:flex;gap:8px;margin-top:14px;}
 .lab-foot button {border-radius:9px;padding:9px 10px;background:#2f5759;font-size:12px;font-weight:700;flex:1;}
 #rotate {position:fixed;inset:0;background:#102a2d;z-index:200;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;text-align:center;padding:24px;}
@@ -443,10 +438,6 @@ html,body{
   100%{opacity:0;transform:translate3d(var(--dx),var(--dy),0) rotate(var(--rot)) scale(1);}
 }
 
-#lab .lab-help{
-  color:#c4cbe0;
-}
-#lab .lab-row output{color:#f7dda0;}
 #lab .lab-foot button{
   background:linear-gradient(180deg,#2a365d,#202a48);
   border:1px solid #465781;
@@ -524,7 +515,7 @@ html,body{
   max-height:calc(100dvh - 28px);
   margin:0;
   overflow:auto;
-  padding:24px;
+  padding:16px 24px 24px;
   border-radius:22px;
   text-align:center;
   background:linear-gradient(160deg,rgba(35,41,72,.97),rgba(19,26,49,.98));
@@ -557,7 +548,7 @@ html,body{
   #win .win-card{
     max-width:min(400px,calc(100vw - 32px));
     max-height:calc(100dvh - 22px);
-    padding:17px;
+    padding:10px 17px 17px;
   }
   .win-icon{font-size:28px;margin-bottom:3px;}
   .win-heading{font-size:21px;}
@@ -742,7 +733,11 @@ html,body{-webkit-text-size-adjust:100%;}
       <button class="header-small-btn" id="undo" aria-label="Undo last move">UNDO</button>
       <button class="header-small-btn" id="reset" aria-label="Restart current puzzle">RESET</button>
       <button class="icon-btn" id="hint" aria-label="Show a hint" aria-expanded="false" aria-controls="lessonCue" title="A little help">?</button>
-      <button class="icon-btn" id="settings" aria-label="Tuning panel">⚙</button>
+      <button class="icon-btn" id="about" aria-label="About Remixa" aria-controls="lab" aria-expanded="false" title="About Remixa">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="9"/><path d="M12 11v6" stroke-linecap="round"/><circle cx="12" cy="7.5" r="1" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
     </div>
   </header>
   <main id="play">
@@ -788,20 +783,14 @@ html,body{-webkit-text-size-adjust:100%;}
     <div class="win-sub" id="winSub">Every tile has found its place.</div>
     <div class="win-puzzle" id="winPuzzle"></div>
     <div id="winStats"></div>
-    <div class="win-actions"><button class="primary-btn" id="nextWin">NEXT LEVEL →</button><button id="replayWin" aria-label="Replay this puzzle from the beginning">REPLAY</button></div>
+    <div class="win-actions"><button id="replayWin" aria-label="Replay this puzzle from the beginning">REPLAY</button><button class="primary-btn" id="nextWin">NEXT LEVEL →</button></div>
   </div>
 </div>
-<div id="lab" role="dialog" aria-label="Remixa tuning controls">
-  <div class="lab-head"><strong>Remixa Lab</strong><button id="closeLab" aria-label="Close settings">×</button></div>
-  <div class="lab-help">Tune the feel live on your phone. Settings save automatically on this device.</div>
+<div id="lab" role="dialog" aria-label="About Remixa">
+  <div class="lab-head"><strong>About Remixa</strong><button id="closeLab" aria-label="Close information panel">×</button></div>
   <div class="lab-save" id="saveInfo"><strong id="saveLabel">Automatic save</strong><span id="saveDetail">Your table, moves and Undo history save on this device. Return here to pick up where you left off.</span></div>
   <div class="lab-save" id="puzzleInfo"><strong id="puzzleIdentity"></strong><span class="puzzle-line" id="puzzleRules"></span><p class="puzzle-help">Personal bests compare the same puzzle revision and rules.</p><span class="puzzle-line" id="legacyBest" hidden></span></div>
-  <div class="lab-row"><label for="tileRange">Tile size</label><output id="tileOut">58px</output><input id="tileRange" type="range" min="42" max="86" step="1" value="58"></div>
-  <div class="lab-row"><label for="cornerRange">Corner radius</label><output id="cornerOut">9px</output><input id="cornerRange" type="range" min="2" max="22" step="1" value="9"></div>
-  <div class="lab-row"><label for="gapRange">Gap & border</label><output id="gapOut">4px</output><input id="gapRange" type="range" min="1" max="10" step="1" value="4"></div>
-  <div class="lab-row"><label for="springRange">Snap spring</label><output id="springOut">180ms</output><input id="springRange" type="range" min="80" max="450" step="10" value="180"></div>
-  <div class="lab-row"><label for="magnetRange">Magnetic reach</label><output id="magnetOut">55%</output><input id="magnetRange" type="range" min="0" max="110" step="5" value="55"></div>
-  <div class="lab-foot"><button id="resetLab">Restore defaults</button><button id="closeLab2">Done</button></div>
+  <div class="lab-foot"><button id="closeLab2">Done</button></div>
 </div>
 <div id="rotate">
   <button type="button" class="rot-icon" id="portraitReload" aria-label="Reload Remixa" title="Reload Remixa">↻</button><strong>Rotate your phone</strong><p>Remixa feels best in landscape, where there's room to play.</p>
@@ -1262,9 +1251,9 @@ function comparisonKey(identity){
 function puzzleKey(index=level){return comparisonKey(puzzleIdentity(index));}
 const PUZZLE_KEYS=LEVELS.map((_,index)=>puzzleKey(index));
 const pendingBests=new Map();
-const defaults={tile:58,corner:9,gap:4,spring:180,magnet:55};
-let settings={...defaults};
-try {const saved=JSON.parse(localStorage.getItem('remixaLab')||'null'); if(saved) settings={...settings,...saved};}catch(_){}
+// Fixed table feel. Responsive fitting can still reduce the tile size when
+// a crowded table needs room; previous device tuning never overrides this.
+const settings=Object.freeze({tile:58,corner:4,gap:2,spring:180,magnet:55});
 const board=$('board'), groupsLayer=$('groupLayer'), tilesLayer=$('tileLayer'), raisedLayer=$('raisedLayer'), dragLayer=$('dragLayer'), meldGrip=$('meldGrip');
 let tiles=[],groups=[],active=null,hover=null,history=[],level=0,won=false,nextID=1,nextGroup=1;
 let moves=0,selectedId=null,movingGroup=null,winRecord=false,scoreSource='completed-run';
@@ -2953,28 +2942,19 @@ $('nextWin').addEventListener('click',()=>{
   loadLevel(last?level:level+1,{fresh:last});
 });
 $('replayWin').addEventListener('click',()=>loadLevel(level,{fresh:true}));
-function applySettings() {
-  for(const key of ['tile','corner','gap','spring','magnet']){
-    $(key+'Range').value=settings[key];
-    $(key+'Out').textContent=settings[key]+(key==='spring'?'ms':key==='magnet'?'%':'px');
-  }
-  try{localStorage.setItem('remixaLab',JSON.stringify(settings));}catch(_){}
-  if(!active&&!movingGroup&&!matchMedia('(orientation: portrait)').matches)reflowGroups();
-  layout();
-  saveProgress();
-}
-for(const key of ['tile','corner','gap','spring','magnet'])
-  $(key+'Range').addEventListener('input',e=>{
-    settings[key]=Number(e.target.value);
-    $(key+'Out').textContent=settings[key]+(key==='spring'?'ms':key==='magnet'?'%':'px');
-    applySettings();
-  });
 const lab=$('lab');
-function hideLab(){lab.classList.remove('show');updateLessonCue();}
-$('settings').addEventListener('click',()=>{lab.classList.toggle('show');updateLessonCue();});
+function hideLab(){
+  lab.classList.remove('show');
+  $('about').setAttribute('aria-expanded','false');
+  updateLessonCue();
+}
+$('about').addEventListener('click',()=>{
+  const open=lab.classList.toggle('show');
+  $('about').setAttribute('aria-expanded',String(open));
+  updateLessonCue();
+});
 $('closeLab').addEventListener('click',hideLab);
 $('closeLab2').addEventListener('click',hideLab);
-$('resetLab').addEventListener('click',()=>{settings={...defaults};applySettings();});
 // Rotation on mobile browsers is a sequence of changing viewports, not one
 // final resize event. Wait until the actual board rectangle stabilises and
 // reflow again when ResizeObserver reports its final dimensions.
@@ -3036,10 +3016,10 @@ progressData=readProgress(true)||emptyProgress();
 const deepLevel=/^#(?:level-?)?(\d+)$/.exec(location.hash);
 const resumedLevel=LEVELS.findIndex(p=>p.id===progressData.lastPuzzleId);
 const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[1])-1)):Math.max(0,resumedLevel);
-loadLevel(firstLevel);applySettings();scheduleBoardFit();
+loadLevel(firstLevel);scheduleBoardFit();
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.3.0 · The First Two Chapters';
+  const APP_VERSION='0.3.2 · The First Two Chapters';
   const ROADMAP_ITEMS = [
     'Done now: midnight felt, linen-paper cards, gradient suits, centred celebration, Replay, version badge.',
     'Done now: automatic save & resume, including table layout, moves and Undo history.',
@@ -3061,7 +3041,7 @@ loadLevel(firstLevel);applySettings();scheduleBoardFit();
   if(themeMeta) themeMeta.setAttribute('content','#15182d');
   document.title='Remixa · The First Two Chapters';
 
-  // Add a compact roadmap / version note inside Remixa Lab.
+  // Add a compact roadmap / version note inside the information panel.
   const lab=document.getElementById('lab');
   if(lab && !document.getElementById('roadmapBlock')){
     const block=document.createElement('section');
