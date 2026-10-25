@@ -23,6 +23,9 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 #header {height:53px;min-height:53px;display:flex;align-items:center;justify-content:space-between;padding:0 17px;gap:12px;}
 .brand {font-size:26px;line-height:1;font-weight:860;letter-spacing:-1.7px;color:#ffdb91;}
 .header-center {display:flex;gap:9px;align-items:center;font-size:12px;letter-spacing:.06em;color:#bed1cb;font-weight:650;}
+.stage-progress {display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;font-variant-numeric:tabular-nums;}
+#chapterLabel {font-size:8px;letter-spacing:.11em;color:#a9b6c9;}
+#hint[aria-expanded="true"] {background:#46516b;border-color:#d3b980;}
 .header-controls {display:flex;align-items:center;gap:8px;}
 .icon-btn {height:35px;min-width:37px;border:1px solid #4a6966;border-radius:11px;background:#24474a;color:#e7eee8;display:grid;place-items:center;font-size:19px;line-height:1;transition:background .12s;}
 .icon-btn:active {background:#3b696b;}
@@ -105,8 +108,10 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 .tile.suit-red {color:#b83445;}
 .tile.suit-black {color:#202833;}
 
-#lessonCue {position:absolute;top:32px;left:50%;transform:translateX(-50%);font-size:12px;font-weight:650;letter-spacing:.055em;color:#d0e8dc;pointer-events:none;white-space:nowrap;z-index:5;opacity:0;transition:opacity .35s;}
+#lessonCue {position:absolute;top:32px;left:50%;transform:translateX(-50%);width:max-content;max-width:min(560px,calc(100% - 32px));padding:5px 11px;border:1px solid #c7b98c35;border-radius:10px;background:#20283bef;font-size:12px;line-height:1.45;font-weight:650;letter-spacing:.025em;color:#ede3c8;pointer-events:none;white-space:normal;text-align:center;z-index:5;opacity:0;transition:opacity .2s;}
 #lessonCue.show {opacity:.92;}
+#lessonCue.expanded {z-index:11;max-width:min(460px,calc(100% - 32px));padding:10px 14px;font-weight:550;box-shadow:0 5px 18px #0004;}
+#lessonCue.meld-move {top:4px;padding:3px 10px;font-size:11px;line-height:1.2;}
 /* A quiet demonstration on the untouched opening puzzle. The hand is only
    an overlay; it never picks up a real card or receives pointer events. */
 .tile.hint-pulse {animation:remixaNudge 1.7s ease-in-out infinite;}
@@ -730,12 +735,13 @@ html,body{-webkit-text-size-adjust:100%;}
 <div id="app">
   <header id="header">
     <div class="brand">remixa</div>
-    <div class="header-center"><span id="levelLabel">01 / 12</span><span id="levelName">One More</span><span id="scoreHud" aria-live="polite"><span>MOVES <b id="moves">0</b></span><span>BEST <b id="best">—</b></span></span></div>
+    <div class="header-center"><span class="stage-progress"><span id="chapterLabel">CHAPTER 1</span><span id="levelLabel">01 / 20</span></span><span id="levelName">Three Make a Run</span><span id="scoreHud" aria-live="polite"><span>MOVES <b id="moves">0</b></span><span>BEST <b id="best">—</b></span></span></div>
     <div class="header-controls">
       <button class="icon-btn" id="prev" aria-label="Previous puzzle">‹</button>
       <button class="icon-btn" id="next" aria-label="Next puzzle">›</button>
       <button class="header-small-btn" id="undo" aria-label="Undo last move">UNDO</button>
       <button class="header-small-btn" id="reset" aria-label="Restart current puzzle">RESET</button>
+      <button class="icon-btn" id="hint" aria-label="Show a hint" aria-expanded="false" aria-controls="lessonCue" title="A little help">?</button>
       <button class="icon-btn" id="settings" aria-label="Tuning panel">⚙</button>
     </div>
   </header>
@@ -812,115 +818,362 @@ const SUITS=[
   {symbol:'♣',kind:'black',name:'clubs'},
   {symbol:'♦',kind:'red',name:'diamonds'}
 ];
+// Chapter One: valid melds. Chapter Two: rearranging the whole table.
 const LEVELS=[
-  // Chapter 1: introduce one rule or insight at a time.
-  {id:'rmx-001',revision:1,intro:true,name:'One More',skill:'Extend a run',
-   groups:[{axis:'h',u:.46,v:.43,tiles:[[3,0],[4,0],[5,0]]}],
-   loose:[{n:6,c:0,u:.66,v:.75}]},
-  {id:'rmx-002',revision:1,name:'Same Same',skill:'Complete a number group',
-   groups:[{axis:'v',u:.46,v:.45,tiles:[[7,0],[7,1],[7,2]]}],
-   loose:[{n:7,c:3,u:.70,v:.70}]},
-  {id:'rmx-003',revision:1,name:'The Other End',skill:'A run grows both ways',
-   groups:[{axis:'h',u:.52,v:.44,tiles:[[4,0],[5,0],[6,0]]}],
-   loose:[{n:3,c:0,u:.26,v:.72}]},
-  {id:'rmx-004',revision:1,name:'Two Choices',skill:'Find the matching group',
-   groups:[
-     {axis:'h',u:.26,v:.40,tiles:[[2,0],[3,0],[4,0]]},
-     {axis:'h',u:.71,v:.40,tiles:[[8,3],[9,3],[10,3]]}
-   ],
-   loose:[{n:11,c:3,u:.74,v:.75}]},
-  {id:'rmx-005',revision:1,name:'Borrow One',skill:'Borrow a tile and keep both groups valid',
-   completion:{heading:'Chapter One complete!',sub:'Ready to turn things around?'},
-   groups:[
-     {axis:'h',u:.28,v:.32,tiles:[[2,0],[3,0],[4,0],[5,0]]},
-     {axis:'h',u:.75,v:.32,tiles:[[8,3],[9,3],[10,3]]}
-   ],
-   loose:[
-     {n:5,c:1,u:.44,v:.76},
-     {n:5,c:2,u:.58,v:.76}
-   ]},
-  // Chapter 2: the table itself is the puzzle.
-  {id:'rmx-006',revision:1,name:'Split the Difference',skill:'A middle tile can free two complete runs',
-   groups:[
-     {axis:'h',u:.50,v:.31,tiles:[[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[8,0]]}
-   ],
-   loose:[
-     {n:5,c:1,u:.40,v:.75},
-     {n:5,c:2,u:.60,v:.75}
-   ]},
-  {id:'rmx-007',revision:1,name:'Two Departures',skill:'Borrow from two groups to build one',
-   groups:[
-     {axis:'h',u:.27,v:.31,tiles:[[2,0],[3,0],[4,0],[5,0]]},
-     {axis:'h',u:.73,v:.31,tiles:[[2,1],[3,1],[4,1],[5,1]]}
-   ],
-   loose:[{n:5,c:2,u:.50,v:.75}]},
-  {id:'rmx-008',revision:1,name:'Double Rescue',skill:'Repair two groups by borrowing the right ends',
-   groups:[
-     {axis:'h',u:.26,v:.28,tiles:[[4,0],[5,0],[6,0],[7,0]]},
-     {axis:'h',u:.74,v:.28,tiles:[[9,3],[10,3],[11,3],[12,3]]},
-   ],
-   loose:[
-     {n:2,c:0,u:.24,v:.74},{n:3,c:0,u:.39,v:.74},
-     {n:7,c:3,u:.61,v:.74},{n:8,c:3,u:.77,v:.74}
-   ]},
-  {id:'rmx-009',revision:1,name:'The Broken Bridge',skill:'Sometimes a green group has to turn red',
-   groups:[
-     {axis:'h',u:.28,v:.28,tiles:[[2,0],[3,0],[4,0],[5,0],[6,0]]},
-     {axis:'h',u:.77,v:.28,tiles:[[7,0],[8,0],[9,0],[10,0]]}
-   ],
-   loose:[
-     {n:1,c:0,u:.25,v:.76},
-     {n:4,c:1,u:.52,v:.74},
-     {n:4,c:2,u:.69,v:.76}
-   ]},
-  {id:'rmx-010',revision:1,name:'Chain Reaction',skill:'Unweave two runs to complete a number group',
-   completion:{heading:'Chapter Two complete!',sub:'Ready for your first real challenge?'},
-   groups:[
-     {axis:'h',u:.50,v:.27,tiles:[[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[8,0]]},
-     {axis:'h',u:.50,v:.55,tiles:[[3,1],[4,1],[5,1],[6,1],[7,1],[8,1]]}
-   ],
-   loose:[
-     {n:1,c:1,u:.22,v:.85},
-     {n:2,c:1,u:.40,v:.85},
-     {n:5,c:2,u:.73,v:.85}
-   ]},
-  // The Knot: every starting meld is green, but four red singles remain.
-  // Its six tempting number-sets must be dismantled into a different arrangement.
-  // The same original 23 numbered/coloured tiles are preserved.
-  {id:'rmx-011',revision:1,name:'The Knot',skill:'Rebuild the table from six perfectly legal number-sets',
-   entryLabel:'ENTER THE KNOT →',
-   completion:{heading:'The Knot untied!',sub:'A tangled table, beautifully resolved.'},
-   groups:[
-     {axis:'v',u:.12,v:.43,tiles:[[3,0],[3,1],[3,3]]},
-     {axis:'v',u:.27,v:.43,tiles:[[4,0],[4,1],[4,2]]},
-     {axis:'v',u:.42,v:.43,tiles:[[5,0],[5,1],[5,3]]},
-     {axis:'v',u:.57,v:.43,tiles:[[6,0],[6,1],[6,2],[6,3]]},
-     {axis:'v',u:.72,v:.43,tiles:[[7,1],[7,2],[7,3]]},
-     {axis:'v',u:.87,v:.43,tiles:[[9,0],[9,1],[9,3]]}
-   ],
-   loose:[
-     {n:2,c:0,u:.16,v:.87},{n:5,c:2,u:.39,v:.87},
-     {n:8,c:2,u:.62,v:.87},{n:4,c:3,u:.85,v:.87}
-   ]},
-  // Chapter 3 workshop: 40 tiles, using the same table interactions as every stage.
-  {id:'rmx-012',revision:1,name:'The Big Table',skill:'40 tiles · tap a group to spread its tiles',
-   entryLabel:'ENTER THE BIG TABLE →',
-   completion:{heading:'Big table, beautiful finish!',sub:'Forty tiles, all green.'},
-   groups:[
-     {axis:'h',u:0.13,v:0.21,tiles:[[2,0],[3,0],[4,0],[5,0]]},
-     {axis:'h',u:0.34,v:0.21,tiles:[[8,0],[9,0],[10,0],[11,0]]},
-     {axis:'h',u:0.55,v:0.21,tiles:[[3,1],[4,1],[5,1],[6,1],[7,1]]},
-     {axis:'h',u:0.13,v:0.44,tiles:[[8,1],[9,1],[10,1],[11,1],[12,1]]},
-     {axis:'h',u:0.34,v:0.44,tiles:[[4,2],[5,2],[6,2],[7,2],[8,2]]},
-     {axis:'h',u:0.55,v:0.44,tiles:[[10,2],[11,2],[12,2],[13,2]]},
-     {axis:'h',u:0.13,v:0.68,tiles:[[2,3],[3,3],[4,3],[5,3]]},
-     {axis:'h',u:0.34,v:0.68,tiles:[[8,3],[9,3],[10,3],[11,3]]}
-   ],
-   loose:[
-     {n:7,c:0,u:0.31,v:0.88},{n:7,c:2,u:0.40,v:0.88},
-     {n:7,c:3,u:0.49,v:0.88},{n:6,c:3,u:0.58,v:0.88},
-     {n:9,c:2,u:0.67,v:0.88}
-   ]}
+  {
+    "id": "rmx-013",
+    "revision": 1,
+    "chapter": 1,
+    "name": "Three Make a Run",
+    "skill": "Runs need at least three cards",
+    "groups": [
+      {"axis":"h","u":0.46,"v":0.43,"tiles":[[3,0],[4,0]]}
+    ],
+    "loose": [
+      {"n":5,"c":0,"u":0.66,"v":0.75}
+    ],
+    "hint": "Drag the 5 to the end of the run.",
+    "intro": true,
+    "teaching": true,
+    "openingDrag": {"card":[5,0],"run":[[3,0],[4,0]]}
+  },
+  {
+    "id": "rmx-001",
+    "revision": 1,
+    "chapter": 1,
+    "name": "One More",
+    "skill": "A run can keep growing",
+    "groups": [
+      {"axis":"h","u":0.46,"v":0.43,"tiles":[[3,0],[4,0],[5,0]]}
+    ],
+    "loose": [
+      {"n":6,"c":0,"u":0.66,"v":0.75}
+    ],
+    "hint": "Try adding the 6 after the 5.",
+    "teaching": true
+  },
+  {
+    "id": "rmx-014",
+    "revision": 1,
+    "chapter": 1,
+    "name": "Same Number",
+    "skill": "Sets need three matching numbers",
+    "groups": [],
+    "loose": [
+      {"n":7,"c":0,"u":0.36,"v":0.47},
+      {"n":7,"c":1,"u":0.53,"v":0.47},
+      {"n":7,"c":2,"u":0.7,"v":0.47}
+    ],
+    "hint": "Bring matching numbers together. A set needs at least three different suits.",
+    "teaching": true
+  },
+  {
+    "id": "rmx-015",
+    "revision": 1,
+    "chapter": 1,
+    "name": "Follow the Suit",
+    "skill": "Runs follow one suit, not just one colour",
+    "groups": [
+      {"axis":"h","u":0.29,"v":0.38,"tiles":[[3,0],[4,0]]},
+      {"axis":"h","u":0.71,"v":0.38,"tiles":[[3,2],[4,2]]}
+    ],
+    "loose": [
+      {"n":5,"c":0,"u":0.36,"v":0.76},
+      {"n":5,"c":2,"u":0.64,"v":0.76}
+    ],
+    "hint": "Spades belong with spades; clubs belong with clubs.",
+    "teaching": true
+  },
+  {
+    "id": "rmx-016",
+    "revision": 1,
+    "chapter": 1,
+    "name": "The Missing Middle",
+    "skill": "Runs cannot skip a number",
+    "groups": [
+      {"axis":"h","u":0.49,"v":0.42,"tiles":[[3,0],[5,0],[6,0]]}
+    ],
+    "loose": [
+      {"n":4,"c":0,"u":0.48,"v":0.77}
+    ],
+    "hint": "The 4 belongs between the 3 and the 5.",
+    "teaching": true
+  },
+  {
+    "id": "rmx-017",
+    "revision": 1,
+    "chapter": 1,
+    "name": "One of Each",
+    "skill": "Sets use each suit once: three or four cards",
+    "groups": [
+      {"axis":"v","u":0.26,"v":0.44,"tiles":[[7,0],[7,0],[7,1]]},
+      {"axis":"h","u":0.67,"v":0.34,"tiles":[[5,0],[6,0]]}
+    ],
+    "loose": [
+      {"n":7,"c":2,"u":0.55,"v":0.76},
+      {"n":7,"c":3,"u":0.77,"v":0.76}
+    ],
+    "hint": "Tap the red set to open it. Move one 7 of spades into the run, then complete the set with the other suits.",
+    "teaching": true
+  },
+  {
+    "id": "rmx-018",
+    "revision": 1,
+    "chapter": 1,
+    "name": "Ace Comes First",
+    "skill": "Ace starts a run: A, 2, 3",
+    "groups": [
+      {"axis":"h","u":0.53,"v":0.42,"tiles":[[2,0],[3,0]]}
+    ],
+    "loose": [
+      {"n":1,"c":0,"u":0.28,"v":0.75}
+    ],
+    "hint": "Place the Ace before the 2.",
+    "teaching": true
+  },
+  {
+    "id": "rmx-019",
+    "revision": 1,
+    "chapter": 1,
+    "name": "Ace Comes Last",
+    "skill": "Ace can also follow the King",
+    "groups": [
+      {"axis":"h","u":0.46,"v":0.42,"tiles":[[10,1],[11,1],[12,1],[13,1]]}
+    ],
+    "loose": [
+      {"n":1,"c":1,"u":0.74,"v":0.75}
+    ],
+    "hint": "The order is 10, J, Q, K, A.",
+    "teaching": true
+  },
+  {
+    "id": "rmx-020",
+    "revision": 1,
+    "chapter": 1,
+    "name": "The End of the Line",
+    "skill": "Ace is an endpoint, never a bridge",
+    "groups": [
+      {"axis":"h","u":0.29,"v":0.4,"tiles":[[13,0],[1,0]]},
+      {"axis":"h","u":0.71,"v":0.4,"tiles":[[3,0],[4,0]]}
+    ],
+    "loose": [
+      {"n":12,"c":0,"u":0.28,"v":0.76},
+      {"n":2,"c":0,"u":0.71,"v":0.76}
+    ],
+    "hint": "A run can start at A or finish at A, but it cannot wrap through K–A–2 or use an Ace at both ends.",
+    "teaching": true
+  },
+  {
+    "id": "rmx-021",
+    "revision": 1,
+    "chapter": 1,
+    "name": "The Little Table",
+    "skill": "Bring the rules together",
+    "groups": [
+      {"axis":"h","u":0.2,"v":0.28,"tiles":[[2,1],[3,1]]},
+      {"axis":"h","u":0.5,"v":0.28,"tiles":[[12,2],[13,2]]},
+      {"axis":"h","u":0.78,"v":0.28,"tiles":[[6,3],[8,3],[9,3]]},
+      {"axis":"v","u":0.24,"v":0.7,"tiles":[[10,0],[10,1]]}
+    ],
+    "loose": [
+      {"n":1,"c":1,"u":0.44,"v":0.7},
+      {"n":1,"c":2,"u":0.58,"v":0.7},
+      {"n":7,"c":3,"u":0.72,"v":0.7},
+      {"n":10,"c":2,"u":0.87,"v":0.56},
+      {"n":10,"c":3,"u":0.87,"v":0.85}
+    ],
+    "hint": "Check each suit, fill any gaps, and remember the two places an Ace can go.",
+    "completion": {"heading":"Chapter One complete!","sub":"You know the rules. Now make the table your own."},
+    "teaching": true
+  },
+  {
+    "id": "rmx-022",
+    "revision": 1,
+    "chapter": 2,
+    "name": "Make Room",
+    "skill": "Tap a meld, then drag its grip. Moving it is free.",
+    "groups": [
+      {"axis":"h","u":0.3,"v":0.3,"tiles":[[3,0],[4,0],[5,0]]},
+      {"axis":"h","u":0.67,"v":0.3,"tiles":[[6,0],[7,0]]},
+      {"axis":"v","u":0.24,"v":0.7,"tiles":[[9,1],[9,2]]},
+      {"axis":"h","u":0.66,"v":0.7,"tiles":[[11,1],[12,1],[13,1]]}
+    ],
+    "loose": [
+      {"n":9,"c":3,"u":0.45,"v":0.82},
+      {"n":1,"c":1,"u":0.86,"v":0.46}
+    ],
+    "hint": "Tap a meld, then drag its grip to make room. Moving the whole meld costs no move.",
+    "teaching": true,
+    "teachMove": true,
+    "entryLabel": "START CHAPTER TWO →"
+  },
+  {
+    "id": "rmx-023",
+    "revision": 1,
+    "chapter": 2,
+    "name": "Borrow an End",
+    "skill": "Borrow an end; leave at least three",
+    "groups": [
+      {"axis":"h","u":0.35,"v":0.35,"tiles":[[2,0],[3,0],[4,0],[5,0]]},
+      {"axis":"v","u":0.73,"v":0.61,"tiles":[[5,1],[5,2]]}
+    ],
+    "loose": [],
+    "hint": "An end card can help another meld while the rest of its run stays green.",
+    "teaching": true
+  },
+  {
+    "id": "rmx-024",
+    "revision": 1,
+    "chapter": 2,
+    "name": "Borrow from a Set",
+    "skill": "A fourth card can help another meld",
+    "groups": [
+      {"axis":"v","u":0.28,"v":0.48,"tiles":[[7,0],[7,1],[7,2],[7,3]]},
+      {"axis":"h","u":0.69,"v":0.47,"tiles":[[8,1],[9,1]]}
+    ],
+    "loose": [],
+    "hint": "One card can leave this four-card set and begin a run.",
+    "teaching": true
+  },
+  {
+    "id": "rmx-025",
+    "revision": 1,
+    "chapter": 2,
+    "name": "Split the Run",
+    "skill": "Pull the middle to split a run",
+    "groups": [
+      {"axis":"h","u":0.5,"v":0.3,"tiles":[[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[8,0]]},
+      {"axis":"v","u":0.5,"v":0.77,"tiles":[[5,1],[5,2]]}
+    ],
+    "loose": [],
+    "hint": "A long run can become two smaller runs. Each finished part still needs three cards.",
+    "teaching": true
+  },
+  {
+    "id": "rmx-026",
+    "revision": 1,
+    "chapter": 2,
+    "name": "Green Can Change",
+    "skill": "Green melds can turn red while you work",
+    "groups": [
+      {"axis":"v","u":0.2,"v":0.51,"tiles":[[7,0],[7,1],[7,2]]},
+      {"axis":"h","u":0.57,"v":0.3,"tiles":[[5,0],[6,0]]},
+      {"axis":"h","u":0.76,"v":0.5,"tiles":[[8,1],[9,1]]},
+      {"axis":"h","u":0.56,"v":0.77,"tiles":[[8,2],[9,2]]}
+    ],
+    "loose": [],
+    "hint": "A green set is a resource. You can take it apart and build new melds.",
+    "teaching": true
+  },
+  {
+    "id": "rmx-027",
+    "revision": 1,
+    "chapter": 2,
+    "name": "Every Card Can Move",
+    "skill": "Runs and sets can become each other",
+    "groups": [
+      {"axis":"h","u":0.5,"v":0.3,"tiles":[[5,0],[6,0],[7,0]]},
+      {"axis":"v","u":0.25,"v":0.68,"tiles":[[5,1],[5,2]]},
+      {"axis":"v","u":0.5,"v":0.68,"tiles":[[6,1],[6,3]]},
+      {"axis":"v","u":0.75,"v":0.68,"tiles":[[7,2],[7,3]]}
+    ],
+    "loose": [],
+    "hint": "Look for matching numbers across the table. The green run can supply more than one set.",
+    "teaching": true
+  },
+  {
+    "id": "rmx-028",
+    "revision": 1,
+    "chapter": 2,
+    "name": "Put It Together",
+    "skill": "Borrow, split and build a new arrangement",
+    "hint": "A middle 5 can help the set. Keep an eye on the fragments it leaves.",
+    "groups": [
+      {"axis":"h","u":0.3,"v":0.24,"tiles":[[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[8,0]]},
+      {"axis":"h","u":0.3,"v":0.52,"tiles":[[3,1],[4,1],[5,1],[6,1],[7,1],[8,1]]},
+      {"axis":"v","u":0.8,"v":0.38,"tiles":[[7,0],[7,1],[7,2],[7,3]]},
+      {"axis":"h","u":0.65,"v":0.76,"tiles":[[8,2],[9,2],[10,2]]},
+      {"axis":"v","u":0.54,"v":0.45,"tiles":[[5,2],[5,3]]},
+      {"axis":"h","u":0.24,"v":0.8,"tiles":[[1,1],[2,1]]}
+    ],
+    "loose": [
+      {"n":6,"c":2,"u":0.86,"v":0.82}
+    ]
+  },
+  {
+    "id": "rmx-029",
+    "revision": 1,
+    "chapter": 2,
+    "name": "Chain Reaction",
+    "skill": "Follow what each borrowed card leaves behind",
+    "hint": "The spade run needs a 6 and a 7. Which melds could lend them?",
+    "groups": [
+      {"axis":"h","u":0.28,"v":0.22,"tiles":[[3,2],[4,2],[5,2],[6,2],[7,2],[8,2],[9,2]]},
+      {"axis":"h","u":0.28,"v":0.48,"tiles":[[5,1],[6,1],[7,1],[8,1],[9,1],[10,1]]},
+      {"axis":"v","u":0.62,"v":0.25,"tiles":[[4,0],[4,1],[4,3]]},
+      {"axis":"v","u":0.76,"v":0.25,"tiles":[[3,0],[3,1],[3,3]]},
+      {"axis":"v","u":0.89,"v":0.28,"tiles":[[6,0],[6,3]]},
+      {"axis":"h","u":0.57,"v":0.72,"tiles":[[7,3],[8,3],[9,3],[10,3]]},
+      {"axis":"v","u":0.89,"v":0.69,"tiles":[[7,0],[7,1],[7,2],[7,3]]},
+      {"axis":"h","u":0.24,"v":0.78,"tiles":[[5,0],[8,0],[9,0]]},
+      {"axis":"h","u":0.5,"v":0.48,"tiles":[[3,2],[4,2]]},
+      {"axis":"h","u":0.68,"v":0.48,"tiles":[[5,3],[6,3]]}
+    ],
+    "loose": []
+  },
+  {
+    "id": "rmx-030",
+    "revision": 1,
+    "chapter": 2,
+    "name": "Dress Rehearsal",
+    "skill": "Find your own route across the table",
+    "hint": "A green meld can be useful as a source of cards, too.",
+    "groups": [
+      {"axis":"h","u":0.27,"v":0.21,"tiles":[[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[8,0]]},
+      {"axis":"h","u":0.29,"v":0.46,"tiles":[[4,1],[5,1],[6,1],[7,1],[8,1],[9,1],[10,1]]},
+      {"axis":"h","u":0.28,"v":0.73,"tiles":[[4,2],[5,2],[6,2],[7,2],[8,2],[9,2]]},
+      {"axis":"h","u":0.69,"v":0.25,"tiles":[[7,3],[8,3],[9,3],[10,3],[11,3],[12,3],[13,3]]},
+      {"axis":"v","u":0.91,"v":0.58,"tiles":[[11,0],[11,1],[11,2],[11,3]]},
+      {"axis":"v","u":0.52,"v":0.66,"tiles":[[5,0],[5,1],[5,3]]},
+      {"axis":"v","u":0.66,"v":0.66,"tiles":[[8,0],[8,2]]},
+      {"axis":"v","u":0.78,"v":0.67,"tiles":[[2,1],[2,3]]},
+      {"axis":"v","u":0.89,"v":0.87,"tiles":[[13,0],[13,1]]},
+      {"axis":"v","u":0.08,"v":0.77,"tiles":[[1,1],[1,3]]},
+      {"axis":"h","u":0.63,"v":0.9,"tiles":[[2,2],[3,2]]}
+    ],
+    "loose": [
+      {"n":6,"c":3,"u":0.42,"v":0.88}
+    ]
+  },
+  {
+    "id": "rmx-031",
+    "revision": 1,
+    "chapter": 2,
+    "name": "The First Full Table",
+    "skill": "52 cards. Make the whole table green.",
+    "hint": "Look for a small gap, then follow the consequences of filling it.",
+    "groups": [
+      {"axis":"h","u":0.21,"v":0.19,"tiles":[[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0]]},
+      {"axis":"h","u":0.6,"v":0.19,"tiles":[[8,1],[9,1],[11,1],[13,1],[1,1]]},
+      {"axis":"h","u":0.25,"v":0.44,"tiles":[[7,2],[8,2],[9,2],[10,2],[11,2],[12,2],[13,2],[1,2]]},
+      {"axis":"h","u":0.65,"v":0.45,"tiles":[[2,3],[3,3],[4,3],[5,3],[6,3],[7,3],[8,3]]},
+      {"axis":"v","u":0.89,"v":0.21,"tiles":[[11,0],[11,3]]},
+      {"axis":"v","u":0.89,"v":0.65,"tiles":[[7,0],[7,1],[7,2],[7,3]]},
+      {"axis":"v","u":0.12,"v":0.77,"tiles":[[10,0],[10,1],[10,3]]},
+      {"axis":"v","u":0.25,"v":0.78,"tiles":[[12,0],[12,1],[12,3]]},
+      {"axis":"v","u":0.38,"v":0.76,"tiles":[[3,1],[3,2]]},
+      {"axis":"v","u":0.5,"v":0.77,"tiles":[[9,0],[9,3]]},
+      {"axis":"h","u":0.66,"v":0.69,"tiles":[[6,1],[8,1]]},
+      {"axis":"v","u":0.63,"v":0.87,"tiles":[[1,2],[1,3]]},
+      {"axis":"h","u":0.77,"v":0.88,"tiles":[[5,2],[6,2]]},
+      {"axis":"h","u":0.41,"v":0.58,"tiles":[[11,2],[12,2]]}
+    ],
+    "loose": [
+      {"n":2,"c":1,"u":0.05,"v":0.46}
+    ],
+    "completion": {"heading":"Chapter Two complete!","sub":"Fifty-two cards, all green. The whole table is yours."},
+    "entryLabel": "ENTER THE FULL TABLE →"
+  }
 ];
 // IDs are permanent, not stage numbers: never renumber them when reordering
 // or inserting puzzles. Bump revision when changing a starting puzzle.
@@ -932,13 +1185,52 @@ const LEGACY_LEVEL_IDS=Object.freeze([
   'rmx-001','rmx-002','rmx-003','rmx-004','rmx-005','rmx-006',
   'rmx-007','rmx-008','rmx-009','rmx-010','rmx-011','rmx-012'
 ]);
-const catalogIDs=new Set();
-for(const puzzle of LEVELS){
-  if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(puzzle.id)||catalogIDs.has(puzzle.id)||
-     !Number.isSafeInteger(puzzle.revision)||puzzle.revision<1)
-    throw Error('Each puzzle needs a unique permanent ID and a positive revision.');
-  catalogIDs.add(puzzle.id);
+// Authoring guard: every puzzle is a subset of two standard decks, with no
+// jokers. Physical copies get separate tile IDs when the stage is loaded.
+function validatePuzzleCatalog(catalog){
+  const ids=new Set();
+  if(!Array.isArray(catalog)||!catalog.length)throw Error('The puzzle catalogue is empty.');
+  for(const puzzle of catalog){
+    const fail=message=>{throw Error('Puzzle '+(puzzle?.id||'?')+': '+message);};
+    if(!puzzle||typeof puzzle.id!=='string'||!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(puzzle.id)||ids.has(puzzle.id)||
+       !Number.isSafeInteger(puzzle.revision)||puzzle.revision<1)
+      fail('use a unique permanent ID and a positive revision.');
+    ids.add(puzzle.id);
+    if(!Array.isArray(puzzle.groups)||!Array.isArray(puzzle.loose))fail('groups and loose must be arrays.');
+    const copies=new Map();
+    const card=(n,c)=>{
+      if(!Number.isInteger(n)||n<1||n>13||!Number.isInteger(c)||c<0||c>3)
+        fail('cards need a rank from A to K and one of the four suits.');
+      const key=n+':'+c,count=(copies.get(key)||0)+1;
+      if(count>2)fail('a card appears more than twice.');
+      copies.set(key,count);
+      return {num:n,col:c};
+    };
+    const position=g=>{
+      if(!Number.isFinite(g.u)||g.u<0||g.u>1||!Number.isFinite(g.v)||g.v<0||g.v>1)
+        fail('starting positions must be within the table.');
+    };
+    const start=puzzle.groups.map(g=>{
+      if(!g||!['h','v'].includes(g.axis)||!Array.isArray(g.tiles)||!g.tiles.length)
+        fail('each meld needs an axis and at least one card.');
+      position(g);
+      const meld={axis:g.axis,tiles:g.tiles.map(t=>{
+        if(!Array.isArray(t)||t.length!==2)fail('use [rank, suit] card pairs.');
+        return card(...t);
+      })};
+      normalizeGroupOrder(meld);
+      return meld;
+    });
+    for(const t of puzzle.loose){
+      if(!t)fail('a loose card is missing.');
+      position(t);start.push({axis:'h',tiles:[card(t.n,t.c)]});
+    }
+    const total=start.reduce((n,g)=>n+g.tiles.length,0);
+    if(total<3||total>104)fail('use between 3 and 104 cards.');
+    if(start.every(isValid))fail('the starting table must need solving.');
+  }
 }
+validatePuzzleCatalog(LEVELS);
 const initialDeal=p=>[
   p.groups.map(g=>[g.axis,g.tiles]),p.loose.map(t=>[t.n,t.c])
 ];
@@ -1631,20 +1923,48 @@ document.addEventListener('visibilitychange',()=>{
 window.addEventListener('pagehide',()=>{pauseAndSave();hideNudge();});
 window.addEventListener('pageshow',()=>refreshNudge());
 
-let nudgeTimeout=null,nudgeArmed=false;
+let nudgeTimeout=null,nudgeArmed=false,lessonHintOpen=false;
+// Early lessons introduce a rule in place. Later puzzles offer help only
+// when requested; taking time to think never reveals their solution.
+function updateLessonCue(){
+  const source=LEVELS[level],cue=$('lessonCue');
+  const demonstration=$('introGuide').classList.contains('show');
+  let text=demonstration||lessonHintOpen?source.hint:source.skill;
+  if(source.teachMove&&!lessonHintOpen&&!demonstration&&moves===0&&selectedId!==null)
+    text=movingGroup?'Moving the whole meld is free.':'Drag the ⠿ grip to move this meld for free.';
+  const visible=!!text&&!won&&!active&&!$('lab').classList.contains('show')&&
+    (demonstration||lessonHintOpen||
+      (source.teaching===true&&moves===0&&(selectedId===null||source.teachMove===true)));
+  if(cue.textContent!==text)cue.textContent=text||'';
+  cue.classList.toggle('show',visible);
+  cue.classList.toggle('expanded',lessonHintOpen&&!demonstration);
+  cue.classList.toggle('meld-move',source.teachMove===true&&selectedId!==null&&!lessonHintOpen);
+  $('hint').disabled=won||!source.hint;
+  $('hint').setAttribute('aria-expanded',String(!!lessonHintOpen&&visible));
+  $('hint').setAttribute('aria-label',lessonHintOpen?'Hide the hint':'Show a hint');
+}
+$('hint').addEventListener('click',()=>{
+  stopNudge();lessonHintOpen=!lessonHintOpen;updateLessonCue();
+});
+board.addEventListener('pointerdown',()=>{
+  if(lessonHintOpen){lessonHintOpen=false;updateLessonCue();}
+},{capture:true});
 function hideNudge(){
   if(nudgeTimeout!==null)clearTimeout(nudgeTimeout);
   nudgeTimeout=null;
   $('introGuide').classList.remove('show');
   tiles.forEach(t=>t.el.classList.remove('hint-pulse'));
+  updateLessonCue();
 }
 function stopNudge(){nudgeArmed=false;hideNudge();}
 function nudgeCards(){
   if(!isIntro()||won||moves||history.length||active||movingGroup||selectedId!==null)return null;
-  const card=tiles.find(t=>t.num===6&&t.col===0);
+  const lesson=LEVELS[level].openingDrag;
+  if(!lesson)return null;
+  const card=tiles.find(t=>t.num===lesson.card[0]&&t.col===lesson.card[1]);
   const solo=groups.find(g=>g.tiles.length===1&&g.tiles[0]===card);
-  const run=groups.find(g=>g.axis==='h'&&g.tiles.length===3&&
-    g.tiles.every((t,i)=>t.col===0&&t.num===i+3));
+  const run=groups.find(g=>g.axis==='h'&&g.tiles.length===lesson.run.length&&
+    g.tiles.every((t,i)=>t.num===lesson.run[i][0]&&t.col===lesson.run[i][1]));
   return card&&solo&&run?{card,run}:null;
 }
 function positionNudge(){
@@ -1652,7 +1972,7 @@ function positionNudge(){
   if(!pair)return false;
   const br=board.getBoundingClientRect(),rect=pair.card.el.getBoundingClientRect();
   const box=compactBox(pair.run),guide=$('introGuide');
-  // Aim at the next slot beyond the 5, using the real current board size.
+  // Aim at the next slot, using the actual current meld and board size.
   const from={x:rect.left+rect.width/2-br.left,y:rect.top+rect.height/2-br.top};
   const to={x:clamp(box.x+(box.n+1)*box.step/2,actualTile/2,boardW-actualTile/2),y:box.y};
   for(const [key,point] of [['from',from],['to',to]]){
@@ -1676,14 +1996,13 @@ function refreshNudge(){
        $('lab').classList.contains('show')||!positionNudge())return;
     nudgeCards().card.el.classList.add('hint-pulse');
     $('introGuide').classList.add('show');
-    $('lessonCue').textContent='Drag the 6 to the end of the run.';
-    $('lessonCue').classList.add('show');
+    updateLessonCue();
   },5000);
 }
 function startNudge(){stopNudge();nudgeArmed=true;refreshNudge();}
 function dismissOpeningHint(){
   stopNudge();
-  $('lessonCue').classList.remove('show');
+  updateLessonCue();
 }
 // Dismiss before a tap reaches a card, the empty board or a toolbar control.
 for(const type of ['pointerdown','keydown'])document.addEventListener(type,()=>{
@@ -1712,11 +2031,11 @@ function loadLevel(i,{fresh=false}={}) {
     groups.push(groupNew([tileNew(p.n,p.c)],'h',p.u,p.v));
   });
   $('levelLabel').textContent=`${String(level+1).padStart(2,'0')} / ${String(LEVELS.length).padStart(2,'0')}`;
+  $('chapterLabel').textContent='CHAPTER '+source.chapter;
   $('levelName').textContent=source.name;
   $('win').classList.remove('show');
   $('winStats').innerHTML='';
-  $('lessonCue').textContent='Make everything green.';
-  $('lessonCue').classList.toggle('show',isIntro()&&!saved);
+  lessonHintOpen=false;
   stopNudge();
   if(saved){
     restore(saved.table);
@@ -2002,6 +2321,56 @@ function scheduleLivePreview(x,y) {
     layout(false,true);
   });
 }
+function meldGripPosition(g){
+  const box=geometry(g,false),w=38,h=29,gap=8,pad=3;
+  const candidates=[];
+  const add=(x,y)=>{
+    if(x>=pad&&y>=pad&&x+w<=boardW-pad&&y+h<=boardH-pad)
+      candidates.push({x,y});
+  };
+  // Clamping an above-meld grip to the board edge puts it over the first
+  // card. On touch screens that button can steal the card's drag. Place it
+  // outside the meld, using a side when there is no room above.
+  add(clamp(box.x-w/2,pad,boardW-w-pad),box.top-h-gap);
+  for(const y of [box.top,box.y-h/2,box.top+box.h-h]){
+    add(box.left+box.w+gap,y);
+    add(box.left-w-gap,y);
+  }
+  add(clamp(box.x-w/2,pad,boardW-w-pad),box.top+box.h+gap);
+  const others=groups.filter(p=>p!==g).map(p=>geometry(p,false));
+  const obstruction=p=>others.reduce((sum,b)=>sum+
+    Math.max(0,Math.min(p.x+w+2,b.left+b.w)-Math.max(p.x-2,b.left))*
+    Math.max(0,Math.min(p.y+h+2,b.top+b.h)-Math.max(p.y-2,b.top)),0);
+  let best=null,least=Infinity;
+  for(const p of candidates){
+    const area=obstruction(p);
+    if(area<least){best=p;least=area;}
+    if(area===0)break;
+  }
+  if(least>0){
+    // A crowded table may have a free pocket a little farther along an
+    // edge. Check the edges of all melds before covering another card.
+    const blocks=[{...box,space:gap},...others.map(b=>({...b,space:2}))];
+    const xs=new Set([pad,boardW-w-pad]),ys=new Set([pad,boardH-h-pad]);
+    for(const b of blocks){
+      xs.add(b.left-w-b.space);xs.add(b.left+b.w+b.space);
+      ys.add(b.top-h-b.space);ys.add(b.top+b.h+b.space);
+    }
+    const preferred={x:clamp(box.x-w/2,pad,boardW-w-pad),y:box.top-h-gap};
+    xs.add(preferred.x);ys.add(preferred.y);
+    let distance=Infinity;
+    for(const x of xs)for(const y of ys){
+      if(x<pad||y<pad||x+w>boardW-pad||y+h>boardH-pad)continue;
+      if(blocks.some(b=>x<b.left+b.w+b.space-.01&&x+w>b.left-b.space+.01&&
+        y<b.top+b.h+b.space-.01&&y+h>b.top-b.space+.01))continue;
+      const d=(x-preferred.x)**2+(y-preferred.y)**2;
+      if(d<distance){best={x,y};distance=d;}
+    }
+  }
+  // A landscape table always has space on at least one side of a meld.
+  // Keep layout safe during the temporary, hidden portrait viewport too.
+  return best||{x:clamp(box.x-w/2,pad,boardW-w-pad),y:pad};
+}
 function layout(initial=false,skipMeasure=false) {
   // During drag previews geometry is unchanged: avoid re-measuring and
   // rewriting CSS variables on every pointer animation frame.
@@ -2077,14 +2446,13 @@ function layout(initial=false,skipMeasure=false) {
   meldGrip.tabIndex=gripGroup?0:-1;
   meldGrip.setAttribute('aria-hidden',gripGroup?'false':'true');
   if(gripGroup){
-    const gripBox=geometry(gripGroup,false);
-    const gx=clamp(gripBox.x-19,4,boardW-42);
-    const gy=clamp(gripBox.top-29,3,boardH-33);
-    meldGrip.style.transform=`translate3d(${gx.toFixed(2)}px,${gy.toFixed(2)}px,0)`;
+    const {x,y}=meldGripPosition(gripGroup);
+    meldGrip.style.transform=`translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,0)`;
   }
   $('undo').disabled=!history.length;
   springInstant=false;
   refreshNudge();
+  updateLessonCue();
 }
 function compactBox(g) {
   const n=g.tiles.length,step=actualTile*.56;
@@ -2558,6 +2926,7 @@ function checkWin() {
 }
 function renderWin() {
     const completion=LEVELS[level].completion,next=LEVELS[level+1];
+    updateLessonCue();
     updateScore();
     $('winHeading').textContent=completion?.heading||'Beautifully done.';
     $('winSub').textContent=winRecord?'A new personal best!':completion?.sub||'Every tile has found its place.';
@@ -2601,8 +2970,8 @@ for(const key of ['tile','corner','gap','spring','magnet'])
     applySettings();
   });
 const lab=$('lab');
-function hideLab(){lab.classList.remove('show');}
-$('settings').addEventListener('click',()=>lab.classList.toggle('show'));
+function hideLab(){lab.classList.remove('show');updateLessonCue();}
+$('settings').addEventListener('click',()=>{lab.classList.toggle('show');updateLessonCue();});
 $('closeLab').addEventListener('click',hideLab);
 $('closeLab2').addEventListener('click',hideLab);
 $('resetLab').addEventListener('click',()=>{settings={...defaults};applySettings();});
@@ -2670,13 +3039,15 @@ const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[
 loadLevel(firstLevel);applySettings();scheduleBoardFit();
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.2.9 · A Helping Hand';
+  const APP_VERSION='0.3.0 · The First Two Chapters';
   const ROADMAP_ITEMS = [
     'Done now: midnight felt, linen-paper cards, gradient suits, centred celebration, Replay, version badge.',
     'Done now: automatic save & resume, including table layout, moves and Undo history.',
     'Done now: overlapping melds, tap to open and free meld dragging on every stage.',
-    'Done now: a gentle hand demonstrates the first drag when the opening puzzle is idle.',
-    'Next: teach meld dragging explicitly in Chapter One.',
+    'Done now: 20 authored stages across two chapters, from three cards to a full 52-card table.',
+    'Done now: a gentle hand teaches the opening three-card run; optional hints support every stage.',
+    'Done now: free meld movement, borrowing and rebuilding are taught in Chapter Two.',
+    'Done now: two-deck inventory checks for every puzzle.',
     'Done now: permanent puzzle IDs, puzzle revisions and separate bests for each rule version.',
     'Explore: frozen or locked hand cards that unlock when the table is ready.',
     'Done now: fuller, rounder hearts, clubs and spades with subtle ink gradients.',
@@ -2688,7 +3059,7 @@ loadLevel(firstLevel);applySettings();scheduleBoardFit();
   // Make the PWA chrome and browser UI match the cozier table theme.
   const themeMeta=document.querySelector('meta[name="theme-color"]');
   if(themeMeta) themeMeta.setAttribute('content','#15182d');
-  document.title='Remixa · Cozy Update';
+  document.title='Remixa · The First Two Chapters';
 
   // Add a compact roadmap / version note inside Remixa Lab.
   const lab=document.getElementById('lab');
