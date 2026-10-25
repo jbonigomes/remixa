@@ -146,6 +146,16 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 .lab-head strong {font-size:17px;}
 .lab-head button {background:none;font-size:22px;color:#dce8e3;}
 .lab-help {color:#a9c5bc;font-size:11px;line-height:1.5;margin-bottom:10px;}
+#lab {max-height:calc(100dvh - 70px);overflow:auto;overscroll-behavior:contain;touch-action:pan-y;}
+.lab-save {margin:12px 0 16px;padding:10px 12px;border:1px solid #58776a;border-radius:10px;background:#ffffff06;font-size:11px;line-height:1.5;}
+.lab-save strong {display:block;color:#d5e9d9;font-size:12px;margin-bottom:2px;}
+.lab-save span {color:#a9c5bc;}
+.lab-save.unavailable {border-color:#a98150;}
+.lab-save.unavailable strong {color:#f5d29c;}
+#saveNotice {position:fixed;left:50%;bottom:max(17px,env(safe-area-inset-bottom));z-index:100;transform:translate(-50%,6px);max-width:calc(100vw - 30px);padding:9px 14px;border:1px solid #667c70;border-radius:12px;background:#20283bf2;box-shadow:0 5px 18px #0004;color:#e4eadd;font-size:12px;line-height:1.4;text-align:center;pointer-events:none;opacity:0;transition:opacity .2s,transform .2s;}
+#saveNotice.show {opacity:1;transform:translate(-50%,0);}
+#saveNotice.unavailable {border-color:#b58b56;color:#f5d29c;}
+@media(prefers-reduced-motion:reduce){#saveNotice {transition:none;}}
 .lab-row {display:grid;grid-template-columns:1fr auto;gap:0 12px;margin:12px 0 6px;align-items:center;}
 .lab-row label {font-size:12px;font-weight:700;}
 .lab-row output {color:#f8dc98;font-size:12px;font-variant-numeric:tabular-nums;}
@@ -711,6 +721,7 @@ html,body{-webkit-text-size-adjust:100%;}
   </main>
 </div>
 <div id="dragLayer"></div>
+<div id="saveNotice" role="status" aria-live="polite" aria-atomic="true"></div>
 <div id="win">
   <div class="win-card">
     <div class="win-icon">✦</div>
@@ -723,6 +734,7 @@ html,body{-webkit-text-size-adjust:100%;}
 <div id="lab" role="dialog" aria-label="Remixa tuning controls">
   <div class="lab-head"><strong>Remixa Lab</strong><button id="closeLab" aria-label="Close settings">×</button></div>
   <div class="lab-help">Tune the feel live on your phone. Settings save automatically on this device.</div>
+  <div class="lab-save" id="saveInfo"><strong id="saveLabel">Automatic save</strong><span id="saveDetail">Your table, moves and Undo history save on this device. Return here to pick up where you left off.</span></div>
   <div class="lab-row"><label for="tileRange">Tile size</label><output id="tileOut">58px</output><input id="tileRange" type="range" min="42" max="86" step="1" value="58"></div>
   <div class="lab-row"><label for="cornerRange">Corner radius</label><output id="cornerOut">9px</output><input id="cornerRange" type="range" min="2" max="22" step="1" value="9"></div>
   <div class="lab-row"><label for="gapRange">Gap & border</label><output id="gapOut">4px</output><input id="gapRange" type="range" min="1" max="10" step="1" value="4"></div>
@@ -856,7 +868,7 @@ let settings={...defaults};
 try {const saved=JSON.parse(localStorage.getItem('remixaLab')||'null'); if(saved) settings={...settings,...saved};}catch(_){}
 const board=$('board'), groupsLayer=$('groupLayer'), tilesLayer=$('tileLayer'), raisedLayer=$('raisedLayer'), dragLayer=$('dragLayer'), meldGrip=$('meldGrip');
 let tiles=[],groups=[],active=null,hover=null,history=[],level=0,won=false,nextID=1,nextGroup=1;
-let moves=0,selectedId=null,movingGroup=null;
+let moves=0,selectedId=null,movingGroup=null,winRecord=false;
 let actualTile=58,boardW=1,boardH=1,adaptiveTileCap=Infinity;
 // A purely visual collision preview; puzzle positions remain untouched until drop.
 let projected=null,previewFrame=0,previewPoint=null;
@@ -920,6 +932,7 @@ function selectGroup(id){
   const previous=selectedId;selectedId=id;
   if(!reflowGroups(id)){selectedId=previous;reflowGroups(previous);}
   layout();
+  saveProgress();
 }
 board.addEventListener('pointerdown',e=>{
   if(e.target===board && !active && !movingGroup && selectedId!==null)selectGroup(null);
@@ -1234,7 +1247,7 @@ function snapshot() {
 function restore(s) {
   resetHoverIntent();
   clearLivePreview();
-  active=null;hover=null;won=false;$('win').classList.remove('show');
+  active=null;hover=null;won=false;winRecord=false;$('win').classList.remove('show');
   adaptiveTileCap=s.tileCap??Infinity;
   selectedId=s.selected??null;
   for(const g of groups)g.el.remove();
@@ -1243,6 +1256,143 @@ function restore(s) {
   nextGroup=Math.max(nextGroup, ...groups.map(g=>g.id+1),1);
   layout();
 }
+
+// Save only settled tables. Card pickup temporarily removes/splits groups,
+// so gesture previews must never replace a complete, resumable save.
+const SAVE_KEY='remixa_progress_v1';
+const SAVE_VERSION=1;
+const SAVE_DECKS=LEVELS.map(p=>[
+  ...p.groups.flatMap(g=>g.tiles),...p.loose.map(t=>[t.n,t.c])
+]);
+// Appearance/layout updates keep saves; a changed puzzle definition does not
+// reuse old tile IDs. This is independent of the display/build version.
+const SAVE_PUZZLES=LEVELS.map(p=>JSON.stringify([
+  p.groups.map(g=>[g.axis,g.tiles]),p.loose.map(t=>[t.n,t.c])
+]));
+const emptyProgress=()=>({version:SAVE_VERSION,lastLevel:0,levels:{}});
+let progressData=emptyProgress(),progressReady=false,loadingLevel=false;
+let lastSavedLevel=null,lastSavedEntry='',saveAvailable=true,saveNoticeTimer=0;
+const pendingSaves=new Map(),discardedSaveLevels=new Set();
+let discardedSave=false;
+const plainObject=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
+const saveID=value=>Number.isSafeInteger(value)&&value>0&&value<Number.MAX_SAFE_INTEGER;
+function cleanSavedTable(value,count) {
+  if(!plainObject(value)||!Array.isArray(value.groups)||
+     !value.groups.length||value.groups.length>count)return null;
+  if(value.tileCap!==null&&(!Number.isFinite(value.tileCap)||value.tileCap<21||value.tileCap>86))return null;
+  const ids=new Set(),groupIDs=new Set(),clean=[];
+  for(const g of value.groups){
+    if(!plainObject(g)||!saveID(g.id)||groupIDs.has(g.id)||
+       !['h','v'].includes(g.axis)||!Number.isFinite(g.u)||!Number.isFinite(g.v)||
+       g.u<0||g.u>1||g.v<0||g.v>1||!Array.isArray(g.ids)||!g.ids.length||g.ids.length>count)return null;
+    groupIDs.add(g.id);
+    for(const id of g.ids){
+      if(!Number.isInteger(id)||id<1||id>count||ids.has(id))return null;
+      ids.add(id);
+    }
+    clean.push({id:g.id,axis:g.axis,u:g.u,v:g.v,ids:g.ids.slice()});
+  }
+  if(ids.size!==count||(value.selected!==null&&!groupIDs.has(value.selected)))return null;
+  return {groups:clean,tileCap:value.tileCap,selected:value.selected};
+}
+function cleanSavedLevel(value,index) {
+  if(!plainObject(value)||value.puzzle!==SAVE_PUZZLES[index]||
+     !Number.isSafeInteger(value.moves)||value.moves<0||value.moves>=Number.MAX_SAFE_INTEGER||
+     typeof value.won!=='boolean'||typeof value.isRecord!=='boolean'||
+     !Array.isArray(value.history)||value.history.length>value.moves)return null;
+  const deck=SAVE_DECKS[index],table=cleanSavedTable(value.table,deck.length);
+  if(!table)return null;
+  const past=value.history.map(s=>cleanSavedTable(s,deck.length));
+  if(past.some(s=>!s))return null;
+  if(value.won&&!table.groups.every(g=>isValid({axis:g.axis,
+    tiles:g.ids.map(id=>({num:deck[id-1][0],col:deck[id-1][1]}))})))return null;
+  return {puzzle:value.puzzle,moves:value.moves,won:value.won,
+    isRecord:value.won&&value.isRecord,table,history:past};
+}
+function readProgress(report=false) {
+  let raw;
+  try{raw=localStorage.getItem(SAVE_KEY);}catch(_){
+    if(report)setSaveAvailability(false);
+    return null;
+  }
+  if(!raw)return emptyProgress();
+  try{
+    const value=JSON.parse(raw);
+    if(!plainObject(value)||value.version!==SAVE_VERSION||!plainObject(value.levels))throw Error('Invalid save');
+    const result=emptyProgress();
+    if(Number.isInteger(value.lastLevel)&&value.lastLevel>=0&&value.lastLevel<LEVELS.length)
+      result.lastLevel=value.lastLevel;
+    for(let i=0;i<LEVELS.length;i++){
+      if(!Object.prototype.hasOwnProperty.call(value.levels,i))continue;
+      const saved=cleanSavedLevel(value.levels[i],i);
+      if(saved)result.levels[i]=saved;
+      else if(report)discardedSaveLevels.add(i);
+    }
+    return result;
+  }catch(_){
+    if(report)discardedSave=true;
+    return emptyProgress();
+  }
+}
+function showSaveNotice(message,unavailable=false) {
+  clearTimeout(saveNoticeTimer);
+  const notice=$('saveNotice');
+  notice.textContent=message;
+  notice.classList.toggle('unavailable',unavailable);
+  notice.classList.add('show');
+  if(!unavailable)saveNoticeTimer=setTimeout(()=>notice.classList.remove('show'),2800);
+}
+function setSaveAvailability(available) {
+  const previous=saveAvailable;
+  saveAvailable=available;
+  $('saveInfo').classList.toggle('unavailable',!available);
+  $('saveLabel').textContent=available?'Saved automatically on this device':'Automatic save unavailable';
+  $('saveDetail').textContent=available
+    ? 'Your table, moves and Undo history are kept here. Reset or Replay starts only this stage again.'
+    : 'Your latest progress could not be saved. Keep this tab open to continue playing.';
+  if(!available&&previous)showSaveNotice('Progress could not be saved on this device.',true);
+  else if(available&&!previous){
+    $('saveNotice').classList.remove('show','unavailable');
+    clearTimeout(saveNoticeTimer);
+  }
+}
+function refreshProgress() {
+  const latest=readProgress();
+  if(latest)progressData=latest;
+  // Failed writes still retain progress while this tab remains open.
+  for(const [index,entry] of pendingSaves)progressData.levels[index]=entry;
+}
+function saveProgress() {
+  if(!progressReady||loadingLevel||active||movingGroup||!tiles.length)return false;
+  const entry={puzzle:SAVE_PUZZLES[level],moves,won,isRecord:winRecord,
+    table:snapshot(),history:history.slice()};
+  const text=JSON.stringify(entry);
+  // A stale/background tab with no changes must not replace a newer save.
+  if(saveAvailable&&!pendingSaves.size&&lastSavedLevel===level&&lastSavedEntry===text)return true;
+  pendingSaves.set(level,entry);
+  refreshProgress();
+  progressData.lastLevel=level;
+  try{
+    // One atomic write includes the table, count, completion and Undo stack.
+    localStorage.setItem(SAVE_KEY,JSON.stringify(progressData));
+    pendingSaves.clear();
+    lastSavedLevel=level;lastSavedEntry=text;
+    setSaveAvailability(true);
+    return true;
+  }catch(_){
+    setSaveAvailability(false);
+    return false;
+  }
+}
+function pauseAndSave() {
+  if(movingGroup)finishMeldMove(null,true);
+  if(active)cancelDrag();
+  saveProgress();
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden')pauseAndSave();
+});
+window.addEventListener('pagehide',pauseAndSave);
 
 let nudgeTimeout=null;
 function stopNudge(){
@@ -1262,16 +1412,20 @@ function dismissOpeningHint(){
   stopNudge();
   $('lessonCue').classList.remove('show');
 }
-function loadLevel(i) {
+function loadLevel(i,{fresh=false}={}) {
   if(movingGroup)finishMeldMove(null,true);
   if(active)cancelDrag();
+  saveProgress();
+  loadingLevel=true;
+  refreshProgress();
   resetHoverIntent();
   clearLivePreview();
   level=(i+LEVELS.length)%LEVELS.length;
+  const saved=fresh?null:progressData.levels[level];
   for(const t of tiles)t.el.remove();
   for(const g of groups)g.el.remove();
   tiles=[];groups=[];hover=null;active=null;history=[];won=false;nextID=1;nextGroup=1;
-  moves=0;selectedId=null;movingGroup=null;
+  moves=0;selectedId=null;movingGroup=null;winRecord=false;
   adaptiveTileCap=Infinity;
   const source=LEVELS[level];
   groups=source.groups.map(g=>groupNew(g.tiles.map(v=>tileNew(...v)),g.axis,g.u,g.v));
@@ -1286,12 +1440,34 @@ function loadLevel(i) {
   $('winStats').innerHTML='';
   board.classList.toggle('big',isBig());
   $('bigHint').classList.toggle('visible',isBig());
-  $('lessonCue').classList.toggle('show',level===0);
+  $('lessonCue').classList.toggle('show',level===0&&!saved);
   stopNudge();
-  if(level===0)startNudge();
-  reflowGroups();
+  if(saved){
+    restore(saved.table);
+    history=saved.history;
+    moves=saved.moves;won=saved.won;winRecord=saved.isRecord;
+    // Fit for the current screen instead of inheriting a smaller tile cap.
+    adaptiveTileCap=Infinity;
+  }else if(level===0)startNudge();
+  // The portrait overlay hides the board. Do not squash the saved layout
+  // into that temporary shape before the player turns their phone.
+  if(!matchMedia('(orientation: portrait)').matches)reflowGroups(selectedId);
   layout(true);
   updateScore();
+  if(won)renderWin();
+  // Keep playtesting links in step with navigation so reload resumes the
+  // stage on screen, rather than returning to an obsolete URL fragment.
+  if(/^#(?:level-?)?\d+$/.test(location.hash)){
+    try{window.history.replaceState(null,'','#level-'+(level+1));}catch(_){}
+  }
+  loadingLevel=false;progressReady=true;
+  saveProgress();
+  if(saveAvailable){
+    if(saved)showSaveNotice('Table resumed · Level '+String(level+1).padStart(2,'0'));
+    else if(discardedSave||discardedSaveLevels.has(level))
+      showSaveNotice('The saved table could not be restored. A fresh table is ready.');
+  }
+  discardedSave=false;discardedSaveLevels.delete(level);
 }
 function maxSequence(){return Math.max(...groups.filter(g=>g.axis==='h').map(g=>g.tiles.length),3);}
 function measure() {
@@ -1875,6 +2051,7 @@ function finishMeldMove(e,cancel=false){
   }
   // Spatial organisation is free; moving a meld never enters Undo.
   layout();
+  saveProgress();
 }
 meldGrip.addEventListener('pointerdown',beginMeldMove);
 window.addEventListener('pointermove',moveMeld,{passive:false});
@@ -2022,6 +2199,7 @@ function cancelDrag() {
   restore(s);
   // Even an abandoned or rejected drop releases the raised-card focus.
   if(isBig()){selectedId=null;layout();}
+  saveProgress();
 }
 function pointerUp(e) {
   if(!active||e.pointerId!==active.pointerId)return;
@@ -2116,43 +2294,53 @@ function pointerUp(e) {
   layout();
   updateScore();
   if(changedPuzzle)checkWin();
+  saveProgress();
 }
 function checkWin() {
   if(groups.length&&groups.every(isValid) && groups.reduce((n,g)=>n+g.tiles.length,0)===tiles.length) {
     won=true;stopNudge();
+    const previousBest=readBest();
+    winRecord=previousBest===null||moves<previousBest;
+    if(winRecord){try{localStorage.setItem(bestKey(),String(moves));}catch(_){}}
+    renderWin();
+  }
+}
+function renderWin() {
     const firstChapterEnd=level===4;
     const secondChapterEnd=level===9;
     const knotEnd=level===10,bigEnd=isBig();
-    const previousBest=readBest();
-    const isRecord=previousBest===null||moves<previousBest;
-    if(isRecord){try{localStorage.setItem(bestKey(),String(moves));}catch(_){}}
     updateScore();
     $('winHeading').textContent=bigEnd?'Big table, beautiful finish!':knotEnd?'The Knot untied!':secondChapterEnd?'Chapter Two complete!':firstChapterEnd?'Chapter One complete!':'Beautifully done.';
-    $('winSub').textContent=isRecord?'A new personal best!':bigEnd?'Forty tiles, all green.':knotEnd?'A tangled table, beautifully resolved.':secondChapterEnd?'Ready for your first real challenge?':firstChapterEnd?'Ready to turn things around?':'Every tile has found its place.';
+    $('winSub').textContent=winRecord?'A new personal best!':bigEnd?'Forty tiles, all green.':knotEnd?'A tangled table, beautifully resolved.':secondChapterEnd?'Ready for your first real challenge?':firstChapterEnd?'Ready to turn things around?':'Every tile has found its place.';
     $('winStats').innerHTML=`<div class="win-score"><strong>${moves}</strong><span>YOUR MOVES</span></div><div class="win-score"><strong>${readBest()??'—'}</strong><span>PERSONAL BEST</span></div>`;
     $('nextWin').textContent=bigEnd?'PLAY AGAIN →':knotEnd?'ENTER THE BIG TABLE →':secondChapterEnd?'ENTER THE KNOT →':firstChapterEnd?'ON TO LEVEL 6 →':'NEXT LEVEL →';
     $('win').classList.add('show');
-  }
 }
 window.addEventListener('pointermove',moveDrag,{passive:false});
 window.addEventListener('pointerup',pointerUp,{passive:false});
 window.addEventListener('pointercancel',e=>{if(active&&e.pointerId===active.pointerId)cancelDrag();});
 window.addEventListener('blur',cancelDrag);
-function undo() {if(active)cancelDrag(); if(!history.length)return;restore(history.pop());layout();}
+function undo() {
+  if(movingGroup)finishMeldMove(null,true);
+  if(active)cancelDrag();
+  if(!history.length)return;
+  restore(history.pop());layout();saveProgress();
+}
 $('undo').addEventListener('click',undo);
-$('reset').addEventListener('click',()=>loadLevel(level));
+$('reset').addEventListener('click',()=>loadLevel(level,{fresh:true}));
 $('prev').addEventListener('click',()=>loadLevel(level-1));
 $('next').addEventListener('click',()=>loadLevel(level+1));
-$('nextWin').addEventListener('click',()=>loadLevel(isBig()?level:level+1));
-$('replayWin').addEventListener('click',()=>loadLevel(level));
+$('nextWin').addEventListener('click',()=>loadLevel(isBig()?level:level+1,{fresh:isBig()}));
+$('replayWin').addEventListener('click',()=>loadLevel(level,{fresh:true}));
 function applySettings() {
   for(const key of ['tile','corner','gap','spring','magnet']){
     $(key+'Range').value=settings[key];
     $(key+'Out').textContent=settings[key]+(key==='spring'?'ms':key==='magnet'?'%':'px');
   }
   try{localStorage.setItem('remixaLab',JSON.stringify(settings));}catch(_){}
-  if(!active)reflowGroups();
+  if(!active&&!movingGroup&&!matchMedia('(orientation: portrait)').matches)reflowGroups();
   layout();
+  saveProgress();
 }
 for(const key of ['tile','corner','gap','spring','magnet'])
   $(key+'Range').addEventListener('input',e=>{
@@ -2184,6 +2372,7 @@ function scheduleBoardFit(){
       boardFitFrame=requestAnimationFrame(tick);
       return;
     }
+    if(movingGroup)finishMeldMove(null,true);
     if(active)cancelDrag();
     if(Math.abs(w-knownBoardWidth)>1||Math.abs(h-knownBoardHeight)>1) {
       // A portrait-sized tile cap must not carry over into landscape.
@@ -2192,6 +2381,7 @@ function scheduleBoardFit(){
     }
     reflowGroups();
     layout(true);
+    saveProgress();
   };
   boardFitFrame=requestAnimationFrame(tick);
   if(boardFitTimeout)clearTimeout(boardFitTimeout);
@@ -2200,9 +2390,12 @@ function scheduleBoardFit(){
   boardFitTimeout=setTimeout(()=>{
     boardFitTimeout=0;
     if(board.clientWidth&&board.clientHeight&&!matchMedia('(orientation: portrait)').matches){
+      if(movingGroup)finishMeldMove(null,true);
+      if(active)cancelDrag();
       adaptiveTileCap=Infinity;
       reflowGroups();
       layout(true);
+      saveProgress();
     }
   },320);
 }
@@ -2215,17 +2408,18 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape')hideLab();
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}
 });
-// For playtesting, append #11 to the GitHub Pages URL to open The Knot.
-// The default opening still starts at Level 1.
+// An explicit level link takes priority; otherwise return to the last table.
+// First-time players still begin at Level 1.
+progressData=readProgress(true)||emptyProgress();
 const deepLevel=/^#(?:level-?)?(\d+)$/.exec(location.hash);
-const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[1])-1)):0;
+const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[1])-1)):progressData.lastLevel;
 loadLevel(firstLevel);applySettings();scheduleBoardFit();
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.2.5 · Automatic Meld Conversion';
+  const APP_VERSION='0.2.6 · Save & Resume';
   const ROADMAP_ITEMS = [
     'Done now: midnight felt, linen-paper cards, gradient suits, centred celebration, Replay, version badge.',
-    'Next: save & resume unfinished tables automatically.',
+    'Done now: automatic save & resume, including table layout, moves and Undo history.',
     'Next: teach meld dragging explicitly in Chapter One.',
     'Next: puzzle IDs / revisioning so personal bests stay fair.',
     'Explore: frozen or locked hand cards that unlock when the table is ready.',
