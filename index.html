@@ -466,11 +466,12 @@ html,body{
   left:50%;
   right:auto;
   bottom:auto;
-  width:min(420px,calc(100vw - 36px));
+  width:max-content;
+  max-width:min(420px,calc(100vw - 36px));
   max-height:calc(100dvh - 28px);
   margin:0;
   overflow:auto;
-  padding:25px 28px 24px;
+  padding:24px;
   border-radius:22px;
   text-align:center;
   background:linear-gradient(160deg,rgba(35,41,72,.97),rgba(19,26,49,.98));
@@ -491,7 +492,7 @@ html,body{
   from{opacity:0;transform:translate(-50%,calc(-50% + 18px)) scale(.965);}
   to{opacity:1;transform:translate(-50%,-46.5%) scale(1);}
 }
-.win-icon{float:none;font-size:36px;margin:0 0 7px;}
+.win-icon{float:none;font-size:36px;line-height:1;margin:0 0 7px;}
 .win-heading{font-size:25px;line-height:1.15;}
 .win-sub{font-size:12px;line-height:1.55;margin:8px 0 17px;}
 #winStats{justify-content:center;gap:42px;margin:0 0 20px;}
@@ -501,9 +502,9 @@ html,body{
 
 @media(max-height:430px){
   #win .win-card{
-    width:min(400px,calc(100vw - 32px));
+    max-width:min(400px,calc(100vw - 32px));
     max-height:calc(100dvh - 22px);
-    padding:16px 22px 17px;
+    padding:17px;
   }
   .win-icon{font-size:28px;margin-bottom:3px;}
   .win-heading{font-size:21px;}
@@ -2209,7 +2210,7 @@ const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[
 loadLevel(firstLevel);applySettings();scheduleBoardFit();
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.2.3 · Unified Suit Alignment';
+  const APP_VERSION='0.2.4 · Even Modal Spacing';
   const ROADMAP_ITEMS = [
     'Done now: midnight felt, linen-paper cards, gradient suits, centred celebration, Replay, version badge.',
     'Next: save & resume unfinished tables automatically.',
