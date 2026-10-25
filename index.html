@@ -1086,20 +1086,19 @@ function tileNew(num,col) {
   const suit=SUITS[col%SUITS.length];
   t.el.className='tile suit-'+suit.kind;
   t.el.innerHTML=`<span class="corner">${rankLabel(num)}</span>${suitArtwork(t.id,col,suit.symbol)}`;
-  // Reduce centre suits by a further 2% from the latest 8%-smaller build.
-  // Only the artwork dimensions change; ranks, centring and hitboxes do not.
+  // Normalise suit silhouettes so heart / club / spade share the diamond's visual height.
+  // The diamond stays as the baseline; the other suits grow a touch and sit a hair lower.
   const suitMark=t.el.querySelector('.center-suit');
-  // Suit-only optical offset: the intended -46.5% offset moves down by
-  // another 2 percentage points, twice the previous one-point nudge.
-  // Preserve the diamond's existing horizontal stretch and all artwork sizes.
+  // Keep the diamond exactly as-is. Lower the other centre suits very slightly
+  // so their enlarged silhouettes stay within the same top cap as the diamond.
   if(suitMark){
     suitMark.style.transform=suitMark.classList.contains('center-diamond')
       ? 'translate(-50%, -44.5%) scaleX(1.25)'
-      : 'translate(-50%, -44.5%)';
+      : 'translate(-50%, -43.8%)';
   }
   if(suitMark?.classList.contains('suit-art')){
-    suitMark.style.width='calc(var(--tile) * 0.423283168)';
-    suitMark.style.height='calc(var(--tile) * 0.432028688)';
+    suitMark.style.width='calc(var(--tile) * 0.448680158)';
+    suitMark.style.height='calc(var(--tile) * 0.457950409)';
   }else if(suitMark?.classList.contains('center-diamond')){
     suitMark.style.fontSize='calc(var(--tile) * 0.785347696)';
   }
