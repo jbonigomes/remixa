@@ -536,7 +536,7 @@ html,body{
 .tile .center-suit.suit-art{
   display:block;
   width:auto;
-  height:calc(var(--tile) * .395);
+  height:calc(var(--tile) * .445);
   font-size:initial;
   top:52%;
   transform:translate(-50%,-50%);
@@ -1099,7 +1099,7 @@ function tileNew(num,col) {
   }
   if(suitMark?.classList.contains('suit-art')){
     suitMark.style.width='auto';
-    suitMark.style.height='calc(var(--tile) * 0.395)';
+    suitMark.style.height='calc(var(--tile) * 0.445)';
   }else if(suitMark?.classList.contains('center-diamond')){
     suitMark.style.fontSize='calc(var(--tile) * 0.785347696)';
   }
@@ -2204,7 +2204,7 @@ const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[
 loadLevel(firstLevel);applySettings();scheduleBoardFit();
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.2.2 · Suit Alignment';
+  const APP_VERSION='0.2.2 · Equalised Suit Height';
   const ROADMAP_ITEMS = [
     'Done now: midnight felt, linen-paper cards, gradient suits, centred celebration, Replay, version badge.',
     'Next: save & resume unfinished tables automatically.',
