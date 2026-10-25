@@ -1143,6 +1143,19 @@ function normalizeGroupOrder(g){
     g.tiles.sort((a,b)=>(a.col-b.col)||(a.num-b.num));
 }
 
+// Infer the meld's type from its whole contents, independently of validity.
+// Pairs and gapped runs still have a clear type; mixed groups keep theirs.
+// Leave the player's card order intact when the orientation changes.
+function inferMeldAxis(g) {
+  const n=g.tiles.length;
+  if(n<2)return g.axis;
+  const ranks=new Set(g.tiles.map(t=>t.num));
+  const suits=new Set(g.tiles.map(t=>t.col));
+  if(ranks.size===1&&suits.size===n)return 'v';
+  if(suits.size===1&&ranks.size===n)return 'h';
+  return g.axis;
+}
+
 function isValid(g) {
   const a=g.tiles,n=a.length;
   if(n<3)return false;
@@ -2072,17 +2085,16 @@ function pointerUp(e) {
     }
     g.tiles.splice(insertionIndex,0,t);
     g.axis=dropAxis;
-    if(g.tiles.length===2) {
-      const [first,second]=g.tiles;
-      if(first.num===second.num&&first.col!==second.col)g.axis='v';
-      else if(first.col===second.col&&Math.abs(first.num-second.num)===1)g.axis='h';
-    }
   } else {
     g=groupNew([t],'h',clamp((x-br.left)/boardW,0,1),clamp((y-br.top)/boardH,0,1));
     groups.push(g);
   }
+  // Only a completed drop can reclassify melds. Recheck the entire table,
+  // including the source and any fragments left by a split, before reflow
+  // and validation. The pre-drag snapshot also restores these conversions.
+  for(const meld of groups)meld.axis=inferMeldAxis(meld);
   // Repositioning a group (including a solo tile) is free. Count a move
-  // only if meld membership or the order of tiles in a run/set changed.
+  // only if meld membership, type or the order of its tiles changed.
   const changedPuzzle=!samePuzzleArrangement(a.before);
   t.el.classList.remove('dragging');
   t.el.style.boxShadow='';
@@ -2210,7 +2222,7 @@ const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[
 loadLevel(firstLevel);applySettings();scheduleBoardFit();
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.2.4 · Even Modal Spacing';
+  const APP_VERSION='0.2.5 · Automatic Meld Conversion';
   const ROADMAP_ITEMS = [
     'Done now: midnight felt, linen-paper cards, gradient suits, centred celebration, Replay, version badge.',
     'Next: save & resume unfinished tables automatically.',
