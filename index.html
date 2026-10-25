@@ -107,11 +107,46 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 
 #lessonCue {position:absolute;top:32px;left:50%;transform:translateX(-50%);font-size:12px;font-weight:650;letter-spacing:.055em;color:#d0e8dc;pointer-events:none;white-space:nowrap;z-index:5;opacity:0;transition:opacity .35s;}
 #lessonCue.show {opacity:.92;}
-/* Small, non-verbal nudge on level 1, only before the player's first touch. */
+/* A quiet demonstration on the untouched opening puzzle. The hand is only
+   an overlay; it never picks up a real card or receives pointer events. */
 .tile.hint-pulse {animation:remixaNudge 1.7s ease-in-out infinite;}
 @keyframes remixaNudge {
   0%,100% {filter:brightness(1);}
   45% {filter:brightness(1.16);box-shadow:0 0 0 6px #f6d49a33;}
+}
+#introGuide {position:absolute;inset:0;z-index:10;pointer-events:none;display:none;
+  --hand-size:clamp(32px,calc(var(--tile) * .66),42px);}
+#introGuide.show {display:block;}
+#introGuide * {pointer-events:none;}
+#introHand {position:absolute;left:0;top:0;width:0;height:0;opacity:0;transform-origin:0 0;}
+#introHand svg {position:absolute;left:calc(var(--hand-size) * -.375);top:calc(var(--hand-size) * -.083333);
+  width:var(--hand-size);height:calc(var(--hand-size) * 1.166667);overflow:visible;
+  filter:drop-shadow(0 3px 4px #08101b88);}
+.intro-touch {position:absolute;left:-9px;top:-9px;width:18px;height:18px;border:2px solid #ffe5af;
+  border-radius:50%;background:#ffdda126;opacity:0;}
+#introGuide.show #introHand {animation:remixaDragHint 3.8s ease-in-out infinite;}
+#introGuide.show .intro-touch {animation:remixaHintTouch 3.8s ease-in-out infinite;}
+#introTrail {position:absolute;inset:0;width:100%;height:100%;overflow:visible;display:none;}
+@keyframes remixaDragHint {
+  0%,5% {transform:translate(var(--hint-from-x),var(--hint-from-y)) scale(1.06);opacity:0;}
+  14% {transform:translate(var(--hint-from-x),var(--hint-from-y)) scale(1);opacity:.96;}
+  23%,30% {transform:translate(var(--hint-from-x),var(--hint-from-y)) scale(.92);opacity:.96;}
+  64%,73% {transform:translate(var(--hint-to-x),var(--hint-to-y)) scale(.92);opacity:.96;}
+  81% {transform:translate(var(--hint-to-x),var(--hint-to-y)) scale(1.06);opacity:.7;}
+  88%,100% {transform:translate(var(--hint-to-x),var(--hint-to-y)) scale(1.06);opacity:0;}
+}
+@keyframes remixaHintTouch {
+  0%,12%,38%,100% {opacity:0;transform:scale(.65);}
+  23%,28% {opacity:.8;transform:scale(1);}
+  66% {opacity:0;transform:scale(.65);}
+  74% {opacity:.65;transform:scale(1);}
+  84% {opacity:0;transform:scale(1.4);}
+}
+@media(prefers-reduced-motion:reduce){
+  .tile.hint-pulse {animation:none;filter:brightness(1.1);box-shadow:0 0 0 4px #f6d49a55;}
+  #introGuide.show #introHand {animation:none;opacity:.94;transform:translate(var(--hint-from-x),var(--hint-from-y));}
+  #introGuide.show .intro-touch {animation:none;opacity:0;}
+  #introTrail {display:block;}
 }
 
 .tile.dragging {animation:none!important;transition:none;z-index:50;cursor:grabbing;box-shadow:0 15px 26px #0009,0 5px 9px #0006;filter:grayscale(1) saturate(0) brightness(1.045);}
@@ -720,6 +755,21 @@ html,body{-webkit-text-size-adjust:100%;}
       </button>
       <div id="lessonCue" aria-live="polite">Make everything green.</div>
       <div id="tableHint">TAP A MELD <span>·</span> DRAG ⠿ TO MOVE IT <span>·</span> DRAG CARDS TO REMIX</div>
+      <div id="introGuide" aria-hidden="true">
+        <svg id="introTrail" focusable="false">
+          <defs><marker id="introArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M2 1 8 5 2 9" fill="none" stroke="#ffe0a1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker></defs>
+          <path id="introPath" fill="none" stroke="#ffe0a1" stroke-width="2" stroke-dasharray="4 6" stroke-linecap="round" opacity=".7" marker-end="url(#introArrow)"/>
+        </svg>
+        <div id="introHand">
+          <span class="intro-touch"></span>
+          <svg viewBox="0 0 48 56" focusable="false">
+            <path d="M14 28V8a4 4 0 0 1 8 0v14a4 4 0 0 1 8 0v2a4 4 0 0 1 8 0v3a3.5 3.5 0 0 1 7 0v10c0 11-7 17-17 17h-2c-6 0-10-3-14-8L3 35c-2-3-1-6 2-7 2-1 4 0 6 2l3 4Z"
+              fill="#ffe5b2" stroke="#293348" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
     </section>
   </main>
 </div>
@@ -1576,27 +1626,69 @@ function pauseAndSave() {
 }
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='hidden')pauseAndSave();
+  refreshNudge();
 });
-window.addEventListener('pagehide',pauseAndSave);
+window.addEventListener('pagehide',()=>{pauseAndSave();hideNudge();});
+window.addEventListener('pageshow',()=>refreshNudge());
 
-let nudgeTimeout=null;
-function stopNudge(){
+let nudgeTimeout=null,nudgeArmed=false;
+function hideNudge(){
   if(nudgeTimeout!==null)clearTimeout(nudgeTimeout);
   nudgeTimeout=null;
+  $('introGuide').classList.remove('show');
   tiles.forEach(t=>t.el.classList.remove('hint-pulse'));
 }
-function startNudge(){
+function stopNudge(){nudgeArmed=false;hideNudge();}
+function nudgeCards(){
+  if(!isIntro()||won||moves||history.length||active||movingGroup||selectedId!==null)return null;
+  const card=tiles.find(t=>t.num===6&&t.col===0);
+  const solo=groups.find(g=>g.tiles.length===1&&g.tiles[0]===card);
+  const run=groups.find(g=>g.axis==='h'&&g.tiles.length===3&&
+    g.tiles.every((t,i)=>t.col===0&&t.num===i+3));
+  return card&&solo&&run?{card,run}:null;
+}
+function positionNudge(){
+  const pair=nudgeCards();
+  if(!pair)return false;
+  const br=board.getBoundingClientRect(),rect=pair.card.el.getBoundingClientRect();
+  const box=compactBox(pair.run),guide=$('introGuide');
+  // Aim at the next slot beyond the 5, using the real current board size.
+  const from={x:rect.left+rect.width/2-br.left,y:rect.top+rect.height/2-br.top};
+  const to={x:clamp(box.x+(box.n+1)*box.step/2,actualTile/2,boardW-actualTile/2),y:box.y};
+  for(const [key,point] of [['from',from],['to',to]]){
+    guide.style.setProperty('--hint-'+key+'-x',point.x+'px');
+    guide.style.setProperty('--hint-'+key+'-y',point.y+'px');
+  }
+  $('introPath').setAttribute('d',`M${from.x} ${from.y} L${to.x} ${to.y}`);
+  return true;
+}
+function refreshNudge(){
+  if(!nudgeArmed)return;
+  if(!nudgeCards()){stopNudge();return;}
+  if(document.hidden||matchMedia('(orientation: portrait)').matches||$('lab').classList.contains('show')){
+    hideNudge();return;
+  }
+  if($('introGuide').classList.contains('show')){positionNudge();return;}
+  if(nudgeTimeout!==null)return;
   nudgeTimeout=setTimeout(()=>{
     nudgeTimeout=null;
-    if(!isIntro()||history.length||active||won)return;
-    const six=tiles.find(t=>t.num===6);
-    if(six)six.el.classList.add('hint-pulse');
+    if(!nudgeArmed||document.hidden||matchMedia('(orientation: portrait)').matches||
+       $('lab').classList.contains('show')||!positionNudge())return;
+    nudgeCards().card.el.classList.add('hint-pulse');
+    $('introGuide').classList.add('show');
+    $('lessonCue').textContent='Drag the 6 to the end of the run.';
+    $('lessonCue').classList.add('show');
   },5000);
 }
+function startNudge(){stopNudge();nudgeArmed=true;refreshNudge();}
 function dismissOpeningHint(){
   stopNudge();
   $('lessonCue').classList.remove('show');
 }
+// Dismiss before a tap reaches a card, the empty board or a toolbar control.
+for(const type of ['pointerdown','keydown'])document.addEventListener(type,()=>{
+  if(nudgeArmed)dismissOpeningHint();
+},{capture:true});
 function loadLevel(i,{fresh=false}={}) {
   if(movingGroup)finishMeldMove(null,true);
   if(active)cancelDrag();
@@ -1623,6 +1715,7 @@ function loadLevel(i,{fresh=false}={}) {
   $('levelName').textContent=source.name;
   $('win').classList.remove('show');
   $('winStats').innerHTML='';
+  $('lessonCue').textContent='Make everything green.';
   $('lessonCue').classList.toggle('show',isIntro()&&!saved);
   stopNudge();
   if(saved){
@@ -1637,13 +1730,14 @@ function loadLevel(i,{fresh=false}={}) {
     }
     // Fit for the current screen instead of inheriting a smaller tile cap.
     adaptiveTileCap=Infinity;
-  }else if(isIntro())startNudge();
+  }
   // The portrait overlay hides the board. Do not squash the saved layout
   // into that temporary shape before the player turns their phone.
   if(!matchMedia('(orientation: portrait)').matches)reflowGroups(selectedId);
   layout(true);
   updateScore();
   if(won)renderWin();
+  if(nudgeCards())startNudge();
   // Keep playtesting links in step with navigation so reload resumes the
   // stage on screen, rather than returning to an obsolete URL fragment.
   if(/^#(?:level-?)?\d+$/.test(location.hash)){
@@ -1990,6 +2084,7 @@ function layout(initial=false,skipMeasure=false) {
   }
   $('undo').disabled=!history.length;
   springInstant=false;
+  refreshNudge();
 }
 function compactBox(g) {
   const n=g.tiles.length,step=actualTile*.56;
@@ -2516,6 +2611,7 @@ $('resetLab').addEventListener('click',()=>{settings={...defaults};applySettings
 // reflow again when ResizeObserver reports its final dimensions.
 let boardFitFrame=0,boardFitTimeout=0,knownBoardWidth=0,knownBoardHeight=0;
 function scheduleBoardFit(){
+  refreshNudge();
   if(boardFitFrame)cancelAnimationFrame(boardFitFrame);
   let stableFrames=0,priorW=-1,priorH=-1,tries=0;
   const tick=()=>{
@@ -2574,11 +2670,12 @@ const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[
 loadLevel(firstLevel);applySettings();scheduleBoardFit();
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.2.8 · One Shared Table';
+  const APP_VERSION='0.2.9 · A Helping Hand';
   const ROADMAP_ITEMS = [
     'Done now: midnight felt, linen-paper cards, gradient suits, centred celebration, Replay, version badge.',
     'Done now: automatic save & resume, including table layout, moves and Undo history.',
     'Done now: overlapping melds, tap to open and free meld dragging on every stage.',
+    'Done now: a gentle hand demonstrates the first drag when the opening puzzle is idle.',
     'Next: teach meld dragging explicitly in Chapter One.',
     'Done now: permanent puzzle IDs, puzzle revisions and separate bests for each rule version.',
     'Explore: frozen or locked hand cards that unlock when the table is ready.',
