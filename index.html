@@ -12,6 +12,7 @@
   --ink:#f1f5eb; --muted:#a6bfbd; --cream:#ffdc8e;
   --bg:#0e2528; --panel:#18363a; --board:#204244;
   --green:#55e3ad; --red:#fa7176; --amber:#efb75b;
+  --drag-group:#aeb4bb;
   font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   -webkit-font-smoothing:antialiased;
 }
@@ -154,7 +155,9 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
   #introTrail {display:block;}
 }
 
-.tile.dragging {animation:none!important;transition:none;z-index:50;cursor:grabbing;box-shadow:0 15px 26px #0009,0 5px 9px #0006;filter:grayscale(1) saturate(0) brightness(1.045);}
+.tile.dragging {animation:none!important;transition:none;z-index:50;cursor:grabbing;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.88),inset 0 -1px 0 rgba(127,109,75,.05),
+    0 0 0 var(--gap) var(--drag-group),0 15px 26px #0009,0 5px 9px #0006;}
 #dragLayer {position:fixed;inset:0;pointer-events:none;z-index:90;overflow:visible;}
 #dragLayer .tile {pointer-events:none;}
 /* The finished table stays visible: completion is a small, dismissible
@@ -349,8 +352,8 @@ html,body{
   background:rgba(245,250,255,.18);
   outline-color:rgba(255,255,255,.38);
 }
-/* Joining is an insertion preview, not an early answer to the puzzle. */
-.group.join-target{border-color:var(--amber);background:linear-gradient(180deg,#e7bd75,#dca75b);}
+/* Only the moving group's surround is neutral; its cards keep their ink. */
+.group.drag-neutral{border-color:var(--drag-group);background:var(--drag-group);filter:none;}
 .group.join-source{opacity:0;}
 
 .tile{
@@ -386,25 +389,6 @@ html,body{
   color:#263147;
   text-shadow:0 1px 0 rgba(255,255,255,.30);
 }
-.tile.dragging{
-  border-color:#c8cad0 !important;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.52) 0%, rgba(255,255,255,.18) 10%, rgba(255,255,255,0) 12%),
-    linear-gradient(145deg,#eceef2 0%,#dadde4 58%,#cfd5df 100%) !important;
-  color:#51586b !important;
-  filter:none !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.9),
-    0 12px 28px rgba(0,0,0,.22),
-    0 0 0 1px rgba(255,255,255,.16) !important;
-}
-.tile.dragging .corner,
-.tile.dragging .center-suit{
-  text-shadow:none !important;
-  filter:none !important;
-}
-#dragLayer .tile{opacity:.98;}
-
 #win{
   transition:none;
   opacity:0;
@@ -605,19 +589,6 @@ html,body{
   -webkit-background-clip:text;background-clip:text;
   color:#273044;-webkit-text-fill-color:transparent;
 }
-/* Preserve our grey, non-revealing card while dragging. */
-.tile.dragging .center-suit.suit-art{
-  filter:grayscale(1) brightness(1.05) !important;
-}
-.tile.dragging .corner{
-  background:none !important;
-  color:#596072 !important;
-  -webkit-text-fill-color:#596072 !important;
-}
-.tile.dragging .center-diamond{
-  color:#596072 !important;
-  -webkit-text-fill-color:#596072 !important;
-}
 /* Safari long press should never bring up text selection, iOS look-up,
    HTML5 drag ghosts or the floating selection loupe over card interactions. */
 #board,#board *,#dragLayer,#dragLayer *{
@@ -706,11 +677,6 @@ html,body{-webkit-text-size-adjust:100%;}
   color:#CD424C;
   text-shadow:none;
 }
-/* Maintain the neutral, desaturated dragged card. */
-.tile.dragging .center-suit.suit-art{
-  filter:grayscale(1) brightness(1.05)!important;
-}
-
 /* Final suit adjustment: vertically centred, a further subtle 6% reduction.
    Keep our approved paths, ink, pressed paper, ranks and mechanics unchanged. */
 .tile .center-suit.suit-art {
@@ -2546,6 +2512,7 @@ function layout(initial=false,skipMeasure=false) {
     g.el.classList.add((frozen===undefined?isValid(g):frozen)?'valid':'invalid');
     if(pv)g.el.classList.add('has-slot');
     g.el.classList.toggle('join-target',!!joining);
+    g.el.classList.toggle('drag-neutral',source||!!joining);
     g.el.classList.toggle('join-source',source&&!!movingGroup.join);
     g.el.classList.toggle('open',isOpen(g.id));
     g.el.classList.toggle('compact',!isOpen(g.id));
@@ -3009,13 +2976,11 @@ function pointerDown(e,t) {
   }
   const old=snapshot(),rect=t.el.getBoundingClientRect();
   const colors=new Map(groups.map(g=>[g.id,isValid(g)]));
-  let heldColor=false;
   let pendingMeld=null;
   {
     const idx=groups.findIndex(g=>g.tiles.includes(t));
     if(idx<0)return;
     const g=groups[idx],pos=g.tiles.indexOf(t);
-    heldColor=colors.get(g.id);
     if(g.tiles.length>1) {
       // Keep the actual order and expanded footprint throughout a reorder.
       // A run will split only if this card is pulled out of that footprint.
@@ -3046,11 +3011,8 @@ function pointerDown(e,t) {
     originY:rect.top+rect.height/2,
     before:old, colors, pendingMeld, startX:e.clientX, startY:e.clientY
   };
-  // A neutral outline and desaturated card conceal the incoming card's
-  // suit while it moves. Only a committed meld receives a red/green verdict.
-  t.el.style.boxShadow=
-    `0 0 0 ${settings.gap}px #a6b4bc, `+
-    '0 15px 26px #0009, 0 5px 9px #0006';
+  // The drag class adds a grey group outline while preserving the paper,
+  // rank and suit colours. Validation still changes only on release.
   clearLivePreview();
   hover=null;
   dragLayer.appendChild(t.el);
@@ -3094,7 +3056,6 @@ function cancelDrag() {
   const s=active.before;
   const rect=active.tile.el.getBoundingClientRect();
   active.tile.el.classList.remove('dragging');
-  active.tile.el.style.boxShadow='';
   springBoardHandoff(active.tile,rect.left+rect.width/2,rect.top+rect.height/2);
   active=null;hover=null;
   restore(s);
@@ -3172,7 +3133,6 @@ function pointerUp(e) {
   // only if meld membership, type or the order of its tiles changed.
   const changedPuzzle=!samePuzzleArrangement(a.before);
   t.el.classList.remove('dragging');
-  t.el.style.boxShadow='';
   springBoardHandoff(t,x,y);
   clearLivePreview();
   active=null;hover=null;
@@ -3307,7 +3267,7 @@ const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[
 loadLevel(firstLevel);scheduleBoardFit();
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.4.0 · The First Two Chapters';
+  const APP_VERSION='0.4.1 · The First Two Chapters';
   const ROADMAP_ITEMS = [
     'Done now: midnight felt, linen-paper cards, gradient suits, centred celebration, Replay, version badge.',
     'Done now: save & resume unfinished stages; completed stages start fresh after you move on.',
