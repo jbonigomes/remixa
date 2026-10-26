@@ -1293,8 +1293,8 @@ const openedId=()=>{
   // Moving an entire meld is a different gesture from editing its cards.
   // Show its compact, final footprint from pickup through release.
   if(movingGroup)return null;
-  // Keep a run open while its lifted card still overlaps the original meld.
-  if(active)return hover?.id??active.pendingRun?.id??null;
+  // Keep the source open while its lifted card is being reordered within it.
+  if(active)return hover?.id??active.pendingMeld?.id??null;
   const selected=groups.find(g=>g.id===selectedId);
   return selected?.tiles.length>1?selectedId:null;
 };
@@ -2137,6 +2137,9 @@ function measure() {
 // The dock layout allocates more room around an insertion slot while the
 // distant cards retain their space-saving overlaps.
 function geometry(g,extra=false,axisOverride=null) {
+  // A source reorder uses the N positions that were already open at pickup.
+  // Its held card still belongs to the meld, so never add an extra position.
+  if(active?.pendingMeld?.id===g.id)return {...active.pendingMeld.expanded};
   const axis=axisOverride||g.axis;
   const n=g.tiles.length+(extra?1:0),gap=settings.gap;
   const open=isOpen(g.id);
@@ -2434,7 +2437,8 @@ function layout(initial=false,skipMeasure=false) {
     const targetTileLayer=elevated?raisedLayer:tilesLayer;
     if(g.el.parentNode!==targetGroupLayer)targetGroupLayer.appendChild(g.el);
     g.el.style.zIndex=elevated?'1':'';
-    const pv=hover?.id===g.id?hover:null;
+    const pending=active?.pendingMeld?.id===g.id?active.pendingMeld:null;
+    const pv=pending?{index:pending.index,axis:pending.axis}:hover?.id===g.id?hover:null;
     const geom=geometry(g,!!pv,pv?.axis);
     // Render projected positions only, never alter the actual puzzle state.
     const live=projected?.get(g.id);
@@ -2454,7 +2458,9 @@ function layout(initial=false,skipMeasure=false) {
     posStyle(g.el,geom.left,geom.top,1,movingGroup?.id===g.id);
     if(g.fresh){g.fresh=false;g.el.style.transition='';}
     const renderAxis=pv?.axis||g.axis;
-    g.tiles.forEach((t,j)=>{
+    // Preview a new order without editing the actual meld until release.
+    const visualTiles=pending?g.tiles.filter(t=>t!==active.tile):g.tiles;
+    visualTiles.forEach((t,j)=>{
       used.add(t.id);
       t.el.style.zIndex=String(elevated?10+j:10+i*40+j);
       t.el.classList.toggle('opened',elevated);
@@ -2727,10 +2733,10 @@ window.addEventListener('pointerup',e=>finishMeldMove(e),{passive:false});
 window.addEventListener('pointercancel',e=>finishMeldMove(e,true));
 window.addEventListener('blur',()=>finishMeldMove(null,true));
 
-// While a card overlaps its original run, keep that run whole. The split
-// occurs once most of the held card has cleared the original meld's outline.
-function hasPulledClearOfRun(a,x,y) {
-  const p=a.pendingRun;
+// Keep a lifted card in its source while it is being reordered. Extraction
+// starts only once most of that card clears the original expanded outline.
+function hasPulledClearOfMeld(a,x,y) {
+  const p=a.pendingMeld;
   if(!p)return true;
   const b=p.bounds,half=actualTile*.52;
   const overlapW=Math.max(0,Math.min(b.right,x+half)-Math.max(b.left,x-half));
@@ -2739,14 +2745,31 @@ function hasPulledClearOfRun(a,x,y) {
   return overlapRatio<.20 &&
     Math.hypot(x-a.originX,y-a.originY)>actualTile*.5;
 }
-function extractPendingRun() {
-  const a=active,p=a?.pendingRun;
+function updatePendingReorder(a,x,y){
+  const p=a.pendingMeld;
   if(!p)return;
-  a.pendingRun=null;
+  const b=p.bounds,centers=p.expanded.centers;
+  const along=p.axis==='h'?x-(b.left+b.right)/2:y-(b.top+b.bottom)/2;
+  const hysteresis=actualTile*.08;
+  let index=p.index;
+  while(index<centers.length-1&&along>(centers[index]+centers[index+1])/2+hysteresis)index++;
+  while(index>0&&along<(centers[index-1]+centers[index])/2-hysteresis)index--;
+  p.index=index;
+}
+function extractPendingMeld() {
+  const a=active,p=a?.pendingMeld;
+  if(!p)return;
+  a.pendingMeld=null;
+  resetHoverIntent();hover=null;
   const idx=groups.findIndex(g=>g.id===p.id);
   if(idx<0)return;
   const g=groups[idx],pos=g.tiles.indexOf(a.tile);
   if(pos<0)return;
+  if(g.axis==='v'){
+    // Taking from a set keeps all its other cards together.
+    g.tiles.splice(pos,1);
+    return;
+  }
   const before=g.tiles.length;
   const original=p.original,pitch=original.step;
   const left=g.tiles.slice(0,pos),right=g.tiles.slice(pos+1);
@@ -2777,19 +2800,19 @@ function pointerDown(e,t) {
   const old=snapshot(),rect=t.el.getBoundingClientRect();
   const colors=new Map(groups.map(g=>[g.id,isValid(g)]));
   let heldColor=false;
-  let pendingRun=null;
+  let pendingMeld=null;
   {
     const idx=groups.findIndex(g=>g.tiles.includes(t));
     if(idx<0)return;
     const g=groups[idx],pos=g.tiles.indexOf(t);
     heldColor=colors.get(g.id);
-    if(g.axis==='h' && g.tiles.length>1) {
-      // Picking up a card is not yet a split. Keep the entire run in its
-      // original order until the held card is actually pulled out of it.
+    if(g.tiles.length>1) {
+      // Keep the actual order and expanded footprint throughout a reorder.
+      // A run will split only if this card is pulled out of that footprint.
       const geom=geometry(g);
       const br=board.getBoundingClientRect();
-      pendingRun={
-        id:g.id,index:pos,
+      pendingMeld={
+        id:g.id,axis:g.axis,sourceIndex:pos,index:pos,expanded:geom,
         original:compactBox(g),
         bounds:{
           left:br.left+geom.left,right:br.left+geom.left+geom.w,
@@ -2797,7 +2820,7 @@ function pointerDown(e,t) {
         }
       };
     } else {
-      // Sets keep the remaining cards together, as before.
+      // A singleton has no internal order to edit.
       g.tiles.splice(pos,1);
       if(!g.tiles.length){g.el.remove();groups.splice(idx,1);}
     }
@@ -2811,7 +2834,7 @@ function pointerDown(e,t) {
     // a different insertion slot even when the player lets go at home.
     originX:rect.left+rect.width/2,
     originY:rect.top+rect.height/2,
-    before:old, colors, pendingRun, startX:e.clientX, startY:e.clientY
+    before:old, colors, pendingMeld, startX:e.clientX, startY:e.clientY
   };
   // A neutral outline and desaturated card conceal the incoming card's
   // suit while it moves. Only a committed meld receives a red/green verdict.
@@ -2835,15 +2858,15 @@ function moveDrag(e) {
   y=clamp(y,b.top+actualTile/2,b.bottom-actualTile/2);
   posStyle(a.tile.el,x-actualTile/2,y-actualTile/2,1.035);
   a.lastX=x;a.lastY=y;
-  if(a.pendingRun) {
-    if(!hasPulledClearOfRun(a,x,y)) {
-      // The held card may wiggle or slide within the run without splitting it.
+  if(a.pendingMeld) {
+    if(!hasPulledClearOfMeld(a,x,y)) {
+      updatePendingReorder(a,x,y);
       resetHoverIntent();hover=null;
       clearLivePreview();projected=null;
       layout(false,true);
       return;
     }
-    extractPendingRun();
+    extractPendingMeld();
   }
   const next=getHover(x,y);
   // Candidate doesn't become a raised target until the finger lingers there.
@@ -2876,62 +2899,60 @@ function pointerUp(e) {
   const x=e.clientX+a.dx,y=e.clientY+a.dy;
   if(Math.hypot(e.clientX-a.startX,e.clientY-a.startY)<7){cancelDrag();return;}
   if(x<br.left||x>br.right||y<br.top||y>br.bottom){cancelDrag();return;}
-  // A run is only split when a lifted card actually clears its old meld.
-  // Releasing while it is still overlapping restores the untouched run.
-  if(a.pendingRun) {
-    if(!hasPulledClearOfRun(a,x,y)){cancelDrag();return;}
-    extractPendingRun();
-  }
-  // Returning close to the original tile slot is a no-op irrespective of
-  // how far the finger travelled in between or which group the magnet
-  // happens to nominate. A purposeful one-slot reorder still counts.
-  const homeRadius=actualTile*.54;
-  if(Math.hypot(x-a.originX,y-a.originY)<=homeRadius){cancelDrag();return;}
-  // A meld can receive a drop only after it has opened.
-  // Never perform a fresh magnet search that could capture an unopened
-  // neighbouring meld underneath the raised one.
-  a.lastX=x;a.lastY=y;
-  const candidate=getHover(x,y);
-  const target=hover && candidate?.id===hover.id && isOpen(hover.id)
-    ? candidate : null;
-  // An unraised meld is solid table space, not a place to create a solo
-  // card on top of it. Return home instead of making a surprise insertion.
-  if(!target && groups.some(group=>{
-    const box=compactBox(group);
-    const localX=x-br.left,localY=y-br.top;
-    return localX>=box.left && localX<=box.left+box.w &&
-           localY>=box.top && localY<=box.top+box.h;
-  })){
-    cancelDrag();
-    return;
-  }
-  let g=target&&groups.find(g=>g.id===target.id);
-  // Deliberately allow an incorrect insertion. The meld is marked red
-  // after release and can be repaired, rather than helping by refusing it.
-  if(g) {
-    // Match the final axis to the same rule used by the hover preview.
-    // This also guards against an out-of-date hovered slot at release.
-    const dropAxis=g.tiles.length===1
-      ? soloPairAxis(g.tiles[0],t)
-      : g.axis;
-    let insertionIndex=target.index;
-    // For a new two-card run, sort on *drop*, not on hover. For example,
-    // a 6 approaching a 7 from the right previews space on the RIGHT,
-    // then settles as 6–7 (never the invalid 7–6). Ace can finish K–A.
-    if(g.tiles.length===1 && dropAxis==='h' &&
-       g.tiles[0].col===t.col && g.tiles[0].num!==t.num) {
-      const other=g.tiles[0];
-      const highAce=(t.num===1&&other.num===13)||
-                    (t.num===13&&other.num===1);
-      insertionIndex=highAce
-        ? (t.num===1?1:0)
-        : (t.num<other.num?0:1);
+  let g;
+  if(a.pendingMeld&&!hasPulledClearOfMeld(a,x,y)){
+    updatePendingReorder(a,x,y);
+    const p=a.pendingMeld;
+    g=groups.find(meld=>meld.id===p.id);
+    const from=g?.tiles.indexOf(t)??-1;
+    // A tap, wiggle or return to the same slot never changes the table.
+    if(from<0||p.index===from){cancelDrag();return;}
+    g.tiles.splice(from,1);
+    g.tiles.splice(p.index,0,t);
+    a.pendingMeld=null;
+    resetHoverIntent();hover=null;
+  }else{
+    if(a.pendingMeld)extractPendingMeld();
+    // Returning an extracted card close to its original slot is a no-op.
+    const homeRadius=actualTile*.54;
+    if(Math.hypot(x-a.originX,y-a.originY)<=homeRadius){cancelDrag();return;}
+    // A different meld can receive a drop only after it has opened. Never
+    // capture an unopened neighbour underneath the raised target on release.
+    a.lastX=x;a.lastY=y;
+    const candidate=getHover(x,y);
+    const target=hover && candidate?.id===hover.id && isOpen(hover.id)
+      ? candidate : null;
+    if(!target && groups.some(group=>{
+      const box=compactBox(group);
+      const localX=x-br.left,localY=y-br.top;
+      return localX>=box.left && localX<=box.left+box.w &&
+             localY>=box.top && localY<=box.top+box.h;
+    })){
+      cancelDrag();
+      return;
     }
-    g.tiles.splice(insertionIndex,0,t);
-    g.axis=dropAxis;
-  } else {
-    g=groupNew([t],'h',clamp((x-br.left)/boardW,0,1),clamp((y-br.top)/boardH,0,1));
-    groups.push(g);
+    g=target&&groups.find(meld=>meld.id===target.id);
+    // Invalid joins remain allowed; the committed meld reveals its colour.
+    if(g) {
+      const dropAxis=g.tiles.length===1?soloPairAxis(g.tiles[0],t):g.axis;
+      let insertionIndex=target.index;
+      // Auto-order only a newly joined pair, never a reorder inside an
+      // existing two-card meld. Its exact order belongs to the player.
+      if(g.tiles.length===1 && dropAxis==='h' &&
+         g.tiles[0].col===t.col && g.tiles[0].num!==t.num) {
+        const other=g.tiles[0];
+        const highAce=(t.num===1&&other.num===13)||
+                      (t.num===13&&other.num===1);
+        insertionIndex=highAce
+          ? (t.num===1?1:0)
+          : (t.num<other.num?0:1);
+      }
+      g.tiles.splice(insertionIndex,0,t);
+      g.axis=dropAxis;
+    } else {
+      g=groupNew([t],'h',clamp((x-br.left)/boardW,0,1),clamp((y-br.top)/boardH,0,1));
+      groups.push(g);
+    }
   }
   // Only a completed drop can reclassify melds. Recheck the entire table,
   // including the source and any fragments left by a split, before reflow
@@ -3076,7 +3097,7 @@ const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[
 loadLevel(firstLevel);scheduleBoardFit();
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.3.4 · The First Two Chapters';
+  const APP_VERSION='0.3.5 · The First Two Chapters';
   const ROADMAP_ITEMS = [
     'Done now: midnight felt, linen-paper cards, gradient suits, centred celebration, Replay, version badge.',
     'Done now: save & resume unfinished stages; completed stages start fresh after you move on.',
