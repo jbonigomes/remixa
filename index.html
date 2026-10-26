@@ -1307,12 +1307,15 @@ function sameIdentity(value,identity){
     value.definition===identity.definition;
 }
 function validScore(value){return Number.isSafeInteger(value)&&value>0&&value<Number.MAX_SAFE_INTEGER;}
+function validBestRecord(value,identity){
+  return sameIdentity(value,identity)&&value.version===BEST_VERSION&&validScore(value.moves)&&
+    Number.isSafeInteger(value.recordedAt)&&value.recordedAt>=0&&
+    ['completed-run','migrated-save-v1'].includes(value.source);
+}
 function readStoredBest(identity){
   try{
     const value=JSON.parse(localStorage.getItem(bestKeyFor(identity))||'null');
-    return sameIdentity(value,identity)&&value.version===BEST_VERSION&&validScore(value.moves)&&
-      Number.isSafeInteger(value.recordedAt)&&value.recordedAt>=0&&
-      ['completed-run','migrated-save-v1'].includes(value.source)?value:null;
+    return validBestRecord(value,identity)?value:null;
   }catch(_){return null;}
 }
 function readBest(index=level){
@@ -1714,13 +1717,18 @@ const LEGACY_SAVE_KEY='remixa_progress_v1';
 const SAVE_DECKS=LEVELS.map(p=>[
   ...p.groups.flatMap(g=>g.tiles),...p.loose.map(t=>[t.n,t.c])
 ]);
-const emptyProgress=()=>({version:SAVE_VERSION,identityVersion:2,lastPuzzleId:LEVELS[0].id,puzzles:{}});
+const emptyProgress=()=>({version:SAVE_VERSION,identityVersion:2,lastPuzzleId:LEVELS[0].id,
+  puzzles:{},attemptGenerations:{},bestBackups:[]});
 let progressData=emptyProgress(),progressReady=false,loadingLevel=false;
 let lastSavedPuzzle=null,lastSavedEntry='',saveAvailable=true,saveNoticeTimer=0;
 const pendingSaves=new Map(),discardedSavePuzzles=new Set();
+const pendingRetirements=new Map();
+let attemptGeneration=0;
 let discardedSave=false;
 const plainObject=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 const saveID=value=>Number.isSafeInteger(value)&&value>0&&value<Number.MAX_SAFE_INTEGER;
+const validAttemptGeneration=value=>Number.isSafeInteger(value)&&value>=0;
+const generationFor=(data,key)=>data.attemptGenerations[key]??0;
 function cleanSavedTable(value,count) {
   if(!plainObject(value)||!Array.isArray(value.groups)||
      !value.groups.length||value.groups.length>count)return null;
@@ -1746,13 +1754,15 @@ function cleanSavedLevel(value,index) {
      typeof value.won!=='boolean'||typeof value.isRecord!=='boolean'||
      !['completed-run','migrated-save-v1'].includes(value.scoreSource)||
      !Array.isArray(value.history)||value.history.length>value.moves)return null;
+  const generation=value.attemptGeneration??0;
+  if(!validAttemptGeneration(generation))return null;
   const deck=SAVE_DECKS[index],table=cleanSavedTable(value.table,deck.length);
   if(!table)return null;
   const past=value.history.map(s=>cleanSavedTable(s,deck.length));
   if(past.some(s=>!s))return null;
   if(value.won&&(!validScore(value.moves)||!table.groups.every(g=>isValid({axis:g.axis,
     tiles:g.ids.map(id=>({num:deck[id-1][0],col:deck[id-1][1]}))}))))return null;
-  return {...puzzleIdentity(index),moves:value.moves,won:value.won,
+  return {...puzzleIdentity(index),attemptGeneration:generation,moves:value.moves,won:value.won,
     isRecord:value.won&&value.isRecord,scoreSource:value.scoreSource,table,history:past};
 }
 function hasSavedIdentity(value){
@@ -1812,6 +1822,22 @@ function readProgress(report=false) {
     if(!plainObject(value)||value.version!==SAVE_VERSION||!plainObject(value.puzzles))throw Error('Invalid save');
     const result=emptyProgress();
     if(typeof value.lastPuzzleId==='string')result.lastPuzzleId=value.lastPuzzleId;
+    if(plainObject(value.attemptGenerations)){
+      for(const [key,generation] of Object.entries(value.attemptGenerations))
+        if(validAttemptGeneration(generation))result.attemptGenerations[key]=generation;
+    }
+    // Keep a compact score receipt when its separate best-score write failed.
+    // Retiring a finished table must not remove the only durable score copy.
+    for(const record of Array.isArray(value.bestBackups)?value.bestBackups:[]){
+      if(!hasSavedIdentity(record)||!validBestRecord(record,record))continue;
+      const key=bestKeyFor(record),stored=readStoredBest(record),pending=pendingBests.get(key);
+      if(stored&&stored.moves<=record.moves)continue;
+      const backup={version:BEST_VERSION,puzzleId:record.puzzleId,revision:record.revision,
+        rulesetId:record.rulesetId,definition:record.definition,moves:record.moves,
+        recordedAt:record.recordedAt,source:record.source};
+      if(!pending||backup.moves<pending.moves)pendingBests.set(key,backup);
+      result.bestBackups.push(backup);
+    }
     for(const [key,entry] of Object.entries(value.puzzles)){
       const index=PUZZLE_KEYS.indexOf(key);
       if(index<0){
@@ -1821,7 +1847,7 @@ function readProgress(report=false) {
         continue;
       }
       const saved=cleanSavedLevel(entry,index);
-      if(saved)result.puzzles[key]=saved;
+      if(saved&&saved.attemptGeneration===generationFor(result,key))result.puzzles[key]=saved;
       else if(report)discardedSavePuzzles.add(LEVELS[index].id);
     }
     // Bridge the old definition format once. An existing current key wins,
@@ -1836,7 +1862,7 @@ function readProgress(report=false) {
         const entry=value.puzzles[oldKey];
         const saved=sameIdentity(entry,previous)
           ? cleanSavedLevel({...entry,...puzzleIdentity(index)},index) : null;
-        if(saved)result.puzzles[key]={...saved,isRecord:false};
+        if(saved&&saved.attemptGeneration===generationFor(result,key))result.puzzles[key]={...saved,isRecord:false};
         else if(report)discardedSavePuzzles.add(LEVELS[index].id);
       }
     }
@@ -1860,7 +1886,7 @@ function setSaveAvailability(available) {
   $('saveInfo').classList.toggle('unavailable',!available);
   $('saveLabel').textContent=available?'Saved automatically on this device':'Automatic save unavailable';
   $('saveDetail').textContent=available
-    ? 'Your table, moves and Undo history are kept here. Reset or Replay starts only this stage again.'
+    ? 'Unfinished tables, moves and Undo history are kept here. Completed stages start fresh after you move on.'
     : 'Your latest progress could not be saved. Keep this tab open to continue playing.';
   if(!available&&previous)showSaveNotice('Progress could not be saved on this device.',true);
   else if(available&&!previous){
@@ -1871,25 +1897,48 @@ function setSaveAvailability(available) {
 function refreshProgress() {
   const latest=readProgress();
   if(latest)progressData=latest;
-  // Failed writes still retain progress while this tab remains open.
-  for(const [key,entry] of pendingSaves)progressData.puzzles[key]=entry;
+  // Reapply retirement on every retry. A newer attempt from another tab
+  // survives an older tab's delayed cleanup or completed-table save.
+  for(const [key,through] of pendingRetirements){
+    if(generationFor(progressData,key)>through)continue;
+    progressData.attemptGenerations[key]=through+1;
+    delete progressData.puzzles[key];
+  }
+  for(const [key,entry] of pendingSaves){
+    if(entry.attemptGeneration===generationFor(progressData,key))progressData.puzzles[key]=entry;
+    else pendingSaves.delete(key);
+  }
+}
+function retireAttempt(index,generation=attemptGeneration){
+  const key=puzzleKey(index),through=Math.max(generation,pendingRetirements.get(key)??-1);
+  pendingRetirements.set(key,through);
+  if((pendingSaves.get(key)?.attemptGeneration??Infinity)<=through)pendingSaves.delete(key);
 }
 function saveProgress() {
   if(!progressReady||loadingLevel||active||movingGroup||!tiles.length)return false;
-  const bestsSaved=flushBestWrites(),key=puzzleKey();
-  const entry={...puzzleIdentity(),moves,won,isRecord:winRecord,scoreSource,
+  const key=puzzleKey();
+  const entry={...puzzleIdentity(),attemptGeneration,moves,won,isRecord:winRecord,scoreSource,
     table:snapshot(),history:history.slice()};
   const text=JSON.stringify(entry);
   // A stale/background tab with no changes must not replace a newer save.
-  if(bestsSaved&&saveAvailable&&!pendingSaves.size&&lastSavedPuzzle===key&&lastSavedEntry===text)return true;
+  if(saveAvailable&&!pendingSaves.size&&!pendingRetirements.size&&!pendingBests.size&&
+     lastSavedPuzzle===key&&lastSavedEntry===text)return true;
   pendingSaves.set(key,entry);
   refreshProgress();
-  progressData.lastPuzzleId=LEVELS[level].id;
+  const bestsSaved=flushBestWrites();
+  const currentAttempt=attemptGeneration===generationFor(progressData,key);
+  if(currentAttempt)progressData.lastPuzzleId=LEVELS[level].id;
+  if(!currentAttempt&&!pendingSaves.size&&!pendingRetirements.size&&bestsSaved){
+    setSaveAvailability(true);
+    return true;
+  }
+  progressData.bestBackups=Array.from(pendingBests.values());
   try{
-    // One atomic write includes the table, count, completion and Undo stack.
+    // The departing result's removal and destination's resume data commit
+    // together, alongside any score still awaiting its separate best write.
     localStorage.setItem(SAVE_KEY,JSON.stringify(progressData));
-    pendingSaves.clear();
-    lastSavedPuzzle=key;lastSavedEntry=text;
+    pendingSaves.clear();pendingRetirements.clear();
+    if(currentAttempt){lastSavedPuzzle=key;lastSavedEntry=text;}
     setSaveAvailability(bestsSaved);
     return bestsSaved;
   }catch(_){
@@ -1995,21 +2044,35 @@ for(const type of ['pointerdown','keydown'])document.addEventListener(type,()=>{
   if(nudgeArmed)dismissOpeningHint();
 },{capture:true});
 function loadLevel(i,{fresh=false}={}) {
+  const destination=(i+LEVELS.length)%LEVELS.length,initialLoad=!progressReady;
   if(movingGroup)finishMeldMove(null,true);
   if(active)cancelDrag();
-  saveProgress();
+  if(progressReady&&won&&destination!==level){
+    recordBest(moves,level,scoreSource);
+    retireAttempt(level);
+  }else saveProgress();
   loadingLevel=true;
   refreshProgress();
   resetHoverIntent();
   clearLivePreview();
-  level=(i+LEVELS.length)%LEVELS.length;
-  const saved=fresh?null:progressData.puzzles[puzzleKey()];
+  level=destination;
+  const source=LEVELS[level],key=puzzleKey();
+  let saved=progressData.puzzles[key];
+  if(saved?.won)recordBest(saved.moves,level,saved.scoreSource);
+  // Reload may show the result the player has not left yet. Returning to a
+  // completed stage (including an older build's save) starts a new attempt.
+  const keepResult=initialLoad&&progressData.lastPuzzleId===source.id;
+  if(fresh||(saved?.won&&!keepResult)){
+    retireAttempt(level,generationFor(progressData,key));
+    refreshProgress();
+    saved=progressData.puzzles[key];
+  }
+  attemptGeneration=generationFor(progressData,key);
   for(const t of tiles)t.el.remove();
   for(const g of groups)g.el.remove();
   tiles=[];groups=[];hover=null;active=null;history=[];won=false;nextID=1;nextGroup=1;
   moves=0;selectedId=null;movingGroup=null;winRecord=false;scoreSource='completed-run';
   adaptiveTileCap=Infinity;
-  const source=LEVELS[level];
   groups=source.groups.map(g=>groupNew(g.tiles.map(v=>tileNew(...v)),g.axis,g.u,g.v));
   groups.forEach(normalizeGroupOrder);
   // Loose tiles use exactly the same group model, hit testing and rules.
@@ -2028,9 +2091,6 @@ function loadLevel(i,{fresh=false}={}) {
     history=saved.history;
     moves=saved.moves;won=saved.won;scoreSource=saved.scoreSource;
     if(won){
-      // A completed, compatible saved run can repair a missing best. Never
-      // import an unversioned scalar best or award migration as a new win.
-      recordBest(moves,level,scoreSource);
       winRecord=saved.isRecord&&readBest()===moves;
     }
     // Fit for the current screen instead of inheriting a smaller tile cap.
@@ -3016,10 +3076,10 @@ const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[
 loadLevel(firstLevel);scheduleBoardFit();
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.3.3 · The First Two Chapters';
+  const APP_VERSION='0.3.4 · The First Two Chapters';
   const ROADMAP_ITEMS = [
     'Done now: midnight felt, linen-paper cards, gradient suits, centred celebration, Replay, version badge.',
-    'Done now: automatic save & resume, including table layout, moves and Undo history.',
+    'Done now: save & resume unfinished stages; completed stages start fresh after you move on.',
     'Done now: overlapping melds, tap to open and free meld dragging on every stage.',
     'Done now: 20 authored stages across two chapters, from three cards to a full 52-card table.',
     'Done now: a gentle hand teaches the opening three-card run; optional hints support every stage.',
