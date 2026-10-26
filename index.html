@@ -354,7 +354,6 @@ html,body{
 }
 /* Only the moving group's surround is neutral; its cards keep their ink. */
 .group.drag-neutral{border-color:var(--drag-group);background:var(--drag-group);filter:none;}
-.group.join-source{opacity:0;}
 
 .tile{
   border:1px solid #d9cfbf;
@@ -2493,7 +2492,9 @@ function layout(initial=false,skipMeasure=false) {
     const targetGroupLayer=elevated?raisedLayer:groupsLayer;
     const targetTileLayer=elevated?raisedLayer:tilesLayer;
     if(g.el.parentNode!==targetGroupLayer)targetGroupLayer.appendChild(g.el);
-    g.el.style.zIndex=elevated?'1':'';
+    // Keep the moving block's grey panel above the landing panel, with
+    // both panels below the cards. The landing meld keeps its own colour.
+    g.el.style.zIndex=elevated?(movingGroup?.id===g.id?'2':'1'):'';
     const pending=active?.pendingMeld?.id===g.id?active.pendingMeld:null;
     const joining=movingGroup?.join?.id===g.id?movingGroup.join:null;
     const source=movingGroup?.id===g.id;
@@ -2512,8 +2513,7 @@ function layout(initial=false,skipMeasure=false) {
     g.el.classList.add((frozen===undefined?isValid(g):frozen)?'valid':'invalid');
     if(pv)g.el.classList.add('has-slot');
     g.el.classList.toggle('join-target',!!joining);
-    g.el.classList.toggle('drag-neutral',source||!!joining);
-    g.el.classList.toggle('join-source',source&&!!movingGroup.join);
+    g.el.classList.toggle('drag-neutral',source);
     g.el.classList.toggle('open',isOpen(g.id));
     g.el.classList.toggle('compact',!isOpen(g.id));
     sizeStyle(g.el,geom.w,geom.h);
@@ -3267,7 +3267,7 @@ const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[
 loadLevel(firstLevel);scheduleBoardFit();
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.4.1 · The First Two Chapters';
+  const APP_VERSION='0.4.2 · The First Two Chapters';
   const ROADMAP_ITEMS = [
     'Done now: midnight felt, linen-paper cards, gradient suits, centred celebration, Replay, version badge.',
     'Done now: save & resume unfinished stages; completed stages start fresh after you move on.',
