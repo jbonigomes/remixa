@@ -349,6 +349,9 @@ html,body{
   background:rgba(245,250,255,.18);
   outline-color:rgba(255,255,255,.38);
 }
+/* Joining is an insertion preview, not an early answer to the puzzle. */
+.group.join-target{border-color:var(--amber);background:linear-gradient(180deg,#e7bd75,#dca75b);}
+.group.join-source{opacity:0;}
 
 .tile{
   border:1px solid #d9cfbf;
@@ -744,7 +747,7 @@ html,body{-webkit-text-size-adjust:100%;}
       <div id="groupLayer"></div>
       <div id="tileLayer"></div>
       <div id="raisedLayer" aria-label="Selected meld"></div>
-      <button id="meldGrip" aria-label="Drag to reposition this meld" title="Move entire meld · free">
+      <button id="meldGrip" aria-label="Drag to move or join this meld" title="Move freely · join another meld for 1 move">
         <svg class="grip-icon" aria-hidden="true" viewBox="0 0 16 22" focusable="false">
           <g fill="currentColor">
             <circle cx="4.5" cy="4" r="1.9"/><circle cx="11.5" cy="4" r="1.9"/>
@@ -1166,7 +1169,7 @@ const LEVELS=[
 // or inserting puzzles. Bump revision when changing a starting puzzle.
 // Bump RULESET_ID when legality, allowed moves, Undo or move counting changes.
 // Visual changes, titles, stage order and app builds do not reset records.
-const RULESET_ID='remixa-standard-v1';
+const RULESET_ID='remixa-standard-v2';
 const BEST_VERSION=2;
 const LEGACY_LEVEL_IDS=Object.freeze([
   'rmx-001','rmx-002','rmx-003','rmx-004','rmx-005','rmx-006',
@@ -1228,11 +1231,16 @@ function puzzleIdentity(index=level){
   return {puzzleId:p.id,revision:p.revision,rulesetId:RULESET_ID,
     definition:PUZZLE_DEFINITIONS[index]};
 }
+// Whole-meld joins add a new one-move action. Earlier single-card moves
+// remain legal prefixes, but their completed scores belong to earlier rules.
+function previousRulesIdentity(index=level){
+  if(RULESET_ID!=='remixa-standard-v2')return null;
+  return {...puzzleIdentity(index),rulesetId:'remixa-standard-v1'};
+}
 // Version 0.2.7 included its display mode in the exact puzzle definition.
 // The shared layout changes no puzzle/scoring rules. Recognise only those
 // known original identities, with the exact same deal, revision and rules.
-function previousPuzzleIdentity(index){
-  const identity=puzzleIdentity(index);
+function previousPuzzleIdentity(index,identity=puzzleIdentity(index)){
   if(identity.rulesetId!=='remixa-standard-v1'||identity.revision!==1||
      !LEGACY_LEVEL_IDS.includes(identity.puzzleId))return null;
   return {...identity,definition:JSON.stringify({
@@ -1290,9 +1298,8 @@ const isIntro=()=>LEVELS[level].intro===true;
 // Only multi-card melds stay open after selection. A solo card may lift
 // temporarily as a hover target, but it must never remain enlarged after drop.
 const openedId=()=>{
-  // Moving an entire meld is a different gesture from editing its cards.
-  // Show its compact, final footprint from pickup through release.
-  if(movingGroup)return null;
+  // Whole-meld movement stays compact until a deliberate join is previewed.
+  if(movingGroup)return movingGroup.join?.id??null;
   // Keep the source open while its lifted card is being reordered within it.
   if(active)return hover?.id??active.pendingMeld?.id??null;
   const selected=groups.find(g=>g.id===selectedId);
@@ -1361,6 +1368,18 @@ function readLegacyBest(index=level){
     return validScore(score)?score:null;
   }catch(_){return null;}
 }
+function readPreviousRulesBest(index=level){
+  const identity=previousRulesIdentity(index);
+  if(!identity)return null;
+  let best=null;
+  for(const prior of [identity,previousPuzzleIdentity(index,identity)]){
+    if(!prior)continue;
+    const stored=readStoredBest(prior),pending=pendingBests.get(bestKeyFor(prior));
+    for(const record of [stored,pending])
+      if(record&&(best===null||record.moves<best))best=record.moves;
+  }
+  return best;
+}
 function updatePuzzleIdentity(){
   const {puzzleId,revision}=puzzleIdentity();
   const label=puzzleId.toUpperCase()+' · Revision '+revision;
@@ -1369,10 +1388,11 @@ function updatePuzzleIdentity(){
   $('puzzleRules').textContent='Rules: '+rules;
   $('best').title='Personal best for '+label+' · '+rules;
   $('best').setAttribute('aria-label',$('best').title+': '+(readBest()??'none yet'));
-  const legacy=readLegacyBest();
-  $('legacyBest').hidden=legacy===null;
-  $('legacyBest').textContent=legacy===null?'':
-    'Earlier best: '+legacy+' moves. Its puzzle version was not recorded, so it stays separate.';
+  const previous=readPreviousRulesBest(),legacy=readLegacyBest(),notes=[];
+  if(previous!==null)notes.push('Previous rules best: '+previous+' moves. Whole-meld joins have a separate best.');
+  if(legacy!==null)notes.push('Earlier best: '+legacy+' moves. Its puzzle version was not recorded, so it stays separate.');
+  $('legacyBest').hidden=!notes.length;
+  $('legacyBest').textContent=notes.join(' ');
 }
 function updateScore(){
   $('moves').textContent=String(moves);
@@ -1717,7 +1737,7 @@ const LEGACY_SAVE_KEY='remixa_progress_v1';
 const SAVE_DECKS=LEVELS.map(p=>[
   ...p.groups.flatMap(g=>g.tiles),...p.loose.map(t=>[t.n,t.c])
 ]);
-const emptyProgress=()=>({version:SAVE_VERSION,identityVersion:2,lastPuzzleId:LEVELS[0].id,
+const emptyProgress=()=>({version:SAVE_VERSION,identityVersion:2,rulesetMigrations:[RULESET_ID],lastPuzzleId:LEVELS[0].id,
   puzzles:{},attemptGenerations:{},bestBackups:[]});
 let progressData=emptyProgress(),progressReady=false,loadingLevel=false;
 let lastSavedPuzzle=null,lastSavedEntry='',saveAvailable=true,saveNoticeTimer=0;
@@ -1748,8 +1768,8 @@ function cleanSavedTable(value,count) {
   if(ids.size!==count||(value.selected!==null&&!groupIDs.has(value.selected)))return null;
   return {groups:clean,tileCap:value.tileCap,selected:value.selected};
 }
-function cleanSavedLevel(value,index) {
-  if(!sameIdentity(value,puzzleIdentity(index))||
+function cleanSavedLevel(value,index,identity=puzzleIdentity(index)) {
+  if(!sameIdentity(value,identity)||
      !Number.isSafeInteger(value.moves)||value.moves<0||value.moves>=Number.MAX_SAFE_INTEGER||
      typeof value.won!=='boolean'||typeof value.isRecord!=='boolean'||
      !['completed-run','migrated-save-v1'].includes(value.scoreSource)||
@@ -1762,7 +1782,7 @@ function cleanSavedLevel(value,index) {
   if(past.some(s=>!s))return null;
   if(value.won&&(!validScore(value.moves)||!table.groups.every(g=>isValid({axis:g.axis,
     tiles:g.ids.map(id=>({num:deck[id-1][0],col:deck[id-1][1]}))}))))return null;
-  return {...puzzleIdentity(index),attemptGeneration:generation,moves:value.moves,won:value.won,
+  return {...identity,attemptGeneration:generation,moves:value.moves,won:value.won,
     isRecord:value.won&&value.isRecord,scoreSource:value.scoreSource,table,history:past};
 }
 function hasSavedIdentity(value){
@@ -1770,6 +1790,43 @@ function hasSavedIdentity(value){
     /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value.puzzleId)&&
     Number.isSafeInteger(value.revision)&&value.revision>0&&
     typeof value.rulesetId==='string'&&typeof value.definition==='string';
+}
+function preservePreviousResult(saved,identity){
+  if(!saved.won)return;
+  const key=bestKeyFor(identity),stored=readStoredBest(identity),pending=pendingBests.get(key);
+  if((stored&&stored.moves<=saved.moves)||(pending&&pending.moves<=saved.moves))return;
+  // Recover only the earlier rules' record, never certify an earlier win as
+  // a result achieved with whole-meld joins. Existing provenance stays intact.
+  pendingBests.set(key,{version:BEST_VERSION,...identity,moves:saved.moves,
+    recordedAt:Date.now(),source:saved.scoreSource});
+}
+function migratePreviousRulesProgress(value,result){
+  if(RULESET_ID!=='remixa-standard-v2'||
+     (Array.isArray(value.rulesetMigrations)&&value.rulesetMigrations.includes(RULESET_ID)))return;
+  const has=(object,key)=>Object.prototype.hasOwnProperty.call(object,key);
+  for(let index=0;index<LEVELS.length;index++){
+    const key=puzzleKey(index),prior=previousRulesIdentity(index),oldKey=comparisonKey(prior);
+    // A newer attempt, a corrupt current entry or a retired generation all
+    // supersede the older draft. Never resurrect it during later read/merge.
+    if(has(value.puzzles,key)||(plainObject(value.attemptGenerations)&&has(value.attemptGenerations,key)))continue;
+    let identity=prior,candidateKey=oldKey;
+    if(!has(value.puzzles,oldKey)){
+      // The mode-qualified identity was migrated only by the pre-identityVersion
+      // envelope. Once consumed, its inactive copy must not become a new draft.
+      if(has(value,'identityVersion')||
+         (plainObject(value.attemptGenerations)&&has(value.attemptGenerations,oldKey)))continue;
+      identity=previousPuzzleIdentity(index,prior);
+      if(!identity)continue;
+      candidateKey=comparisonKey(identity);
+      if(!has(value.puzzles,candidateKey))continue;
+    }
+    const saved=cleanSavedLevel(value.puzzles[candidateKey],index,identity);
+    if(!saved||saved.attemptGeneration!==generationFor(result,candidateKey))continue;
+    if(saved.won){preservePreviousResult(saved,identity);continue;}
+    // All actions in this unfinished prefix are still legal and keep the
+    // same cost. Carry its table, count and Undo history into its first v2 run.
+    result.puzzles[key]={...saved,...puzzleIdentity(index),attemptGeneration:0,isRecord:false};
+  }
 }
 function migrateLegacyProgress(report=false){
   let raw;
@@ -1788,18 +1845,25 @@ function migrateLegacyProgress(report=false){
       const id=LEGACY_LEVEL_IDS[old],index=LEVELS.findIndex(p=>p.id===id);
       if(index<0||!Object.prototype.hasOwnProperty.call(value.levels,old))continue;
       const entry=value.levels[old],puzzle=LEVELS[index];
-      // This bridge is only for the known 0.2.6 rules and initial revision.
-      // A future rule/deal change must not certify an older unfinished run.
-      if(RULESET_ID!=='remixa-standard-v1'||puzzle.revision!==1||
+      // Validate the known 0.2.6 rules and exact initial deal before the
+      // explicit, compatible unfinished-prefix migration into join rules.
+      const identity=RULESET_ID==='remixa-standard-v1'?puzzleIdentity(index):previousRulesIdentity(index);
+      if(!identity||identity.rulesetId!=='remixa-standard-v1'||puzzle.revision!==1||
          !plainObject(entry)||
          entry.puzzle!==LEGACY_DEFINITIONS[index]||typeof entry.isRecord!=='boolean'){
         if(report)discardedSavePuzzles.add(id);
         continue;
       }
-      const saved=cleanSavedLevel({...puzzleIdentity(index),moves:entry.moves,
+      const saved=cleanSavedLevel({...identity,moves:entry.moves,
         won:entry.won,isRecord:false,scoreSource:entry.won?'migrated-save-v1':'completed-run',
-        table:entry.table,history:entry.history},index);
-      if(saved)result.puzzles[puzzleKey(index)]=saved;
+        table:entry.table,history:entry.history},index,identity);
+      if(saved){
+        result.puzzles[comparisonKey(identity)]=saved;
+        if(identity.rulesetId!==RULESET_ID){
+          if(saved.won)preservePreviousResult(saved,identity);
+          else result.puzzles[puzzleKey(index)]={...saved,...puzzleIdentity(index),attemptGeneration:0,isRecord:false};
+        }
+      }
       else if(report)discardedSavePuzzles.add(id);
     }
     return result;
@@ -1822,6 +1886,9 @@ function readProgress(report=false) {
     if(!plainObject(value)||value.version!==SAVE_VERSION||!plainObject(value.puzzles))throw Error('Invalid save');
     const result=emptyProgress();
     if(typeof value.lastPuzzleId==='string')result.lastPuzzleId=value.lastPuzzleId;
+    if(Array.isArray(value.rulesetMigrations))result.rulesetMigrations=[...new Set([
+      ...value.rulesetMigrations.filter(id=>typeof id==='string'&&/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)),RULESET_ID
+    ])];
     if(plainObject(value.attemptGenerations)){
       for(const [key,generation] of Object.entries(value.attemptGenerations))
         if(validAttemptGeneration(generation))result.attemptGenerations[key]=generation;
@@ -1866,6 +1933,7 @@ function readProgress(report=false) {
         else if(report)discardedSavePuzzles.add(LEVELS[index].id);
       }
     }
+    migratePreviousRulesProgress(value,result);
     return result;
   }catch(_){
     if(report)discardedSave=true;
@@ -1964,16 +2032,18 @@ let nudgeTimeout=null,nudgeArmed=false,lessonHintOpen=false;
 function updateLessonCue(){
   const source=LEVELS[level],cue=$('lessonCue');
   const demonstration=$('introGuide').classList.contains('show');
+  const joining=!!movingGroup?.join;
   let text=demonstration||lessonHintOpen?source.hint:source.skill;
   if(source.teachMove&&!lessonHintOpen&&!demonstration&&moves===0&&selectedId!==null)
     text=movingGroup?'Moving the whole meld is free.':'Drag the ⠿ grip to move this meld for free.';
+  if(joining)text='Release to join · 1 move';
   const visible=!!text&&!won&&!active&&!$('lab').classList.contains('show')&&
-    (demonstration||lessonHintOpen||
+    (joining||demonstration||lessonHintOpen||
       (source.teaching===true&&moves===0&&(selectedId===null||source.teachMove===true)));
   if(cue.textContent!==text)cue.textContent=text||'';
   cue.classList.toggle('show',visible);
   cue.classList.toggle('expanded',lessonHintOpen&&!demonstration);
-  cue.classList.toggle('meld-move',source.teachMove===true&&selectedId!==null&&!lessonHintOpen);
+  cue.classList.toggle('meld-move',joining||source.teachMove===true&&selectedId!==null&&!lessonHintOpen);
   $('hint').disabled=won||!source.hint;
   $('hint').setAttribute('aria-expanded',String(!!lessonHintOpen&&visible));
   $('hint').setAttribute('aria-label',lessonHintOpen?'Hide the hint':'Show a hint');
@@ -2140,29 +2210,50 @@ function geometry(g,extra=false,axisOverride=null) {
   // A source reorder uses the N positions that were already open at pickup.
   // Its held card still belongs to the meld, so never add an extra position.
   if(active?.pendingMeld?.id===g.id)return {...active.pendingMeld.expanded};
-  const axis=axisOverride||g.axis;
-  const n=g.tiles.length+(extra?1:0),gap=settings.gap;
+  // Dock the incoming block into its reserved positions without changing
+  // either meld's cards, axis or saved coordinates before release.
+  const join=movingGroup?.join;
+  if(movingGroup?.id===g.id&&join){
+    const target=groups.find(p=>p.id===join.id);
+    if(target){
+      const whole=geometry(target,true,join.axis);
+      const positions=whole.centers.slice(join.index,join.index+join.count);
+      const scales=whole.scales.slice(join.index,join.index+join.count);
+      const middle=(positions[0]+positions[positions.length-1])/2;
+      const extent=positions[positions.length-1]-positions[0]+actualTile*Math.max(...scales)+settings.gap*2;
+      const cross=actualTile*Math.max(...scales)+settings.gap*2;
+      const w=join.axis==='h'?extent:cross,h=join.axis==='v'?extent:cross;
+      const x=whole.x+(join.axis==='h'?middle:0),y=whole.y+(join.axis==='v'?middle:0);
+      return {n:g.tiles.length,axis:join.axis,step:whole.step,
+        centers:positions.map(p=>p-middle),scales,dock:true,focus:0,
+        w,h,x,y,left:x-w/2,top:y-h/2};
+    }
+  }
+  const joining=join?.id===g.id?join:null;
+  const axis=axisOverride||joining?.axis||g.axis;
+  const n=g.tiles.length+(joining?joining.count:extra?1:0),gap=settings.gap;
   const open=isOpen(g.id);
-  const dock=open && !!extra && hover?.id===g.id && n>1 && active;
+  const preview=joining||(extra&&hover?.id===g.id&&active?hover:null);
+  const dock=open&&preview&&n>1;
 
   // Resting card positions belong to the table, not to the moving pointer.
   // An insertion changes a discrete *slot*: cards wait in their compact
   // places until the pointer crosses one of their original centres.
   // Then just the nearest neighbours yield; there is no moving-row offset.
   if(dock) {
-    const m=g.tiles.length,index=clamp(hover.index,0,m);
-    const slotPitch=actualTile*.58;
-    // A docked meld has one fixed "expanded" footprint and one fixed set of
-    // insertion slots. The dragged card can change *which* slot is active,
-    // but it must not stretch or drag the whole meld around.
-    const slotPositions=Array.from({length:m+1},(_,i)=>(i-m/2)*slotPitch);
+    const index=clamp(preview.index,0,g.tiles.length),count=joining?joining.count:1;
+    // A large incoming block shares the available board span. Its preview
+    // never changes the settled table's tile size or puzzle coordinates.
+    const available=(axis==='h'?boardW:boardH)-6-gap*2-actualTile*1.10;
+    const slotPitch=joining?Math.max(0,Math.min(actualTile*.58,available/(n-1))):actualTile*.58;
+    const slotPositions=Array.from({length:n},(_,i)=>(i-(n-1)/2)*slotPitch);
     const scales=slotPositions.map((_,i)=>{
-      const dist=Math.abs(i-index);
-      return i===index?1.10:dist===1?1.06:1;
+      if(i>=index&&i<index+count)return 1.10;
+      return i===index-1||i===index+count?1.06:1;
     });
     const maxScale=1.10;
     const firstEdge=slotPositions[0]-actualTile*maxScale/2;
-    const lastEdge=slotPositions[m]+actualTile*maxScale/2;
+    const lastEdge=slotPositions[n-1]+actualTile*maxScale/2;
     const axisExtent=(lastEdge-firstEdge)+gap*2;
     const crossExtent=actualTile*maxScale+gap*2;
     const w=axis==='h'?axisExtent:crossExtent;
@@ -2438,7 +2529,9 @@ function layout(initial=false,skipMeasure=false) {
     if(g.el.parentNode!==targetGroupLayer)targetGroupLayer.appendChild(g.el);
     g.el.style.zIndex=elevated?'1':'';
     const pending=active?.pendingMeld?.id===g.id?active.pendingMeld:null;
-    const pv=pending?{index:pending.index,axis:pending.axis}:hover?.id===g.id?hover:null;
+    const joining=movingGroup?.join?.id===g.id?movingGroup.join:null;
+    const source=movingGroup?.id===g.id;
+    const pv=pending?{index:pending.index,axis:pending.axis}:joining||(hover?.id===g.id?hover:null);
     const geom=geometry(g,!!pv,pv?.axis);
     // Render projected positions only, never alter the actual puzzle state.
     const live=projected?.get(g.id);
@@ -2449,39 +2542,49 @@ function layout(initial=false,skipMeasure=false) {
     g.el.classList.remove('valid','invalid','incomplete','has-slot');
     // The colour of an existing group stays fixed throughout a drag.
     // Validation only changes on release, not when a tile is picked up.
-    const frozen=active?.colors?.get(g.id);
+    const frozen=active?.colors?.get(g.id)??movingGroup?.colors?.get(g.id);
     g.el.classList.add((frozen===undefined?isValid(g):frozen)?'valid':'invalid');
     if(pv)g.el.classList.add('has-slot');
+    g.el.classList.toggle('join-target',!!joining);
+    g.el.classList.toggle('join-source',source&&!!movingGroup.join);
     g.el.classList.toggle('open',isOpen(g.id));
     g.el.classList.toggle('compact',!isOpen(g.id));
     sizeStyle(g.el,geom.w,geom.h);
-    posStyle(g.el,geom.left,geom.top,1,movingGroup?.id===g.id);
+    const followsPointer=source&&!movingGroup.join;
+    posStyle(g.el,geom.left,geom.top,1,followsPointer);
     if(g.fresh){g.fresh=false;g.el.style.transition='';}
-    const renderAxis=pv?.axis||g.axis;
+    const renderAxis=geom.axis;
     // Preview a new order without editing the actual meld until release.
     const visualTiles=pending?g.tiles.filter(t=>t!==active.tile):g.tiles;
     visualTiles.forEach((t,j)=>{
       used.add(t.id);
-      t.el.style.zIndex=String(elevated?10+j:10+i*40+j);
+      const slot=j+((pv&&j>=pv.index)?pv.count||1:0);
+      // Once docked, stack both blocks in their combined order so the
+      // next target card's rank stays visible after the incoming block.
+      const z=source?(movingGroup.join?10+movingGroup.join.index+j:1000+j):
+        joining?10+slot:elevated?10+j:10+i*40+j;
+      t.el.style.zIndex=String(z);
       t.el.classList.toggle('opened',elevated);
       if(t===active?.tile)return;
-      const slot=j+((pv&&j>=pv.index)?1:0);
       const x=geom.x+(renderAxis==='h'?geom.centers[slot]:0)-actualTile/2;
       const y=geom.y+(renderAxis==='v'?geom.centers[slot]:0)-actualTile/2;
       // Preserve the current rendered transform when crossing the foreground
       // layer. Reparenting ordinarily cancels CSS transitions and causes the
       // abrupt snap users notice on opening and closing a meld.
       if(t.el.parentNode!==targetTileLayer)targetTileLayer.appendChild(t.el);
-      posStyle(t.el,x,y,geom.scales[slot],movingGroup?.id===g.id);
+      posStyle(t.el,x,y,geom.scales[slot],followsPointer);
     });
     if(pv) {
-      // A ghost card reserves its own room within the dock, with the same
-      // scale and smooth movement as its immediate neighbours.
-      const ghostScale=geom.scales[pv.index];
+      // Reserve the complete incoming block, or one card for a card drag.
+      const end=pv.index+(pv.count||1)-1;
+      const first=geom.centers[pv.index],last=geom.centers[end];
+      const ghostScale=Math.max(...geom.scales.slice(pv.index,end+1));
       const ghostSize=actualTile*ghostScale;
-      sizeStyle(g.slot,ghostSize,ghostSize);
-      const ix=geom.x+(renderAxis==='h'?geom.centers[pv.index]:0)-ghostSize/2;
-      const iy=geom.y+(renderAxis==='v'?geom.centers[pv.index]:0)-ghostSize/2;
+      const span=last-first+ghostSize;
+      const ghostW=renderAxis==='h'?span:ghostSize,ghostH=renderAxis==='v'?span:ghostSize;
+      sizeStyle(g.slot,ghostW,ghostH);
+      const ix=geom.x+(renderAxis==='h'?(first+last)/2:0)-ghostW/2;
+      const iy=geom.y+(renderAxis==='v'?(first+last)/2:0)-ghostH/2;
       posStyle(g.slot,ix-geom.left-settings.gap,
                       iy-geom.top-settings.gap);
     }
@@ -2498,7 +2601,11 @@ function layout(initial=false,skipMeasure=false) {
   meldGrip.tabIndex=gripGroup?0:-1;
   meldGrip.setAttribute('aria-hidden',gripGroup?'false':'true');
   if(gripGroup){
-    const {x,y}=meldGripPosition(gripGroup);
+    const br=board.getBoundingClientRect();
+    const {x,y}=movingGroup?{
+      x:clamp(movingGroup.lastX-br.left+movingGroup.gripDX,3,boardW-41),
+      y:clamp(movingGroup.lastY-br.top+movingGroup.gripDY,3,boardH-32)
+    }:meldGripPosition(gripGroup);
     meldGrip.style.transform=`translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,0)`;
   }
   $('undo').disabled=!history.length;
@@ -2674,6 +2781,77 @@ function nearestFreeMeldCenter(g,x0,y0){
   }
   return best;
 }
+function clearMeldJoin(m){
+  if(m.joinTimer)clearTimeout(m.joinTimer);
+  m.joinTimer=0;m.candidate=null;m.join=null;
+}
+function getMeldJoinTarget(m){
+  const source=groups.find(g=>g.id===m.id);
+  if(!source||!m.hasMoved)return null;
+  const br=board.getBoundingClientRect();
+  if(m.lastX<br.left||m.lastX>br.left+boardW||
+     m.lastY<br.top||m.lastY>br.top+boardH)return null;
+  // The actual compact body makes contact; the unclamped held centre aims
+  // the insertion. A long meld can therefore reach an end near a board edge.
+  const body=compactBox(source),previous=m.join||m.candidate;
+  let best=null,bestScore=Infinity;
+  for(const target of groups){
+    if(target===source||!target.tiles.length)continue;
+    const box=compactBox(target);
+    const overlapW=Math.max(0,Math.min(body.left+body.w,box.left+box.w)-Math.max(body.left,box.left));
+    const overlapH=Math.max(0,Math.min(body.top+body.h,box.top+box.h)-Math.max(body.top,box.top));
+    // Normalise by the largest possible shared rectangle. This also allows
+    // a long horizontal run to meet a long vertical group deliberately.
+    const contact=overlapW*overlapH/(Math.min(body.w,box.w)*Math.min(body.h,box.h));
+    if(contact<.36)continue;
+    const axis=target.tiles.length>1?target.axis:source.axis;
+    const along=axis==='h'?m.aimX-box.x:m.aimY-box.y;
+    const count=target.tiles.length;
+    let index=clamp(Math.round(along/box.step+count/2),0,count);
+    if(previous?.id===target.id){
+      index=clamp(previous.index,0,count);
+      const hysteresis=actualTile*.10;
+      const home=i=>(i-(count-1)/2)*box.step;
+      while(index<count&&along>home(index)+hysteresis)index++;
+      while(index>0&&along<home(index-1)-hysteresis)index--;
+    }
+    const outsideX=Math.max(box.left-m.aimX,0,m.aimX-box.left-box.w);
+    const outsideY=Math.max(box.top-m.aimY,0,m.aimY-box.top-box.h);
+    const score=outsideX**2+outsideY**2+
+      .08*((m.aimX-box.x)**2+(m.aimY-box.y)**2)-contact*actualTile**2*.15-
+      (previous?.id===target.id?actualTile**2*.08:0);
+    if(score<bestScore){bestScore=score;best={id:target.id,index,axis,count:m.count};}
+  }
+  return best;
+}
+function updateMeldJoin(m){
+  const next=getMeldJoinTarget(m);
+  if(!next){clearMeldJoin(m);return;}
+  if(m.join?.id===next.id){m.join=next;return;}
+  if(m.candidate?.id===next.id){m.candidate=next;return;}
+  clearMeldJoin(m);
+  m.candidate=next;
+  // Passing over another group is still ordinary free table movement.
+  // A brief, stationary contact makes the join intentional and visible.
+  m.joinTimer=setTimeout(()=>{
+    m.joinTimer=0;
+    if(movingGroup!==m||!m.candidate)return;
+    const target=getMeldJoinTarget(m);
+    if(!target||target.id!==m.candidate.id){clearMeldJoin(m);return;}
+    m.join=target;m.candidate=null;
+    layout(false,true);
+  },240);
+}
+function meldMoveAim(point,start,offset,extent){
+  // A side/top grip must still be able to carry the meld to the opposite
+  // edge without the finger leaving the board. Ease away the grip offset
+  // near that edge, anchored at pickup so the first movement never jumps.
+  if(!offset)return point;
+  const distance=offset>0?point:extent-point;
+  const startDistance=offset>0?start:extent-start;
+  const reach=Math.min(Math.abs(offset)+actualTile*.5,Math.max(1,startDistance));
+  return point+offset*clamp(distance/reach,0,1);
+}
 function beginMeldMove(e){
   if(won||active||movingGroup||e.button>0 ||
      $('lab').classList.contains('show'))return;
@@ -2681,13 +2859,17 @@ function beginMeldMove(e){
   if(!g)return;
   e.preventDefault();e.stopPropagation();
   resetHoverIntent();
-  const box=geometry(g,false),br=board.getBoundingClientRect();
+  const box=geometry(g,false),br=board.getBoundingClientRect(),grip=meldGrip.getBoundingClientRect();
   movingGroup={
     id:g.id,pointerId:e.pointerId,
+    before:snapshot(),colors:new Map(groups.map(p=>[p.id,isValid(p)])),count:g.tiles.length,
     originalU:g.u,originalV:g.v,
     offsetX:box.x-(e.clientX-br.left),
     offsetY:box.y-(e.clientY-br.top),
-    startX:e.clientX,startY:e.clientY
+    startX:e.clientX,startY:e.clientY,lastX:e.clientX,lastY:e.clientY,
+    gripDX:grip.left-e.clientX,gripDY:grip.top-e.clientY,
+    aimX:box.x,aimY:box.y,hasMoved:false,
+    join:null,candidate:null,joinTimer:0
   };
   if(meldGrip.setPointerCapture){
     try{meldGrip.setPointerCapture(e.pointerId);}catch(_){}
@@ -2699,31 +2881,59 @@ function moveMeld(e){
   if(!m||e.pointerId!==m.pointerId)return;
   e.preventDefault();
   const g=groups.find(p=>p.id===m.id);
-  if(!g){movingGroup=null;return;}
-  const box=geometry(g,false),br=board.getBoundingClientRect();
-  const x=clamp(e.clientX-br.left+m.offsetX,box.w/2+3,boardW-box.w/2-3);
-  const y=clamp(e.clientY-br.top+m.offsetY,box.h/2+3,boardH-box.h/2-3);
+  if(!g){clearMeldJoin(m);movingGroup=null;layout();return;}
+  const box=compactBox(g),br=board.getBoundingClientRect();
+  m.lastX=e.clientX;m.lastY=e.clientY;
+  m.hasMoved=m.hasMoved||Math.hypot(e.clientX-m.startX,e.clientY-m.startY)>=7;
+  m.aimX=meldMoveAim(e.clientX-br.left,m.startX-br.left,m.offsetX,boardW);
+  m.aimY=meldMoveAim(e.clientY-br.top,m.startY-br.top,m.offsetY,boardH);
+  const x=clamp(m.aimX,box.w/2+3,boardW-box.w/2-3);
+  const y=clamp(m.aimY,box.h/2+3,boardH-box.h/2-3);
   g.u=x/boardW;g.v=y/boardH;
+  updateMeldJoin(m);
   layout(false,true);
 }
 function finishMeldMove(e,cancel=false){
   const m=movingGroup;
   if(!m||e?.pointerId!==undefined&&e.pointerId!==m.pointerId)return;
+  if(!cancel&&e)moveMeld(e);
   const g=groups.find(p=>p.id===m.id);
+  const br=board.getBoundingClientRect();
+  const outside=m.lastX<br.left||m.lastX>br.left+boardW||m.lastY<br.top||m.lastY>br.top+boardH;
+  const candidate=!cancel&&!outside&&m.join?getMeldJoinTarget(m):null;
+  const join=candidate?.id===m.join?.id?candidate:null;
+  clearMeldJoin(m);
   movingGroup=null;
   // Leave the meld compact on release. Use its *compact* dimensions when
   // finding a free position so the drop does not unexpectedly relocate it.
   selectedId=null;
   if(!g){layout();return;}
-  if(cancel){
-    g.u=m.originalU;g.v=m.originalV;
-  }else{
+  if(cancel||outside){
+    restore(m.before);selectedId=null;layout();saveProgress();return;
+  }
+  if(join){
+    const target=groups.find(p=>p.id===join.id);
+    if(target){
+      target.tiles.splice(join.index,0,...g.tiles);
+      target.axis=join.axis;
+      g.el.remove();groups=groups.filter(p=>p!==g);
+      // Like a card drop, a completed join reclassifies the whole table.
+      // Order is always the player's choice, including an invalid result.
+      for(const meld of groups)meld.axis=inferMeldAxis(meld);
+      if(!reflowGroups(target.id)){
+        restore(m.before);selectedId=null;layout();saveProgress();return;
+      }
+      history.push(m.before);moves++;
+      layout();updateScore();checkWin();saveProgress();return;
+    }
+  }
+  if(m.hasMoved){
     const box=geometry(g,false);
     const spot=nearestFreeMeldCenter(g,box.x,box.y);
     if(spot){g.u=spot.x/boardW;g.v=spot.y/boardH;}
     else{g.u=m.originalU;g.v=m.originalV;}
-  }
-  // Spatial organisation is free; moving a meld never enters Undo.
+  }else{g.u=m.originalU;g.v=m.originalV;}
+  // Spatial organisation is free; only joining enters Undo.
   layout();
   saveProgress();
 }
@@ -3097,7 +3307,7 @@ const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[
 loadLevel(firstLevel);scheduleBoardFit();
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.3.5 · The First Two Chapters';
+  const APP_VERSION='0.4.0 · The First Two Chapters';
   const ROADMAP_ITEMS = [
     'Done now: midnight felt, linen-paper cards, gradient suits, centred celebration, Replay, version badge.',
     'Done now: save & resume unfinished stages; completed stages start fresh after you move on.',
