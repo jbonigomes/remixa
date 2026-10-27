@@ -1426,6 +1426,9 @@ function springTick(now){
     springPaint(s);
     if(!moving)springRunning.delete(s);
   }
+  // The idle grip shares the panel's rendered frame while a meld opens.
+  // It must not jump to the destination before the meld reaches it.
+  positionMeldGrip();
   if(springRunning.size)springFrame=requestAnimationFrame(springTick);
   else springClock=0;
 }
@@ -1475,7 +1478,7 @@ function springSet(el,props,immediate=false){
 }
 const posStyle=(el,x,y,scale=1,immediate=false)=>
   springSet(el,{x,y,scale},immediate||el.classList.contains('dragging'));
-const sizeStyle=(el,w,h)=>springSet(el,{w,h});
+const sizeStyle=(el,w,h,immediate=false)=>springSet(el,{w,h},immediate);
 // A dragged card switches from board coordinates to viewport coordinates and
 // back again. Give the spring the correct starting frame for its return.
 function springBoardHandoff(tile,x,y){
@@ -2432,55 +2435,39 @@ function scheduleLivePreview(x,y) {
     layout(false,true);
   });
 }
-function meldGripPosition(g){
-  const box=geometry(g,false),w=38,h=29,gap=8,pad=3;
-  const candidates=[];
-  const add=(x,y)=>{
-    if(x>=pad&&y>=pad&&x+w<=boardW-pad&&y+h<=boardH-pad)
-      candidates.push({x,y});
-  };
-  // Clamping an above-meld grip to the board edge puts it over the first
-  // card. On touch screens that button can steal the card's drag. Place it
-  // outside the meld, using a side when there is no room above.
-  add(clamp(box.x-w/2,pad,boardW-w-pad),box.top-h-gap);
-  for(const y of [box.top,box.y-h/2,box.top+box.h-h]){
-    add(box.left+box.w+gap,y);
-    add(box.left-w-gap,y);
+function renderedMeldBox(g){
+  const p=springStates.get(g.el)?.current;
+  if(p&&[p.x,p.y,p.w,p.h].every(Number.isFinite))
+    return {x:p.x+p.w/2,y:p.y+p.h/2,w:p.w,h:p.h,left:p.x,top:p.y};
+  return geometry(g,false);
+}
+function meldGripPosition(g,box=null){
+  const destination=geometry(g,false),w=38,h=29,gap=8,pad=3;
+  box=box||destination;
+  // Keep the grip centred beside a meld: above a run, right of
+  // a set. Only the board edge can put it on the opposite side. Neighbours
+  // never send it looking for an unrelated empty pocket elsewhere.
+  if(g.axis==='h'){
+    const above=destination.top-h-gap>=pad;
+    return {x:clamp(box.x-w/2,pad,boardW-w-pad),
+      y:clamp(above?box.top-h-gap:box.top+box.h+gap,pad,boardH-h-pad)};
   }
-  add(clamp(box.x-w/2,pad,boardW-w-pad),box.top+box.h+gap);
-  const others=groups.filter(p=>p!==g).map(p=>geometry(p,false));
-  const obstruction=p=>others.reduce((sum,b)=>sum+
-    Math.max(0,Math.min(p.x+w+2,b.left+b.w)-Math.max(p.x-2,b.left))*
-    Math.max(0,Math.min(p.y+h+2,b.top+b.h)-Math.max(p.y-2,b.top)),0);
-  let best=null,least=Infinity;
-  for(const p of candidates){
-    const area=obstruction(p);
-    if(area<least){best=p;least=area;}
-    if(area===0)break;
-  }
-  if(least>0){
-    // A crowded table may have a free pocket a little farther along an
-    // edge. Check the edges of all melds before covering another card.
-    const blocks=[{...box,space:gap},...others.map(b=>({...b,space:2}))];
-    const xs=new Set([pad,boardW-w-pad]),ys=new Set([pad,boardH-h-pad]);
-    for(const b of blocks){
-      xs.add(b.left-w-b.space);xs.add(b.left+b.w+b.space);
-      ys.add(b.top-h-b.space);ys.add(b.top+b.h+b.space);
-    }
-    const preferred={x:clamp(box.x-w/2,pad,boardW-w-pad),y:box.top-h-gap};
-    xs.add(preferred.x);ys.add(preferred.y);
-    let distance=Infinity;
-    for(const x of xs)for(const y of ys){
-      if(x<pad||y<pad||x+w>boardW-pad||y+h>boardH-pad)continue;
-      if(blocks.some(b=>x<b.left+b.w+b.space-.01&&x+w>b.left-b.space+.01&&
-        y<b.top+b.h+b.space-.01&&y+h>b.top-b.space+.01))continue;
-      const d=(x-preferred.x)**2+(y-preferred.y)**2;
-      if(d<distance){best={x,y};distance=d;}
-    }
-  }
-  // A landscape table always has space on at least one side of a meld.
-  // Keep layout safe during the temporary, hidden portrait viewport too.
-  return best||{x:clamp(box.x-w/2,pad,boardW-w-pad),y:pad};
+  const right=destination.left+destination.w+gap+w<=boardW-pad;
+  return {x:clamp(right?box.left+box.w+gap:box.left-w-gap,pad,boardW-w-pad),
+    y:clamp(box.y-h/2,pad,boardH-h-pad)};
+}
+function positionMeldGrip(){
+  if(active)return;
+  const g=groups.find(g=>g.id===(movingGroup?.id??selectedId)&&g.tiles.length>1);
+  if(!g)return;
+  // A held grip tracks its pickup point directly, without a spring or a
+  // layout read after the cards have just been painted.
+  const m=movingGroup;
+  const {x,y}=m?{
+    x:clamp(m.lastX-m.boardLeft+m.gripDX,3,boardW-41),
+    y:clamp(m.lastY-m.boardTop+m.gripDY,3,boardH-32)
+  }:meldGripPosition(g,renderedMeldBox(g));
+  meldGrip.style.transform=`translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,0)`;
 }
 function layout(initial=false,skipMeasure=false) {
   // During drag previews geometry is unchanged: avoid re-measuring and
@@ -2522,8 +2509,10 @@ function layout(initial=false,skipMeasure=false) {
     g.el.classList.toggle('drag-neutral',source);
     g.el.classList.toggle('open',isOpen(g.id));
     g.el.classList.toggle('compact',!isOpen(g.id));
-    sizeStyle(g.el,geom.w,geom.h);
     const followsPointer=source&&!movingGroup.join;
+    // The held outline and cards use one immediate frame. Leaving the
+    // opened width/height spring running makes the outline trail sideways.
+    sizeStyle(g.el,geom.w,geom.h,followsPointer);
     posStyle(g.el,geom.left,geom.top,1,followsPointer);
     if(g.fresh){g.fresh=false;g.el.style.transition='';}
     const renderAxis=geom.axis;
@@ -2573,14 +2562,7 @@ function layout(initial=false,skipMeasure=false) {
   meldGrip.classList.toggle('moving',!!movingGroup);
   meldGrip.tabIndex=gripGroup?0:-1;
   meldGrip.setAttribute('aria-hidden',gripGroup?'false':'true');
-  if(gripGroup){
-    const br=board.getBoundingClientRect();
-    const {x,y}=movingGroup?{
-      x:clamp(movingGroup.lastX-br.left+movingGroup.gripDX,3,boardW-41),
-      y:clamp(movingGroup.lastY-br.top+movingGroup.gripDY,3,boardH-32)
-    }:meldGripPosition(gripGroup);
-    meldGrip.style.transform=`translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,0)`;
-  }
+  if(gripGroup)positionMeldGrip();
   $('undo').disabled=!history.length;
   springInstant=false;
   refreshNudge();
@@ -2801,7 +2783,7 @@ function beginMeldMove(e){
   if(!g)return;
   e.preventDefault();e.stopPropagation();
   resetHoverIntent();
-  const box=geometry(g,false),br=board.getBoundingClientRect(),grip=meldGrip.getBoundingClientRect();
+  const box=renderedMeldBox(g),br=board.getBoundingClientRect(),grip=meldGrip.getBoundingClientRect();
   movingGroup={
     id:g.id,pointerId:e.pointerId,
     before:snapshot(),colors:new Map(groups.map(p=>[p.id,isValid(p)])),count:g.tiles.length,
@@ -2810,6 +2792,7 @@ function beginMeldMove(e){
     offsetY:box.y-(e.clientY-br.top),
     startX:e.clientX,startY:e.clientY,lastX:e.clientX,lastY:e.clientY,
     gripDX:grip.left-e.clientX,gripDY:grip.top-e.clientY,
+    boardLeft:br.left+board.clientLeft,boardTop:br.top+board.clientTop,
     aimX:box.x,aimY:box.y,hasMoved:false,
     join:null,candidate:null,joinTimer:0
   };
@@ -2828,6 +2811,7 @@ function moveMeld(e){
   const g=groups.find(p=>p.id===m.id);
   if(!g){clearMeldJoin(m);movingGroup=null;layout();return;}
   const box=compactBox(g),br=board.getBoundingClientRect();
+  m.boardLeft=br.left+board.clientLeft;m.boardTop=br.top+board.clientTop;
   m.lastX=e.clientX;m.lastY=e.clientY;
   m.hasMoved=m.hasMoved||Math.hypot(e.clientX-m.startX,e.clientY-m.startY)>=7;
   m.aimX=meldMoveAim(e.clientX-br.left,m.startX-br.left,m.offsetX,boardW);
@@ -3252,7 +3236,7 @@ const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[
 loadLevel(firstLevel);scheduleBoardFit();
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.4.5 · The First Two Chapters';
+  const APP_VERSION='0.4.6 · The First Two Chapters';
   const ROADMAP_ITEMS = [
     'Done now: midnight felt, linen-paper cards, gradient suits, centred celebration, Replay, version badge.',
     'Done now: save & resume unfinished stages; completed stages start fresh after you move on.',
