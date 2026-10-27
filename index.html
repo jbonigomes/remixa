@@ -856,19 +856,19 @@ const LEVELS=[
   },
   {
     "id": "rmx-017",
-    "revision": 1,
+    "revision": 2,
     "chapter": 1,
     "name": "One of Each",
     "skill": "Sets use each suit once: three or four cards",
     "groups": [
-      {"axis":"v","u":0.26,"v":0.44,"tiles":[[7,0],[7,0],[7,1]]},
-      {"axis":"h","u":0.67,"v":0.34,"tiles":[[5,0],[6,0]]}
+      {"axis":"v","u":0.26,"v":0.44,"tiles":[[7,1],[7,1],[7,0]]},
+      {"axis":"h","u":0.67,"v":0.34,"tiles":[[5,1],[6,1]]}
     ],
     "loose": [
       {"n":7,"c":2,"u":0.55,"v":0.76},
       {"n":7,"c":3,"u":0.77,"v":0.76}
     ],
-    "hint": "Tap the red set to open it. Move one 7 of spades into the run, then complete the set with the other suits.",
+    "hint": "Tap the red set to open it. Move one 7 of hearts into the run, then complete the set with the other suits.",
     "teaching": true
   },
   {
@@ -1250,12 +1250,6 @@ function updateDragHover(next){
     hoverTimer=0;
     if(!active||!hoverCandidate)return;
     hover={...hoverCandidate};
-    // Pin the proposed insertion slot while the meld expands beneath
-    // a stationary finger. The slot changes only when the finger moves.
-    active.hoverOriginId=hover.id;
-    active.hoverOriginIndex=hover.index;
-    active.hoverOriginX=active.lastX;
-    active.hoverOriginY=active.lastY;
     layout(false,true);
   },hoverPauseMs);
 }
@@ -1366,8 +1360,8 @@ function updateScore(){
 }
 function selectGroup(id){
   if(active||movingGroup)return;
-  const previous=selectedId;selectedId=id;
-  if(!reflowGroups(id)){selectedId=previous;reflowGroups(previous);}
+  // Opening is a floating view of this meld, never a change to the table.
+  selectedId=id;
   layout();
   saveProgress();
 }
@@ -2153,14 +2147,25 @@ function loadLevel(i,{fresh=false}={}) {
   discardedSave=false;discardedSavePuzzles.delete(LEVELS[level].id);
 }
 function maxSequence(){return Math.max(...groups.filter(g=>g.axis==='h').map(g=>g.tiles.length),3);}
+function densityTileCap(){
+  // Large puzzles need room to work, not just enough space to fit. Use the
+  // fixed deck size so splitting, joining or lifting cards keeps this
+  // target steady throughout a gesture and across saved attempts.
+  const count=SAVE_DECKS[level].length;
+  if(count<30)return Infinity;
+  const usableArea=Math.max(1,boardW-24)*Math.max(1,boardH-24);
+  // Keep a readable preferred minimum; emergency packing can still reduce
+  // it on very small screens, as it does for the earlier lessons.
+  return Math.max(36,Math.sqrt(usableArea*.40/count));
+}
 function measure() {
   boardW=board.clientWidth;boardH=board.clientHeight;
   const longest=Math.max(3, maxSequence());
   const maxByW=(boardW-32-2*settings.gap-(longest-1)*settings.gap)/longest;
   const maxByH=(boardH-34-2*settings.gap-3*settings.gap)/4;
-  // Every stage shares the same sizing. The packing pass lowers the cap
-  // only when the current table actually needs more room.
-  actualTile=Math.max(21,Math.floor(Math.min(settings.tile,maxByW,maxByH,adaptiveTileCap)));
+  // Start roomy on crowded tables, retaining the existing row/height and
+  // packing limits as safeguards for unusually long or fragmented melds.
+  actualTile=Math.max(21,Math.floor(Math.min(settings.tile,densityTileCap(),maxByW,maxByH,adaptiveTileCap)));
   document.documentElement.style.setProperty('--tile',`${actualTile}px`);
   document.documentElement.style.setProperty('--gap',`${settings.gap}px`);
   document.documentElement.style.setProperty('--border',`${settings.gap}px`);
@@ -2168,9 +2173,40 @@ function measure() {
   document.documentElement.style.setProperty('--snap-ms',`${settings.spring}ms`);
   syncSuitAlignment();
 }
-// One shape model for both compact groups and the active card-dock animation.
-// The dock layout allocates more room around an insertion slot while the
-// distant cards retain their space-saving overlaps.
+// The preview and its hit targets share the same fitted coordinates. Near
+// an edge, both move inward together, leaving every insertion slot reachable.
+function dockGeometry(g,axis,count=1,index=0){
+  const n=g.tiles.length+count,gap=settings.gap,maxScale=1.10;
+  const available=(axis==='h'?boardW:boardH)-6-gap*2-actualTile*maxScale;
+  const step=Math.max(0,Math.min(actualTile*.58,available/(n-1)));
+  const centers=Array.from({length:n},(_,i)=>(i-(n-1)/2)*step);
+  index=clamp(index,0,g.tiles.length);
+  const scales=centers.map((_,i)=>{
+    if(i>=index&&i<index+count)return maxScale;
+    return i===index-1||i===index+count?1.06:1;
+  });
+  // Fixed outer bounds prevent the row from shifting as the slot changes.
+  const extent=(n-1)*step+actualTile*maxScale+gap*2;
+  const cross=actualTile*maxScale+gap*2;
+  const w=axis==='h'?extent:cross,h=axis==='v'?extent:cross;
+  const x=clamp(g.u*boardW,w/2+3,boardW-w/2-3);
+  const y=clamp(g.v*boardH,h/2+3,boardH-h/2-3);
+  return {n,axis,step,centers,scales,dock:true,focus:index,
+    w,h,x,y,left:x-w/2,top:y-h/2};
+}
+function insertionSlot(g,axis,count,x,y,previous=null){
+  const shape=dockGeometry(g,axis,count),m=g.tiles.length;
+  const along=axis==='h'?x-shape.x:y-shape.y;
+  if(shape.step<=0)return clamp(previous??(along<0?0:m),0,m);
+  const position=along/shape.step+m/2;
+  if(previous===null)return clamp(Math.round(position),0,m);
+  let index=clamp(previous,0,m);
+  const hysteresis=Math.min(actualTile*.10,shape.step*.20)/shape.step;
+  while(index<m&&position>index+.5+hysteresis)index++;
+  while(index>0&&position<index-.5-hysteresis)index--;
+  return index;
+}
+// One shape model for compact groups, floating opened melds and card docks.
 function geometry(g,extra=false,axisOverride=null) {
   // A source reorder uses the N positions that were already open at pickup.
   // Its held card still belongs to the meld, so never add an extra position.
@@ -2201,48 +2237,17 @@ function geometry(g,extra=false,axisOverride=null) {
   const preview=joining||(extra&&hover?.id===g.id&&active?hover:null);
   const dock=open&&preview&&n>1;
 
-  // Resting card positions belong to the table, not to the moving pointer.
-  // An insertion changes a discrete *slot*: cards wait in their compact
-  // places until the pointer crosses one of their original centres.
-  // Then just the nearest neighbours yield; there is no moving-row offset.
-  if(dock) {
-    const index=clamp(preview.index,0,g.tiles.length),count=joining?joining.count:1;
-    // A large incoming block shares the available board span. Its preview
-    // never changes the settled table's tile size or puzzle coordinates.
-    const available=(axis==='h'?boardW:boardH)-6-gap*2-actualTile*1.10;
-    const slotPitch=joining?Math.max(0,Math.min(actualTile*.58,available/(n-1))):actualTile*.58;
-    const slotPositions=Array.from({length:n},(_,i)=>(i-(n-1)/2)*slotPitch);
-    const scales=slotPositions.map((_,i)=>{
-      if(i>=index&&i<index+count)return 1.10;
-      return i===index-1||i===index+count?1.06:1;
-    });
-    const maxScale=1.10;
-    const firstEdge=slotPositions[0]-actualTile*maxScale/2;
-    const lastEdge=slotPositions[n-1]+actualTile*maxScale/2;
-    const axisExtent=(lastEdge-firstEdge)+gap*2;
-    const crossExtent=actualTile*maxScale+gap*2;
-    const w=axis==='h'?axisExtent:crossExtent;
-    const h=axis==='v'?axisExtent:crossExtent;
-    const x=clamp(g.u*boardW,w/2+3,boardW-w/2-3);
-    const y=clamp(g.v*boardH,h/2+3,boardH-h/2-3);
-    const left=x-w/2,top=y-h/2;
-    // The renderer uses `visualOrder` with a ghost placeholder inserted at
-    // `index`, so `slotPositions` already describe exactly where every visible
-    // card and the landing space should sit.
-    return {n,axis,step:slotPitch,centers:slotPositions,scales,
-            dock:true,focus:index,w,h,x,y,left,top};
-  }
+  if(dock)return dockGeometry(g,axis,joining?joining.count:1,preview.index);
 
-  // Compact positions, and fully opened groups when no card is being dragged.
-  const weights=[],scales=[],centers=[0];
+  // A long opened meld fits inside the board by overlapping only as much
+  // as needed. Opening never shrinks cards or repacks neighbouring groups.
+  const preferredStep=actualTile*(open?1.16:.56)+(open?gap*1.1:0);
+  const available=(axis==='h'?boardW:boardH)-6-gap*2-actualTile*1.16;
+  const step=open&&n>1?Math.max(0,Math.min(preferredStep,available/(n-1))):preferredStep;
+  const scales=[],centers=[0];
   for(let i=0;i<n;i++){
-    const weight=open?1:0;
-    weights.push(weight);
     scales.push(open?1.16:1);
-    if(i){
-      const step=actualTile*(open?1.16:.56)+(open?gap*1.1:0);
-      centers.push(centers[i-1]+step);
-    }
+    if(i)centers.push(centers[i-1]+step);
   }
   const firstEdge=centers[0]-actualTile*scales[0]/2;
   const lastEdge=centers[n-1]+actualTile*scales[n-1]/2;
@@ -2362,7 +2367,8 @@ function solveSpaces(items,preferredId=null,preview=false) {
 }
 function spaceItems(extraFor=null,extraAxis=null) {
   return groups.filter(g=>g.tiles.length).map(g=>{
-    const shape=geometry(g,g.id===extraFor,extraAxis);
+    // Selection is visual; settled packing always uses compact footprints.
+    const shape=g.id===extraFor?geometry(g,true,extraAxis):compactBox(g);
     return {id:g.id,g,w:shape.w,h:shape.h,x:g.u*boardW,y:g.v*boardH};
   });
 }
@@ -2613,9 +2619,8 @@ function getHover(clientX,clientY) {
   const x=clientX-br.left,y=clientY-br.top;
   if(x<0||x>boardW||y<0||y>boardH)return null;
 
-  // When a meld is raised it owns only its original card neighbourhood,
-  // not an ever-growing invisible catch area. Its landing space follows the
-  // hovering card continuously while the insertion order changes deliberately.
+  // A raised meld owns its visible landing area. Inward edge clamping must
+  // not leave a displayed end slot outside its own usable catch zone.
   if(active && hover) {
     const focused=groups.find(g=>g.id===hover.id);
     // The raised meld keeps offering a landing slot regardless of whether
@@ -2623,10 +2628,7 @@ function getHover(clientX,clientY) {
     if(focused?.tiles.length) {
       const axis=hover.axis||focused.axis;
       const box=compactBox(focused);
-      const along=axis==='h'?x-box.x:y-box.y;
-      const across=axis==='h'?y-box.y:x-box.x;
-      const length=(focused.tiles.length-1)*actualTile*.56/2;
-      const visible=geometry(focused,true,axis);
+      const visible=dockGeometry(focused,axis,1,hover.index);
       // A single tile can invite a matching card from the side even though
       // the resulting set must open vertically. Keep that initial contact
       // active while the spring expands the set, instead of closing it
@@ -2634,39 +2636,14 @@ function getHover(clientX,clientY) {
       // The held card can overlap a raised multi-card meld from either
       // side, not only by placing its centre inside the green outline.
       const contactPad=actualTile*.48+magnetMargin()*.12;
-      const onMeld=focused.tiles.length===1
-        ? soloContact(x,y,box)
-        : x>=visible.left-contactPad &&
+      const onMeld=(focused.tiles.length===1&&soloContact(x,y,box)) ||
+          x>=visible.left-contactPad &&
           x<=visible.left+visible.w+contactPad &&
           y>=visible.top-contactPad &&
           y<=visible.top+visible.h+contactPad;
-      if(onMeld && (focused.tiles.length===1 ||
-         (Math.abs(along)<=length+actualTile*1.55 &&
-          Math.abs(across)<=actualTile+magnetMargin()*.14))){
-        if(focused.tiles.length===1){
-          const card=focused.tiles[0],moving=active.tile;
-          // A two-card set can only start with matching ranks. Other
-          // combinations stay horizontally oriented, even from above.
-          const chosenAxis=soloPairAxis(card,moving);
-          const d=chosenAxis==='h'?x-box.x:y-box.y;
-          // Even a sideways approach to a matching rank produces a vertical
-          // slot. Use the side of the target's centre along the legal axis.
-          // The *preview* opens on the physical approach side. Numeric
-          // sorting belongs to the committed run, not to the hover animation.
-          const index=d>=0?1:0;
-          return {id:focused.id,index,axis:chosenAxis};
-        }
-
-        // Slot changes only as the finger crosses a card's original,
-        // stationary centre. A little hysteresis prevents rapid flicker.
-        const m=focused.tiles.length;
-        const pitch=actualTile*.56;
-        const home=Array.from({length:m},(_,i)=>(i-(m-1)/2)*pitch);
-        let index=hover.index;
-        const hysteresis=actualTile*.10;
-        while(index<m && along>home[index]+hysteresis)index++;
-        while(index>0 && along<home[index-1]-hysteresis)index--;
-        return {id:focused.id,index,axis:hover.axis};
+      if(onMeld){
+        const index=insertionSlot(focused,axis,1,x,y,hover.index);
+        return {id:focused.id,index,axis};
       }
     }
   }
@@ -2687,12 +2664,7 @@ function getHover(clientX,clientY) {
       // Unrelated cards can still combine incorrectly, but as a red run
       // rather than a misleading sideways/vertical set.
       const axis=soloPairAxis(other,moving);
-      const along=axis==='h'?dx:dy;
-      // Approach direction must not affect legality or whether the target
-      // raises. Only the slot orientation follows run/set rules.
-      // Show an opening on the side the incoming card actually touches.
-      // If it forms a run, we'll arrange the ranks correctly on release.
-      const index=along>=0?1:0;
+      const index=insertionSlot(g,axis,1,x,y);
       const score=near*.40-(hover?.id===g.id?actualTile*.035:0);
       if(score<bestDist){
         best={id:g.id,index,axis};
@@ -2700,7 +2672,6 @@ function getHover(clientX,clientY) {
       }
       continue;
     }
-    const along=g.axis==='h'?x-box.x:y-box.y;
     const across=g.axis==='h'?y-box.y:x-box.x;
     // Approach the actual compact stack from any direction. All cards can
     // join; the resulting meld's colour is decided only after the drop.
@@ -2710,7 +2681,7 @@ function getHover(clientX,clientY) {
     const outsideX=Math.max(box.left-x,0,x-(box.left+box.w));
     const outsideY=Math.max(box.top-y,0,y-(box.top+box.h));
     let dist=(outsideX**2+outsideY**2)*.9 + Math.abs(across)*.1;
-    const index=clamp(Math.round(along/box.step+g.tiles.length/2),0,g.tiles.length);
+    const index=insertionSlot(g,g.axis,1,x,y);
     dist-=hover?.id===g.id?actualTile*.035:0;
     if(dist<bestDist){best={id:g.id,index};bestDist=dist;}
   }
@@ -2719,13 +2690,13 @@ function getHover(clientX,clientY) {
 // Move a whole meld, not a tile. Other melds remain anchored during the
 // gesture. On release, only the dragged meld is allowed to seek free space.
 function nearestFreeMeldCenter(g,x0,y0){
-  const box=geometry(g,false);
+  const box=compactBox(g);
   const w=box.w,h=box.h,margin=Math.max(7,settings.gap*1.6);
   const minX=w/2+3,maxX=boardW-w/2-3;
   const minY=h/2+3,maxY=boardH-h/2-3;
   if(minX>maxX||minY>maxY)return null;
   const x=clamp(x0,minX,maxX),y=clamp(y0,minY,maxY);
-  const neighbours=groups.filter(p=>p!==g&&p.tiles.length).map(p=>geometry(p,false));
+  const neighbours=groups.filter(p=>p!==g&&p.tiles.length).map(compactBox);
   const xs=[x,minX,maxX],ys=[y,minY,maxY];
   for(const p of neighbours){
     xs.push(p.x-(p.w+w)/2-margin,p.x+(p.w+w)/2+margin);
@@ -2758,6 +2729,18 @@ function getMeldJoinTarget(m){
   const br=board.getBoundingClientRect();
   if(m.lastX<br.left||m.lastX>br.left+boardW||
      m.lastY<br.top||m.lastY>br.top+boardH)return null;
+  // Once a target has opened, its visible block slots take precedence over
+  // compact neighbours beneath it. Following a displayed end remains valid.
+  const focused=m.join&&groups.find(g=>g.id===m.join.id);
+  if(focused?.tiles.length){
+    const axis=m.join.axis,visible=dockGeometry(focused,axis,m.count,m.join.index);
+    const pad=actualTile*.48+magnetMargin()*.12;
+    if(m.aimX>=visible.left-pad&&m.aimX<=visible.left+visible.w+pad&&
+       m.aimY>=visible.top-pad&&m.aimY<=visible.top+visible.h+pad){
+      const index=insertionSlot(focused,axis,m.count,m.aimX,m.aimY,m.join.index);
+      return {id:focused.id,index,axis,count:m.count};
+    }
+  }
   // The actual compact body makes contact; the unclamped held centre aims
   // the insertion. A long meld can therefore reach an end near a board edge.
   const body=compactBox(source),previous=m.join||m.candidate;
@@ -2772,16 +2755,8 @@ function getMeldJoinTarget(m){
     const contact=overlapW*overlapH/(Math.min(body.w,box.w)*Math.min(body.h,box.h));
     if(contact<.36)continue;
     const axis=target.tiles.length>1?target.axis:source.axis;
-    const along=axis==='h'?m.aimX-box.x:m.aimY-box.y;
-    const count=target.tiles.length;
-    let index=clamp(Math.round(along/box.step+count/2),0,count);
-    if(previous?.id===target.id){
-      index=clamp(previous.index,0,count);
-      const hysteresis=actualTile*.10;
-      const home=i=>(i-(count-1)/2)*box.step;
-      while(index<count&&along>home(index)+hysteresis)index++;
-      while(index>0&&along<home(index-1)-hysteresis)index--;
-    }
+    const index=insertionSlot(target,axis,m.count,m.aimX,m.aimY,
+      previous?.id===target.id?previous.index:null);
     const outsideX=Math.max(box.left-m.aimX,0,m.aimX-box.left-box.w);
     const outsideY=Math.max(box.top-m.aimY,0,m.aimY-box.top-box.h);
     const score=outsideX**2+outsideY**2+
@@ -2838,6 +2813,9 @@ function beginMeldMove(e){
     aimX:box.x,aimY:box.y,hasMoved:false,
     join:null,candidate:null,joinTimer:0
   };
+  // An edge-clamped open meld may have floated inward. Pick it up from
+  // that visible centre; a cancelled or unmoved grip restores its old home.
+  g.u=box.x/boardW;g.v=box.y/boardH;
   if(meldGrip.setPointerCapture){
     try{meldGrip.setPointerCapture(e.pointerId);}catch(_){}
   }
@@ -3020,14 +2998,21 @@ function pointerDown(e,t) {
   moveDrag(e);
   layout();
 }
+function cardDragPoint(a,clientX,clientY,rect=board.getBoundingClientRect()){
+  // The held card's visible centre is also its drop aim. Pickup offsets
+  // must not select a different slot, or reject an in-board edge release.
+  return {
+    x:clamp(clientX+a.dx,rect.left+actualTile/2,rect.right-actualTile/2),
+    y:clamp(clientY+a.dy,rect.top+actualTile/2,rect.bottom-actualTile/2),
+    inside:clientX>=rect.left&&clientX<=rect.right&&
+           clientY>=rect.top&&clientY<=rect.bottom
+  };
+}
 function moveDrag(e) {
   if(!active||e.pointerId!==active.pointerId)return;
   e.preventDefault();
   const a=active;
-  let x=e.clientX+a.dx,y=e.clientY+a.dy;
-  const b=board.getBoundingClientRect();
-  x=clamp(x,b.left+actualTile/2,b.right-actualTile/2);
-  y=clamp(y,b.top+actualTile/2,b.bottom-actualTile/2);
+  const {x,y}=cardDragPoint(a,e.clientX,e.clientY);
   posStyle(a.tile.el,x-actualTile/2,y-actualTile/2,1.035);
   a.lastX=x;a.lastY=y;
   if(a.pendingMeld) {
@@ -3067,9 +3052,9 @@ function pointerUp(e) {
   if(!active||e.pointerId!==active.pointerId)return;
   e.preventDefault();
   const a=active,t=a.tile,br=board.getBoundingClientRect();
-  const x=e.clientX+a.dx,y=e.clientY+a.dy;
+  const {x,y,inside}=cardDragPoint(a,e.clientX,e.clientY,br);
   if(Math.hypot(e.clientX-a.startX,e.clientY-a.startY)<7){cancelDrag();return;}
-  if(x<br.left||x>br.right||y<br.top||y>br.bottom){cancelDrag();return;}
+  if(!inside){cancelDrag();return;}
   let g;
   if(a.pendingMeld&&!hasPulledClearOfMeld(a,x,y)){
     updatePendingReorder(a,x,y);
@@ -3267,7 +3252,7 @@ const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[
 loadLevel(firstLevel);scheduleBoardFit();
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.4.2 · The First Two Chapters';
+  const APP_VERSION='0.4.5 · The First Two Chapters';
   const ROADMAP_ITEMS = [
     'Done now: midnight felt, linen-paper cards, gradient suits, centred celebration, Replay, version badge.',
     'Done now: save & resume unfinished stages; completed stages start fresh after you move on.',
