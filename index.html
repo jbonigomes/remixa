@@ -687,24 +687,77 @@ html,body{-webkit-text-size-adjust:100%;}
   top:50%;
   font-size:calc(var(--tile) * .87106);
 }
+
+/* Remixa 0.5.0 · Master/detail stage navigation. */
+#home {
+  position:fixed;inset:0;z-index:20;overflow:auto;overscroll-behavior:contain;
+  padding:max(22px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right))
+          max(24px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left));
+  background:
+    radial-gradient(ellipse 72% 115% at 24% -12%,rgba(87,66,144,.40),transparent 65%),
+    radial-gradient(ellipse 55% 85% at 100% 0%,rgba(40,78,120,.30),transparent 72%),
+    linear-gradient(145deg,#17172f 0%,#11182b 48%,#0b1424 100%);
+  color:var(--ink);touch-action:pan-y;
+}
+#home[hidden],#app.view-hidden {display:none!important;}
+.home-shell{width:min(960px,100%);margin:0 auto;}
+.home-top{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin:2px 2px 20px;}
+.home-brand{font-size:42px;line-height:.95;font-weight:880;letter-spacing:-2.7px;color:#ffdf98;text-shadow:0 1px 0 #fff3,0 8px 20px #0003;}
+.home-sub{margin-top:8px;color:#b8c3d6;font-size:12px;letter-spacing:.045em;}
+.home-count{color:#8796b1;font-size:11px;letter-spacing:.09em;text-transform:uppercase;white-space:nowrap;}
+.chapter-block+ .chapter-block{margin-top:24px;}
+.chapter-title{display:flex;align-items:center;gap:10px;margin:0 2px 9px;color:#d5dced;font-size:11px;font-weight:850;letter-spacing:.12em;text-transform:uppercase;}
+.chapter-title::after{content:"";height:1px;flex:1;background:#ffffff12;}
+.stage-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.stage-row{width:100%;min-width:0;display:grid;grid-template-columns:38px minmax(0,1fr) auto;align-items:center;gap:10px;text-align:left;padding:10px 12px;border:1px solid #455277;border-radius:13px;background:linear-gradient(180deg,#222b4bcf,#18213dcf);color:#eef2f1;box-shadow:inset 0 1px 0 #ffffff0d,0 8px 20px #0002;}
+.stage-row:active{background:linear-gradient(180deg,#2a355acf,#202a4acf);transform:translateY(1px);}
+.stage-num{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:#ffffff0b;border:1px solid #ffffff12;color:#f7dda0;font-size:11px;font-weight:850;font-variant-numeric:tabular-nums;}
+.stage-copy{min-width:0;}
+.stage-name{display:block;font-size:13px;font-weight:820;letter-spacing:-.015em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.stage-skill{display:block;margin-top:2px;color:#98a8bf;font-size:10px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.stage-status{text-align:right;font-size:9px;line-height:1.35;letter-spacing:.07em;text-transform:uppercase;color:#aab8cb;white-space:nowrap;}
+.stage-status.resume{color:#65dfb4;font-weight:800;}
+.stage-status.best{color:#f4d58f;}
+#header.game-header{justify-content:space-between;padding-inline:10px;}
+.game-back{font-size:26px;font-weight:500;}
+#header .game-score{margin-left:auto;margin-right:auto;}
+#header .game-score #scoreHud{margin:0;}
+#rotate{overflow:auto;justify-content:flex-start;padding-top:max(22px,env(safe-area-inset-top));padding-bottom:max(22px,env(safe-area-inset-bottom));}
+#rotate .rot-icon{flex:none;}
+.rotate-build{margin-top:2px;padding:4px 9px;border:1px solid #ffffff18;border-radius:999px;background:#ffffff09;color:#f5d898;font-size:10px;font-weight:850;letter-spacing:.08em;text-transform:uppercase;}
+.rotate-roadmap{width:min(520px,100%);margin-top:6px;padding:12px 14px;border:1px solid #ffffff12;border-radius:14px;background:#ffffff06;text-align:left;}
+.rotate-roadmap strong{display:block;margin-bottom:7px;color:#f0e6c5;font-size:10px;letter-spacing:.11em;text-transform:uppercase;}
+.rotate-roadmap ul{margin:0;padding-left:17px;color:#b9c4d7;font-size:10px;line-height:1.45;}
+.rotate-roadmap li+li{margin-top:4px;}
+@media(max-width:720px) and (orientation:landscape){
+  .home-top{margin-bottom:12px;} .home-brand{font-size:34px;} .stage-list{grid-template-columns:1fr;}
+  .stage-row{padding:8px 10px;} .chapter-block+ .chapter-block{margin-top:18px;}
+}
+@media(max-height:430px) and (orientation:landscape){
+  #home{padding-top:12px;padding-bottom:14px;} .home-top{margin-bottom:10px;} .home-brand{font-size:31px;}
+  .stage-row{padding:7px 9px;} .stage-num{width:29px;height:29px;} .chapter-title{margin-bottom:7px;}
+}
+
 </style>
 </head>
 <body>
-<div id="app">
-  <header id="header">
-    <div class="brand">remixa</div>
-    <div class="header-center"><span class="stage-progress"><span id="chapterLabel">CHAPTER 1</span><span id="levelLabel">01 / 20</span></span><span id="levelName">Three Make a Run</span><span id="scoreHud" aria-live="polite"><span>MOVES <b id="moves">0</b></span><span>BEST <b id="best">—</b></span></span></div>
+<div id="home">
+  <div class="home-shell">
+    <div class="home-top">
+      <div><div class="home-brand">remixa</div><div class="home-sub">Choose a stage. Unfinished tables resume automatically.</div></div>
+      <div class="home-count">20 stages · 2 chapters</div>
+    </div>
+    <div id="stageCatalog"></div>
+  </div>
+</div>
+<div id="app" class="view-hidden">
+  <header id="header" class="game-header">
+    <button class="icon-btn game-back" id="homeBack" aria-label="Back to stages">‹</button>
+    <div class="header-center game-score"><span id="scoreHud" aria-live="polite"><span>MOVES <b id="moves">0</b></span><span>BEST <b id="best">—</b></span></span></div>
     <div class="header-controls">
-      <button class="icon-btn" id="prev" aria-label="Previous puzzle">‹</button>
-      <button class="icon-btn" id="next" aria-label="Next puzzle">›</button>
       <button class="header-small-btn" id="undo" aria-label="Undo last move">UNDO</button>
       <button class="header-small-btn" id="reset" aria-label="Restart current puzzle">RESET</button>
       <button class="icon-btn" id="hint" aria-label="Show a hint" aria-expanded="false" aria-controls="lessonCue" title="A little help">?</button>
-      <button class="icon-btn" id="about" aria-label="About Remixa" aria-controls="lab" aria-expanded="false" title="About Remixa">
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" focusable="false">
-          <circle cx="12" cy="12" r="9"/><path d="M12 11v6" stroke-linecap="round"/><circle cx="12" cy="7.5" r="1" fill="currentColor" stroke="none"/>
-        </svg>
-      </button>
     </div>
   </header>
   <main id="play">
@@ -752,14 +805,20 @@ html,body{-webkit-text-size-adjust:100%;}
     <div class="win-actions"><button id="replayWin" aria-label="Replay this puzzle from the beginning">REPLAY</button><button class="primary-btn" id="nextWin">NEXT LEVEL →</button></div>
   </div>
 </div>
-<div id="lab" role="dialog" aria-label="About Remixa">
-  <div class="lab-head"><strong>About Remixa</strong><button id="closeLab" aria-label="Close information panel">×</button></div>
-  <div class="lab-save" id="saveInfo"><strong id="saveLabel">Automatic save</strong><span id="saveDetail">Your table, moves and Undo history save on this device. Return here to pick up where you left off.</span></div>
-  <div class="lab-save" id="puzzleInfo"><strong id="puzzleIdentity"></strong><span class="puzzle-line" id="puzzleRules"></span><p class="puzzle-help">Personal bests compare the same puzzle revision and rules.</p><span class="puzzle-line" id="legacyBest" hidden></span></div>
-  <div class="lab-foot"><button id="closeLab2">Done</button></div>
-</div>
+<div id="lab" hidden aria-hidden="true"><div id="saveInfo"><strong id="saveLabel"></strong><span id="saveDetail"></span></div><strong id="puzzleIdentity"></strong><span id="puzzleRules"></span><span id="legacyBest" hidden></span></div>
 <div id="rotate">
-  <button type="button" class="rot-icon" id="portraitReload" aria-label="Reload Remixa" title="Reload Remixa">↻</button><strong>Rotate your phone</strong><p>Remixa feels best in landscape, where there's room to play.</p>
+  <button type="button" class="rot-icon" id="portraitReload" aria-label="Reload Remixa" title="Reload Remixa">↻</button>
+  <strong>Rotate your phone</strong>
+  <p>Remixa feels best in landscape, where there's room to play.</p>
+  <div class="rotate-build">Build 0.5.0 · Master / Detail</div>
+  <div class="rotate-roadmap"><strong>Roadmap</strong><ul>
+    <li>Frozen / locked hand cards.</li>
+    <li>Daily challenges, streaks and leaderboards.</li>
+    <li>Sound, haptics, logo, profile/avatar, legal and feedback links.</li>
+    <li>Package for app stores, including icon, screenshots and video assets.</li>
+    <li>Final round of gameplay refinement.</li>
+    <li>Create stages up to 100.</li>
+  </ul></div>
 </div>
 <script>
 'use strict';
@@ -1227,6 +1286,7 @@ const pendingBests=new Map();
 const settings=Object.freeze({tile:58,corner:4,gap:2,spring:180,magnet:55});
 const board=$('board'), groupsLayer=$('groupLayer'), tilesLayer=$('tileLayer'), raisedLayer=$('raisedLayer'), dragLayer=$('dragLayer'), meldGrip=$('meldGrip');
 let tiles=[],groups=[],active=null,hover=null,history=[],level=0,won=false,nextID=1,nextGroup=1;
+let currentView='home';
 let moves=0,selectedId=null,movingGroup=null,winRecord=false,scoreSource='completed-run';
 let actualTile=58,boardW=1,boardH=1,adaptiveTileCap=Infinity;
 // A purely visual collision preview; puzzle positions remain untouched until drop.
@@ -2077,12 +2137,16 @@ for(const type of ['pointerdown','keydown'])document.addEventListener(type,()=>{
 },{capture:true});
 function loadLevel(i,{fresh=false}={}) {
   const destination=(i+LEVELS.length)%LEVELS.length,initialLoad=!progressReady;
+  const leavingGame=currentView==='game';
   if(movingGroup)finishMeldMove(null,true);
   if(active)cancelDrag();
-  if(progressReady&&won&&destination!==level){
+  if(leavingGame&&progressReady&&won&&destination!==level){
     recordBest(moves,level,scoreSource);
     retireAttempt(level);
-  }else saveProgress();
+  }else if(leavingGame) saveProgress();
+  currentView='game';
+  $('home').hidden=true;
+  $('app').classList.remove('view-hidden');
   loadingLevel=true;
   refreshProgress();
   resetHoverIntent();
@@ -2111,9 +2175,6 @@ function loadLevel(i,{fresh=false}={}) {
   source.loose.forEach(p=>{
     groups.push(groupNew([tileNew(p.n,p.c)],'h',p.u,p.v));
   });
-  $('levelLabel').textContent=`${String(level+1).padStart(2,'0')} / ${String(LEVELS.length).padStart(2,'0')}`;
-  $('chapterLabel').textContent='CHAPTER '+source.chapter;
-  $('levelName').textContent=source.name;
   $('win').classList.remove('show');
   $('winStats').innerHTML='';
   lessonHintOpen=false;
@@ -2135,11 +2196,8 @@ function loadLevel(i,{fresh=false}={}) {
   updateScore();
   if(won)renderWin();
   if(nudgeCards())startNudge();
-  // Keep playtesting links in step with navigation so reload resumes the
-  // stage on screen, rather than returning to an obsolete URL fragment.
-  if(/^#(?:level-?)?\d+$/.test(location.hash)){
-    try{window.history.replaceState(null,'','#level-'+(level+1));}catch(_){}
-  }
+  // The URL remembers whether the player is in the master list or a stage.
+  try{window.history.replaceState(null,'','#level-'+(level+1));}catch(_){}
   loadingLevel=false;progressReady=true;
   saveProgress();
   if(saveAvailable){
@@ -3152,26 +3210,64 @@ function undo() {
 }
 $('undo').addEventListener('click',undo);
 $('reset').addEventListener('click',()=>loadLevel(level,{fresh:true}));
-$('prev').addEventListener('click',()=>loadLevel(level-1));
-$('next').addEventListener('click',()=>loadLevel(level+1));
 $('nextWin').addEventListener('click',()=>{
   const last=level===LEVELS.length-1;
   loadLevel(last?level:level+1,{fresh:last});
 });
 $('replayWin').addEventListener('click',()=>loadLevel(level,{fresh:true}));
 const lab=$('lab');
-function hideLab(){
-  lab.classList.remove('show');
-  $('about').setAttribute('aria-expanded','false');
-  updateLessonCue();
+function hideLab(){ updateLessonCue(); }
+function renderStageCatalog(){
+  refreshProgress();
+  const host=$('stageCatalog');
+  host.innerHTML='';
+  const chapters=new Map();
+  LEVELS.forEach((p,index)=>{
+    if(!chapters.has(p.chapter))chapters.set(p.chapter,[]);
+    chapters.get(p.chapter).push({p,index});
+  });
+  for(const [chapter,items] of chapters){
+    const block=document.createElement('section');
+    block.className='chapter-block';
+    const title=document.createElement('div');
+    title.className='chapter-title';
+    title.textContent='Chapter '+chapter;
+    const list=document.createElement('div');
+    list.className='stage-list';
+    for(const {p,index} of items){
+      const saved=progressData.puzzles[puzzleKey(index)];
+      const best=readBest(index);
+      const button=document.createElement('button');
+      button.className='stage-row';
+      button.type='button';
+      const status=saved&&!saved.won
+        ? `<span class="stage-status resume">Resume · ${saved.moves} move${saved.moves===1?'':'s'}</span>`
+        : best!==null
+          ? `<span class="stage-status best">Best · ${best}</span>`
+          : '<span class="stage-status">New</span>';
+      button.innerHTML=`<span class="stage-num">${String(index+1).padStart(2,'0')}</span>`+
+        `<span class="stage-copy"><span class="stage-name">${p.name}</span><span class="stage-skill">${p.skill||''}</span></span>${status}`;
+      button.addEventListener('click',()=>{loadLevel(index);scheduleBoardFit();});
+      list.appendChild(button);
+    }
+    block.append(title,list);host.appendChild(block);
+  }
 }
-$('about').addEventListener('click',()=>{
-  const open=lab.classList.toggle('show');
-  $('about').setAttribute('aria-expanded',String(open));
-  updateLessonCue();
-});
-$('closeLab').addEventListener('click',hideLab);
-$('closeLab2').addEventListener('click',hideLab);
+function showHome(){
+  if(currentView==='game'){
+    if(movingGroup)finishMeldMove(null,true);
+    if(active)cancelDrag();
+    if(won){recordBest(moves,level,scoreSource);retireAttempt(level);}
+    else saveProgress();
+  }
+  currentView='home';
+  $('win').classList.remove('show');
+  $('app').classList.add('view-hidden');
+  $('home').hidden=false;
+  refreshProgress();renderStageCatalog();
+  try{window.history.replaceState(null,'','#home');}catch(_){}
+}
+$('homeBack').addEventListener('click',showHome);
 // Rotation on mobile browsers is a sequence of changing viewports, not one
 // final resize event. Wait until the actual board rectangle stabilises and
 // reflow again when ResizeObserver reports its final dimensions.
@@ -3224,53 +3320,34 @@ if(window.visualViewport)window.visualViewport.addEventListener('resize',schedul
 if(window.ResizeObserver)
   new ResizeObserver(scheduleBoardFit).observe(board);
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape')hideLab();
+  if(e.key==='Escape'&&currentView==='game')showHome();
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}
 });
-// An explicit level link takes priority; otherwise return to the last table.
-// First-time players still begin at Level 1.
+// The stage catalogue is the default master view. A level hash can still
+// deep-link directly into a detail view for testing or a future shared link.
 progressData=readProgress(true)||emptyProgress();
 const deepLevel=/^#(?:level-?)?(\d+)$/.exec(location.hash);
-const resumedLevel=LEVELS.findIndex(p=>p.id===progressData.lastPuzzleId);
-const firstLevel=deepLevel?Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[1])-1)):Math.max(0,resumedLevel);
-loadLevel(firstLevel);scheduleBoardFit();
+if(deepLevel){
+  const firstLevel=Math.max(0,Math.min(LEVELS.length-1,Number(deepLevel[1])-1));
+  loadLevel(firstLevel);scheduleBoardFit();
+}else{
+  progressReady=true;
+  showHome();
+}
+window.addEventListener('hashchange',()=>{
+  if(location.hash==='#home'||!location.hash){if(currentView!=='home')showHome();return;}
+  const match=/^#(?:level-?)?(\d+)$/.exec(location.hash);
+  if(match){
+    const index=Math.max(0,Math.min(LEVELS.length-1,Number(match[1])-1));
+    if(currentView!=='game'||index!==level){loadLevel(index);scheduleBoardFit();}
+  }
+});
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.4.6 · The First Two Chapters';
-  const ROADMAP_ITEMS = [
-    'Done now: midnight felt, linen-paper cards, gradient suits, centred celebration, Replay, version badge.',
-    'Done now: save & resume unfinished stages; completed stages start fresh after you move on.',
-    'Done now: overlapping melds, tap to open and free meld dragging on every stage.',
-    'Done now: 20 authored stages across two chapters, from three cards to a full 52-card table.',
-    'Done now: a gentle hand teaches the opening three-card run; optional hints support every stage.',
-    'Done now: free meld movement, borrowing and rebuilding are taught in Chapter Two.',
-    'Done now: two-deck inventory checks for every puzzle.',
-    'Done now: permanent puzzle IDs, puzzle revisions and separate bests for each rule version.',
-    'Explore: frozen or locked hand cards that unlock when the table is ready.',
-    'Done now: fuller, rounder hearts, clubs and spades with subtle ink gradients.',
-    'Explore: a refined end-of-level flow and richer results beyond Replay / Next.',
-    'Explore: daily challenge, streaks, leaderboard, replay completed stages.',
-    'Explore: sound, haptics, logo/app icon, profile name/avatar, feedback & legal links.'
-  ];
-
-  // Make the PWA chrome and browser UI match the cozier table theme.
+  const APP_VERSION='0.5.0 · Master / Detail';
   const themeMeta=document.querySelector('meta[name="theme-color"]');
   if(themeMeta) themeMeta.setAttribute('content','#15182d');
-  document.title='Remixa · The First Two Chapters';
-
-  // Add a compact roadmap / version note inside the information panel.
-  const lab=document.getElementById('lab');
-  if(lab && !document.getElementById('roadmapBlock')){
-    const block=document.createElement('section');
-    block.className='lab-roadmap';
-    block.id='roadmapBlock';
-    block.innerHTML=
-      '<div class="lab-version">Build '+APP_VERSION+'</div>'+
-      '<h4>Roadmap</h4>'+
-      '<ul>'+ROADMAP_ITEMS.map(item=>'<li>'+item+'</li>').join('')+'</ul>';
-    const foot=lab.querySelector('.lab-foot');
-    lab.insertBefore(block, foot || null);
-  }
+  document.title='Remixa';
 
   // Subtle confetti so the player can still admire the final table.
   let confettiTimer=0;
