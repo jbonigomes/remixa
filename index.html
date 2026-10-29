@@ -688,7 +688,7 @@ html,body{-webkit-text-size-adjust:100%;}
   font-size:calc(var(--tile) * .87106);
 }
 
-/* Remixa 0.5.1 · Master/detail stage navigation. */
+/* Remixa 0.5.2 · Master/detail stage navigation. */
 #home {
   position:fixed;inset:0;z-index:20;overflow:auto;overscroll-behavior:contain;
   padding:max(22px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right))
@@ -718,31 +718,34 @@ html,body{-webkit-text-size-adjust:100%;}
 .stage-status{text-align:right;font-size:9px;line-height:1.35;letter-spacing:.07em;text-transform:uppercase;color:#aab8cb;white-space:nowrap;}
 .stage-status.resume{color:#65dfb4;font-weight:800;}
 .stage-status.best{color:#f4d58f;}
-#header.game-header{justify-content:space-between;padding-inline:10px;}
-.game-left{display:flex;align-items:center;gap:8px;min-width:112px;}
+#header.game-header{justify-content:flex-start;padding-inline:10px;gap:8px;}
+.game-left{display:flex;align-items:center;gap:8px;flex:0 0 auto;}
 .game-back{font-size:26px;font-weight:500;}
 .game-level{font-size:10px;font-weight:850;letter-spacing:.105em;color:#f4d58f;white-space:nowrap;font-variant-numeric:tabular-nums;}
-#header .game-score{margin-left:auto;margin-right:auto;}
-#header .game-score #scoreHud{margin:0;}
-#gameGuide{min-height:31px;display:flex;align-items:center;justify-content:center;gap:10px;padding:0 12px 5px;flex:none;}
-#gameGuide #lessonCue{position:static;transform:none;width:auto;max-width:min(560px,60vw);padding:4px 10px;font-size:11px;line-height:1.35;opacity:0;display:none;flex:0 1 auto;}
+#gameGuide{display:flex;align-items:center;justify-content:center;flex:1 1 auto;min-width:0;overflow:hidden;padding:0 4px;}
+#gameGuide #lessonCue{position:static;transform:none;width:auto;max-width:100%;min-width:0;padding:3px 8px;font-size:10px;line-height:1.2;opacity:0;display:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;}
 #gameGuide #lessonCue.show{display:block;opacity:.92;}
-#gameGuide #lessonCue.expanded{max-width:min(620px,70vw);padding:6px 11px;}
-#gameGuide #lessonCue.meld-move{padding:3px 9px;}
-#gameGuide #tableHint{position:static;transform:none;top:auto;left:auto;flex:0 1 auto;font-size:9px;line-height:1.2;}
-#gameGuide.lesson-visible{justify-content:space-between;}
+#gameGuide #lessonCue.expanded{max-width:100%;padding:3px 8px;}
+#gameGuide #lessonCue.meld-move{padding:3px 8px;}
+#gameGuide #tableHint{position:static;transform:none;top:auto;left:auto;min-width:0;max-width:100%;font-size:8px;line-height:1.2;letter-spacing:.09em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;}
+#gameGuide.lesson-visible #tableHint{display:none;}
+#header .game-score{margin:0;flex:0 0 auto;}
+#header .game-score #scoreHud{margin:0;}
+#header .header-controls{flex:0 0 auto;}
 @media(max-width:760px) and (orientation:landscape){
-  .game-left{min-width:91px;gap:5px;}
-  .game-level{font-size:9px;letter-spacing:.075em;}
-  #gameGuide{min-height:27px;padding:0 8px 4px;gap:6px;}
-  #gameGuide #lessonCue{max-width:68vw;font-size:10px;padding:3px 8px;}
-  #gameGuide #tableHint{font-size:8px;letter-spacing:.09em;}
-  #gameGuide.lesson-visible #tableHint{display:none;}
+  #header.game-header{padding-inline:7px;gap:5px;}
+  .game-left{gap:4px;}
+  .game-level{font-size:9px;letter-spacing:.06em;}
+  #gameGuide{padding:0 1px;}
+  #gameGuide #lessonCue{font-size:9px;padding:2px 5px;}
+  #gameGuide #tableHint{font-size:7px;letter-spacing:.055em;}
 }
-@media(max-height:360px) and (orientation:landscape){
-  #gameGuide{min-height:24px;padding-bottom:2px;}
-  #gameGuide #lessonCue{font-size:9px;}
-  #gameGuide #tableHint{font-size:7.5px;}
+@media(max-width:680px) and (orientation:landscape){
+  #gameGuide #tableHint{font-size:0;}
+  #gameGuide #tableHint::after{content:'DRAG CARDS · ⠿ MOVES MELDS';font-size:7px;}
+}
+@media(max-width:590px) and (orientation:landscape){
+  #gameGuide{display:none;}
 }
 #rotate{overflow:auto;justify-content:flex-start;padding-top:max(22px,env(safe-area-inset-top));padding-bottom:max(22px,env(safe-area-inset-bottom));}
 #rotate .rot-icon{flex:none;}
@@ -775,6 +778,10 @@ html,body{-webkit-text-size-adjust:100%;}
 <div id="app" class="view-hidden">
   <header id="header" class="game-header">
     <div class="game-left"><button class="icon-btn game-back" id="homeBack" aria-label="Back to stages">‹</button><span class="game-level" id="gameLevel">LEVEL 01</span></div>
+    <div id="gameGuide" aria-live="polite">
+      <div id="lessonCue">Make everything green.</div>
+      <div id="tableHint">TAP MELD <span>·</span> DRAG ⠿ <span>·</span> DRAG CARDS</div>
+    </div>
     <div class="header-center game-score"><span id="scoreHud" aria-live="polite"><span>MOVES <b id="moves">0</b></span><span>BEST <b id="best">—</b></span></span></div>
     <div class="header-controls">
       <button class="header-small-btn" id="undo" aria-label="Undo last move">UNDO</button>
@@ -782,10 +789,6 @@ html,body{-webkit-text-size-adjust:100%;}
       <button class="icon-btn" id="hint" aria-label="Show a hint" aria-expanded="false" aria-controls="lessonCue" title="A little help">?</button>
     </div>
   </header>
-  <div id="gameGuide">
-    <div id="lessonCue" aria-live="polite">Make everything green.</div>
-    <div id="tableHint">TAP A MELD <span>·</span> DRAG ⠿ TO MOVE IT <span>·</span> DRAG CARDS TO REMIX</div>
-  </div>
   <main id="play">
     <section id="board" aria-label="Puzzle board">
       <div id="groupLayer"></div>
@@ -834,7 +837,7 @@ html,body{-webkit-text-size-adjust:100%;}
   <button type="button" class="rot-icon" id="portraitReload" aria-label="Reload Remixa" title="Reload Remixa">↻</button>
   <strong>Rotate your phone</strong>
   <p>Remixa feels best in landscape, where there's room to play.</p>
-  <div class="rotate-build">Build 0.5.1 · Master / Detail</div>
+  <div class="rotate-build">Build 0.5.2 · Master / Detail</div>
   <div class="rotate-roadmap"><strong>Roadmap</strong><ul>
     <li>Frozen / locked hand cards.</li>
     <li>Daily challenges, streaks and leaderboards.</li>
@@ -3370,7 +3373,7 @@ window.addEventListener('hashchange',()=>{
 });
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.5.1 · Master / Detail';
+  const APP_VERSION='0.5.2 · Master / Detail';
   const themeMeta=document.querySelector('meta[name="theme-color"]');
   if(themeMeta) themeMeta.setAttribute('content','#15182d');
   document.title='Remixa';
