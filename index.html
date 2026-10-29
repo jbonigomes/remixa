@@ -688,7 +688,7 @@ html,body{-webkit-text-size-adjust:100%;}
   font-size:calc(var(--tile) * .87106);
 }
 
-/* Remixa 0.5.2 · Master/detail stage navigation. */
+/* Remixa 0.5.3 · Persistent controls + transient hints. */
 #home {
   position:fixed;inset:0;z-index:20;overflow:auto;overscroll-behavior:contain;
   padding:max(22px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right))
@@ -837,7 +837,7 @@ html,body{-webkit-text-size-adjust:100%;}
   <button type="button" class="rot-icon" id="portraitReload" aria-label="Reload Remixa" title="Reload Remixa">↻</button>
   <strong>Rotate your phone</strong>
   <p>Remixa feels best in landscape, where there's room to play.</p>
-  <div class="rotate-build">Build 0.5.2 · Master / Detail</div>
+  <div class="rotate-build">Build 0.5.3 · Master / Detail</div>
   <div class="rotate-roadmap"><strong>Roadmap</strong><ul>
     <li>Frozen / locked hand cards.</li>
     <li>Daily challenges, streaks and leaderboards.</li>
@@ -2075,35 +2075,50 @@ document.addEventListener('visibilitychange',()=>{
 window.addEventListener('pagehide',()=>{pauseAndSave();hideNudge();});
 window.addEventListener('pageshow',()=>refreshNudge());
 
-let nudgeTimeout=null,nudgeArmed=false,lessonHintOpen=false;
-// Early lessons introduce a rule in place. Later puzzles offer help only
-// when requested; taking time to think never reveals their solution.
+let nudgeTimeout=null,nudgeArmed=false,lessonHintOpen=false,hintTimer=0;
+// One shared header slot: controls remain visible by default. A requested
+// puzzle hint temporarily replaces them without consuming another row.
+function clearHintTimer(){
+  if(hintTimer)clearTimeout(hintTimer);
+  hintTimer=0;
+}
+function hideTransientHint(){
+  clearHintTimer();
+  lessonHintOpen=false;
+  updateLessonCue();
+}
+function showTransientHint(){
+  clearHintTimer();
+  lessonHintOpen=true;
+  updateLessonCue();
+  hintTimer=setTimeout(()=>{
+    hintTimer=0;
+    lessonHintOpen=false;
+    updateLessonCue();
+  },6000);
+}
 function updateLessonCue(){
   const source=LEVELS[level],cue=$('lessonCue');
-  const demonstration=$('introGuide').classList.contains('show');
   const joining=!!movingGroup?.join;
-  let text=demonstration||lessonHintOpen?source.hint:source.skill;
-  if(source.teachMove&&!lessonHintOpen&&!demonstration&&moves===0&&selectedId!==null)
-    text=movingGroup?'Moving the whole meld is free.':'Drag the ⠿ grip to move this meld for free.';
-  if(joining)text='Release to join · 1 move';
-  const visible=!!text&&!won&&!active&&!$('lab').classList.contains('show')&&
-    (joining||demonstration||lessonHintOpen||
-      (source.teaching===true&&moves===0&&(selectedId===null||source.teachMove===true)));
+  const text=joining?'Release to join · 1 move':source.hint;
+  // Card dragging must not hide a requested hint. Live joining feedback takes
+  // priority while the gesture is active, then the hint resumes if time remains.
+  const visible=!!text&&!won&&!$('lab').classList.contains('show')&&
+    (joining||lessonHintOpen);
   if(cue.textContent!==text)cue.textContent=text||'';
   cue.classList.toggle('show',visible);
   $('gameGuide').classList.toggle('lesson-visible',visible);
-  cue.classList.toggle('expanded',lessonHintOpen&&!demonstration);
-  cue.classList.toggle('meld-move',joining||source.teachMove===true&&selectedId!==null&&!lessonHintOpen);
+  cue.classList.toggle('expanded',lessonHintOpen&&!joining);
+  cue.classList.toggle('meld-move',joining);
   $('hint').disabled=won||!source.hint;
-  $('hint').setAttribute('aria-expanded',String(!!lessonHintOpen&&visible));
+  $('hint').setAttribute('aria-expanded',String(!!lessonHintOpen&&visible&&!joining));
   $('hint').setAttribute('aria-label',lessonHintOpen?'Hide the hint':'Show a hint');
 }
 $('hint').addEventListener('click',()=>{
-  stopNudge();lessonHintOpen=!lessonHintOpen;updateLessonCue();
+  stopNudge();
+  if(lessonHintOpen)hideTransientHint();
+  else showTransientHint();
 });
-board.addEventListener('pointerdown',()=>{
-  if(lessonHintOpen){lessonHintOpen=false;updateLessonCue();}
-},{capture:true});
 function hideNudge(){
   if(nudgeTimeout!==null)clearTimeout(nudgeTimeout);
   nudgeTimeout=null;
@@ -2206,6 +2221,7 @@ function loadLevel(i,{fresh=false}={}) {
   });
   $('win').classList.remove('show');
   $('winStats').innerHTML='';
+  clearHintTimer();
   lessonHintOpen=false;
   stopNudge();
   if(saved){
@@ -2643,8 +2659,9 @@ function layout(initial=false,skipMeasure=false) {
   const gripGroup=!active
     ? groups.find(g=>g.id===(movingGroup?.id??selectedId) && g.tiles.length>1)
     : null;
-  // Keep the instruction line clear of a raised meld's floating handle.
-  $('tableHint').hidden=!!active||!!movingGroup||!!gripGroup;
+  // The compact control reminder remains visible during normal gestures.
+  // Requested hints / join feedback replace it in the same header slot.
+  $('tableHint').hidden=false;
   meldGrip.classList.toggle('visible',!!gripGroup);
   meldGrip.classList.toggle('moving',!!movingGroup);
   meldGrip.tabIndex=gripGroup?0:-1;
@@ -3373,7 +3390,7 @@ window.addEventListener('hashchange',()=>{
 });
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.5.2 · Master / Detail';
+  const APP_VERSION='0.5.3 · Master / Detail';
   const themeMeta=document.querySelector('meta[name="theme-color"]');
   if(themeMeta) themeMeta.setAttribute('content','#15182d');
   document.title='Remixa';
