@@ -848,11 +848,13 @@ html,body{-webkit-text-size-adjust:100%;}
   <button type="button" class="rot-icon" id="portraitReload" aria-label="Reload Remixa" title="Reload Remixa">↻</button>
   <strong>Rotate your phone</strong>
   <p>Remixa feels best in landscape, where there's room to play.</p>
-  <div class="rotate-build">Build 0.5.4 · Master / Detail</div>
+  <div class="rotate-build">Build 0.5.5 · Roadmap Notes</div>
   <div class="rotate-roadmap"><strong>Roadmap</strong><ul>
     <li>Frozen / locked hand cards.</li>
     <li>Daily challenges, streaks and leaderboards.</li>
     <li>Sound, haptics, logo, profile/avatar, legal and feedback links.</li>
+    <li>Rate Remixa: a native review prompt after a few completed stages, plus a rate/review link.</li>
+    <li>Refine the home / stage-list view for landscape screens.</li>
     <li>Package for app stores, including icon, screenshots and video assets.</li>
     <li>Final round of gameplay refinement.</li>
     <li>Create stages up to 100.</li>
@@ -3400,7 +3402,7 @@ window.addEventListener('hashchange',()=>{
 });
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.5.4 · Master / Detail';
+  const APP_VERSION='0.5.5 · Roadmap Notes';
   const themeMeta=document.querySelector('meta[name="theme-color"]');
   if(themeMeta) themeMeta.setAttribute('content','#15182d');
   document.title='Remixa';
