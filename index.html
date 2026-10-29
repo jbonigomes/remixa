@@ -688,7 +688,7 @@ html,body{-webkit-text-size-adjust:100%;}
   font-size:calc(var(--tile) * .87106);
 }
 
-/* Remixa 0.5.3 · Persistent controls + transient hints. */
+/* Remixa 0.5.4 · Full-width transient hints. */
 #home {
   position:fixed;inset:0;z-index:20;overflow:auto;overscroll-behavior:contain;
   padding:max(22px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right))
@@ -723,12 +723,22 @@ html,body{-webkit-text-size-adjust:100%;}
 .game-back{font-size:26px;font-weight:500;}
 .game-level{font-size:10px;font-weight:850;letter-spacing:.105em;color:#f4d58f;white-space:nowrap;font-variant-numeric:tabular-nums;}
 #gameGuide{display:flex;align-items:center;justify-content:center;flex:1 1 auto;min-width:0;overflow:hidden;padding:0 4px;}
-#gameGuide #lessonCue{position:static;transform:none;width:auto;max-width:100%;min-width:0;padding:3px 8px;font-size:10px;line-height:1.2;opacity:0;display:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;}
-#gameGuide #lessonCue.show{display:block;opacity:.92;}
-#gameGuide #lessonCue.expanded{max-width:100%;padding:3px 8px;}
-#gameGuide #lessonCue.meld-move{padding:3px 8px;}
 #gameGuide #tableHint{position:static;transform:none;top:auto;left:auto;min-width:0;max-width:100%;font-size:8px;line-height:1.2;letter-spacing:.09em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;}
-#gameGuide.lesson-visible #tableHint{display:none;}
+/* Puzzle hints are transient overlays, not a second layout row. This lets long
+   hints use the board's width without permanently stealing playing height. */
+#lessonCue{
+  position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 58px);
+  transform:translate(-50%,-3px);z-index:115;
+  display:none;width:max-content;max-width:min(760px,calc(100vw - 28px));
+  padding:8px 12px;border:1px solid #c7b98c45;border-radius:11px;
+  background:#20283bf5;box-shadow:0 8px 24px #0005;
+  color:#ede3c8;font-size:11px;line-height:1.35;font-weight:600;letter-spacing:.018em;
+  white-space:normal;text-align:center;pointer-events:none;opacity:0;
+  transition:opacity .16s ease,transform .16s ease;
+}
+#lessonCue.show{display:block;opacity:.97;transform:translate(-50%,0);}
+#lessonCue.expanded{padding:8px 12px;}
+#lessonCue.meld-move{padding:7px 11px;font-size:10px;}
 #header .game-score{margin:0;flex:0 0 auto;}
 #header .game-score #scoreHud{margin:0;}
 #header .header-controls{flex:0 0 auto;}
@@ -737,8 +747,8 @@ html,body{-webkit-text-size-adjust:100%;}
   .game-left{gap:4px;}
   .game-level{font-size:9px;letter-spacing:.06em;}
   #gameGuide{padding:0 1px;}
-  #gameGuide #lessonCue{font-size:9px;padding:2px 5px;}
   #gameGuide #tableHint{font-size:7px;letter-spacing:.055em;}
+  #lessonCue{font-size:10px;max-width:min(680px,calc(100vw - 22px));}
 }
 @media(max-width:680px) and (orientation:landscape){
   #gameGuide #tableHint{font-size:0;}
@@ -759,6 +769,7 @@ html,body{-webkit-text-size-adjust:100%;}
   .stage-row{padding:8px 10px;} .chapter-block+ .chapter-block{margin-top:18px;}
 }
 @media(max-height:430px) and (orientation:landscape){
+  #lessonCue{top:calc(env(safe-area-inset-top) + 47px);}
   #home{padding-top:12px;padding-bottom:14px;} .home-top{margin-bottom:10px;} .home-brand{font-size:31px;}
   .stage-row{padding:7px 9px;} .stage-num{width:29px;height:29px;} .chapter-title{margin-bottom:7px;}
 }
@@ -779,7 +790,6 @@ html,body{-webkit-text-size-adjust:100%;}
   <header id="header" class="game-header">
     <div class="game-left"><button class="icon-btn game-back" id="homeBack" aria-label="Back to stages">‹</button><span class="game-level" id="gameLevel">LEVEL 01</span></div>
     <div id="gameGuide" aria-live="polite">
-      <div id="lessonCue">Make everything green.</div>
       <div id="tableHint">TAP MELD <span>·</span> DRAG ⠿ <span>·</span> DRAG CARDS</div>
     </div>
     <div class="header-center game-score"><span id="scoreHud" aria-live="polite"><span>MOVES <b id="moves">0</b></span><span>BEST <b id="best">—</b></span></span></div>
@@ -789,6 +799,7 @@ html,body{-webkit-text-size-adjust:100%;}
       <button class="icon-btn" id="hint" aria-label="Show a hint" aria-expanded="false" aria-controls="lessonCue" title="A little help">?</button>
     </div>
   </header>
+  <div id="lessonCue" role="status" aria-live="polite">Make everything green.</div>
   <main id="play">
     <section id="board" aria-label="Puzzle board">
       <div id="groupLayer"></div>
@@ -837,7 +848,7 @@ html,body{-webkit-text-size-adjust:100%;}
   <button type="button" class="rot-icon" id="portraitReload" aria-label="Reload Remixa" title="Reload Remixa">↻</button>
   <strong>Rotate your phone</strong>
   <p>Remixa feels best in landscape, where there's room to play.</p>
-  <div class="rotate-build">Build 0.5.3 · Master / Detail</div>
+  <div class="rotate-build">Build 0.5.4 · Master / Detail</div>
   <div class="rotate-roadmap"><strong>Roadmap</strong><ul>
     <li>Frozen / locked hand cards.</li>
     <li>Daily challenges, streaks and leaderboards.</li>
@@ -2107,7 +2118,6 @@ function updateLessonCue(){
     (joining||lessonHintOpen);
   if(cue.textContent!==text)cue.textContent=text||'';
   cue.classList.toggle('show',visible);
-  $('gameGuide').classList.toggle('lesson-visible',visible);
   cue.classList.toggle('expanded',lessonHintOpen&&!joining);
   cue.classList.toggle('meld-move',joining);
   $('hint').disabled=won||!source.hint;
@@ -3390,7 +3400,7 @@ window.addEventListener('hashchange',()=>{
 });
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.5.3 · Master / Detail';
+  const APP_VERSION='0.5.4 · Master / Detail';
   const themeMeta=document.querySelector('meta[name="theme-color"]');
   if(themeMeta) themeMeta.setAttribute('content','#15182d');
   document.title='Remixa';
