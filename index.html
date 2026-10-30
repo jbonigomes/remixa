@@ -781,7 +781,7 @@ html,body{-webkit-text-size-adjust:100%;}
   <div class="home-shell">
     <div class="home-top">
       <div><div class="home-brand">remixa</div><div class="home-sub">Choose a stage. Unfinished tables resume automatically.</div></div>
-      <div class="home-count">20 stages · 2 chapters</div>
+      <div class="home-count">30 stages · 3 chapters</div>
     </div>
     <div id="stageCatalog"></div>
   </div>
@@ -848,7 +848,7 @@ html,body{-webkit-text-size-adjust:100%;}
   <button type="button" class="rot-icon" id="portraitReload" aria-label="Reload Remixa" title="Reload Remixa">↻</button>
   <strong>Rotate your phone</strong>
   <p>Remixa feels best in landscape, where there's room to play.</p>
-  <div class="rotate-build">Build 0.5.6 · Roadmap Notes</div>
+  <div class="rotate-build">Build 0.7.0 · Chapter Three</div>
   <div class="rotate-roadmap"><strong>Roadmap</strong><ul>
     <li>Frozen / locked hand cards.</li>
     <li>Daily challenges, streaks and leaderboards.</li>
@@ -882,15 +882,49 @@ const LEVELS=[
     "name": "Three Make a Run",
     "skill": "Runs need at least three cards",
     "groups": [
-      {"axis":"h","u":0.46,"v":0.43,"tiles":[[3,0],[4,0]]}
+      {
+        "axis": "h",
+        "u": 0.46,
+        "v": 0.43,
+        "tiles": [
+          [
+            3,
+            0
+          ],
+          [
+            4,
+            0
+          ]
+        ]
+      }
     ],
     "loose": [
-      {"n":5,"c":0,"u":0.66,"v":0.75}
+      {
+        "n": 5,
+        "c": 0,
+        "u": 0.66,
+        "v": 0.75
+      }
     ],
     "hint": "Drag the 5 to the end of the run.",
     "intro": true,
     "teaching": true,
-    "openingDrag": {"card":[5,0],"run":[[3,0],[4,0]]}
+    "openingDrag": {
+      "card": [
+        5,
+        0
+      ],
+      "run": [
+        [
+          3,
+          0
+        ],
+        [
+          4,
+          0
+        ]
+      ]
+    }
   },
   {
     "id": "rmx-001",
@@ -899,10 +933,33 @@ const LEVELS=[
     "name": "One More",
     "skill": "A run can keep growing",
     "groups": [
-      {"axis":"h","u":0.46,"v":0.43,"tiles":[[3,0],[4,0],[5,0]]}
+      {
+        "axis": "h",
+        "u": 0.46,
+        "v": 0.43,
+        "tiles": [
+          [
+            3,
+            0
+          ],
+          [
+            4,
+            0
+          ],
+          [
+            5,
+            0
+          ]
+        ]
+      }
     ],
     "loose": [
-      {"n":6,"c":0,"u":0.66,"v":0.75}
+      {
+        "n": 6,
+        "c": 0,
+        "u": 0.66,
+        "v": 0.75
+      }
     ],
     "hint": "Try adding the 6 after the 5.",
     "teaching": true
@@ -915,9 +972,24 @@ const LEVELS=[
     "skill": "Sets need three matching numbers",
     "groups": [],
     "loose": [
-      {"n":7,"c":0,"u":0.36,"v":0.47},
-      {"n":7,"c":1,"u":0.53,"v":0.47},
-      {"n":7,"c":2,"u":0.7,"v":0.47}
+      {
+        "n": 7,
+        "c": 0,
+        "u": 0.36,
+        "v": 0.47
+      },
+      {
+        "n": 7,
+        "c": 1,
+        "u": 0.53,
+        "v": 0.47
+      },
+      {
+        "n": 7,
+        "c": 2,
+        "u": 0.7,
+        "v": 0.47
+      }
     ],
     "hint": "Bring matching numbers together. A set needs at least three different suits.",
     "teaching": true
@@ -929,12 +1001,50 @@ const LEVELS=[
     "name": "Follow the Suit",
     "skill": "Runs follow one suit, not just one colour",
     "groups": [
-      {"axis":"h","u":0.29,"v":0.38,"tiles":[[3,0],[4,0]]},
-      {"axis":"h","u":0.71,"v":0.38,"tiles":[[3,2],[4,2]]}
+      {
+        "axis": "h",
+        "u": 0.29,
+        "v": 0.38,
+        "tiles": [
+          [
+            3,
+            0
+          ],
+          [
+            4,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.71,
+        "v": 0.38,
+        "tiles": [
+          [
+            3,
+            2
+          ],
+          [
+            4,
+            2
+          ]
+        ]
+      }
     ],
     "loose": [
-      {"n":5,"c":0,"u":0.36,"v":0.76},
-      {"n":5,"c":2,"u":0.64,"v":0.76}
+      {
+        "n": 5,
+        "c": 0,
+        "u": 0.36,
+        "v": 0.76
+      },
+      {
+        "n": 5,
+        "c": 2,
+        "u": 0.64,
+        "v": 0.76
+      }
     ],
     "hint": "Spades belong with spades; clubs belong with clubs.",
     "teaching": true
@@ -946,10 +1056,33 @@ const LEVELS=[
     "name": "The Missing Middle",
     "skill": "Runs cannot skip a number",
     "groups": [
-      {"axis":"h","u":0.49,"v":0.42,"tiles":[[3,0],[5,0],[6,0]]}
+      {
+        "axis": "h",
+        "u": 0.49,
+        "v": 0.42,
+        "tiles": [
+          [
+            3,
+            0
+          ],
+          [
+            5,
+            0
+          ],
+          [
+            6,
+            0
+          ]
+        ]
+      }
     ],
     "loose": [
-      {"n":4,"c":0,"u":0.48,"v":0.77}
+      {
+        "n": 4,
+        "c": 0,
+        "u": 0.48,
+        "v": 0.77
+      }
     ],
     "hint": "The 4 belongs between the 3 and the 5.",
     "teaching": true
@@ -961,12 +1094,54 @@ const LEVELS=[
     "name": "One of Each",
     "skill": "Sets use each suit once: three or four cards",
     "groups": [
-      {"axis":"v","u":0.26,"v":0.44,"tiles":[[7,1],[7,1],[7,0]]},
-      {"axis":"h","u":0.67,"v":0.34,"tiles":[[5,1],[6,1]]}
+      {
+        "axis": "v",
+        "u": 0.26,
+        "v": 0.44,
+        "tiles": [
+          [
+            7,
+            1
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            7,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.67,
+        "v": 0.34,
+        "tiles": [
+          [
+            5,
+            1
+          ],
+          [
+            6,
+            1
+          ]
+        ]
+      }
     ],
     "loose": [
-      {"n":7,"c":2,"u":0.55,"v":0.76},
-      {"n":7,"c":3,"u":0.77,"v":0.76}
+      {
+        "n": 7,
+        "c": 2,
+        "u": 0.55,
+        "v": 0.76
+      },
+      {
+        "n": 7,
+        "c": 3,
+        "u": 0.77,
+        "v": 0.76
+      }
     ],
     "hint": "Tap the red set to open it. Move one 7 of hearts into the run, then complete the set with the other suits.",
     "teaching": true
@@ -978,10 +1153,29 @@ const LEVELS=[
     "name": "Ace Comes First",
     "skill": "Ace starts a run: A, 2, 3",
     "groups": [
-      {"axis":"h","u":0.53,"v":0.42,"tiles":[[2,0],[3,0]]}
+      {
+        "axis": "h",
+        "u": 0.53,
+        "v": 0.42,
+        "tiles": [
+          [
+            2,
+            0
+          ],
+          [
+            3,
+            0
+          ]
+        ]
+      }
     ],
     "loose": [
-      {"n":1,"c":0,"u":0.28,"v":0.75}
+      {
+        "n": 1,
+        "c": 0,
+        "u": 0.28,
+        "v": 0.75
+      }
     ],
     "hint": "Place the Ace before the 2.",
     "teaching": true
@@ -993,10 +1187,37 @@ const LEVELS=[
     "name": "Ace Comes Last",
     "skill": "Ace can also follow the King",
     "groups": [
-      {"axis":"h","u":0.46,"v":0.42,"tiles":[[10,1],[11,1],[12,1],[13,1]]}
+      {
+        "axis": "h",
+        "u": 0.46,
+        "v": 0.42,
+        "tiles": [
+          [
+            10,
+            1
+          ],
+          [
+            11,
+            1
+          ],
+          [
+            12,
+            1
+          ],
+          [
+            13,
+            1
+          ]
+        ]
+      }
     ],
     "loose": [
-      {"n":1,"c":1,"u":0.74,"v":0.75}
+      {
+        "n": 1,
+        "c": 1,
+        "u": 0.74,
+        "v": 0.75
+      }
     ],
     "hint": "The order is 10, J, Q, K, A.",
     "teaching": true
@@ -1008,12 +1229,50 @@ const LEVELS=[
     "name": "The End of the Line",
     "skill": "Ace is an endpoint, never a bridge",
     "groups": [
-      {"axis":"h","u":0.29,"v":0.4,"tiles":[[13,0],[1,0]]},
-      {"axis":"h","u":0.71,"v":0.4,"tiles":[[3,0],[4,0]]}
+      {
+        "axis": "h",
+        "u": 0.29,
+        "v": 0.4,
+        "tiles": [
+          [
+            13,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.71,
+        "v": 0.4,
+        "tiles": [
+          [
+            3,
+            0
+          ],
+          [
+            4,
+            0
+          ]
+        ]
+      }
     ],
     "loose": [
-      {"n":12,"c":0,"u":0.28,"v":0.76},
-      {"n":2,"c":0,"u":0.71,"v":0.76}
+      {
+        "n": 12,
+        "c": 0,
+        "u": 0.28,
+        "v": 0.76
+      },
+      {
+        "n": 2,
+        "c": 0,
+        "u": 0.71,
+        "v": 0.76
+      }
     ],
     "hint": "A run can start at A or finish at A, but it cannot wrap through K–A–2 or use an Ace at both ends.",
     "teaching": true
@@ -1025,20 +1284,108 @@ const LEVELS=[
     "name": "The Little Table",
     "skill": "Bring the rules together",
     "groups": [
-      {"axis":"h","u":0.2,"v":0.28,"tiles":[[2,1],[3,1]]},
-      {"axis":"h","u":0.5,"v":0.28,"tiles":[[12,2],[13,2]]},
-      {"axis":"h","u":0.78,"v":0.28,"tiles":[[6,3],[8,3],[9,3]]},
-      {"axis":"v","u":0.24,"v":0.7,"tiles":[[10,0],[10,1]]}
+      {
+        "axis": "h",
+        "u": 0.2,
+        "v": 0.28,
+        "tiles": [
+          [
+            2,
+            1
+          ],
+          [
+            3,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.28,
+        "tiles": [
+          [
+            12,
+            2
+          ],
+          [
+            13,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.78,
+        "v": 0.28,
+        "tiles": [
+          [
+            6,
+            3
+          ],
+          [
+            8,
+            3
+          ],
+          [
+            9,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.24,
+        "v": 0.7,
+        "tiles": [
+          [
+            10,
+            0
+          ],
+          [
+            10,
+            1
+          ]
+        ]
+      }
     ],
     "loose": [
-      {"n":1,"c":1,"u":0.44,"v":0.7},
-      {"n":1,"c":2,"u":0.58,"v":0.7},
-      {"n":7,"c":3,"u":0.72,"v":0.7},
-      {"n":10,"c":2,"u":0.87,"v":0.56},
-      {"n":10,"c":3,"u":0.87,"v":0.85}
+      {
+        "n": 1,
+        "c": 1,
+        "u": 0.44,
+        "v": 0.7
+      },
+      {
+        "n": 1,
+        "c": 2,
+        "u": 0.58,
+        "v": 0.7
+      },
+      {
+        "n": 7,
+        "c": 3,
+        "u": 0.72,
+        "v": 0.7
+      },
+      {
+        "n": 10,
+        "c": 2,
+        "u": 0.87,
+        "v": 0.56
+      },
+      {
+        "n": 10,
+        "c": 3,
+        "u": 0.87,
+        "v": 0.85
+      }
     ],
     "hint": "Check each suit, fill any gaps, and remember the two places an Ace can go.",
-    "completion": {"heading":"Chapter One complete!","sub":"You know the rules. Now make the table your own."},
+    "completion": {
+      "heading": "Chapter One complete!",
+      "sub": "You know the rules. Now make the table your own."
+    },
     "teaching": true
   },
   {
@@ -1048,14 +1395,88 @@ const LEVELS=[
     "name": "Make Room",
     "skill": "Tap a meld, then drag its grip. Moving it is free.",
     "groups": [
-      {"axis":"h","u":0.3,"v":0.3,"tiles":[[3,0],[4,0],[5,0]]},
-      {"axis":"h","u":0.67,"v":0.3,"tiles":[[6,0],[7,0]]},
-      {"axis":"v","u":0.24,"v":0.7,"tiles":[[9,1],[9,2]]},
-      {"axis":"h","u":0.66,"v":0.7,"tiles":[[11,1],[12,1],[13,1]]}
+      {
+        "axis": "h",
+        "u": 0.3,
+        "v": 0.3,
+        "tiles": [
+          [
+            3,
+            0
+          ],
+          [
+            4,
+            0
+          ],
+          [
+            5,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.67,
+        "v": 0.3,
+        "tiles": [
+          [
+            6,
+            0
+          ],
+          [
+            7,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.24,
+        "v": 0.7,
+        "tiles": [
+          [
+            9,
+            1
+          ],
+          [
+            9,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.66,
+        "v": 0.7,
+        "tiles": [
+          [
+            11,
+            1
+          ],
+          [
+            12,
+            1
+          ],
+          [
+            13,
+            1
+          ]
+        ]
+      }
     ],
     "loose": [
-      {"n":9,"c":3,"u":0.45,"v":0.82},
-      {"n":1,"c":1,"u":0.86,"v":0.46}
+      {
+        "n": 9,
+        "c": 3,
+        "u": 0.45,
+        "v": 0.82
+      },
+      {
+        "n": 1,
+        "c": 1,
+        "u": 0.86,
+        "v": 0.46
+      }
     ],
     "hint": "Tap a meld, then drag its grip to make room. Moving the whole meld costs no move.",
     "teaching": true,
@@ -1069,8 +1490,44 @@ const LEVELS=[
     "name": "Borrow an End",
     "skill": "Borrow an end; leave at least three",
     "groups": [
-      {"axis":"h","u":0.35,"v":0.35,"tiles":[[2,0],[3,0],[4,0],[5,0]]},
-      {"axis":"v","u":0.73,"v":0.61,"tiles":[[5,1],[5,2]]}
+      {
+        "axis": "h",
+        "u": 0.35,
+        "v": 0.35,
+        "tiles": [
+          [
+            2,
+            0
+          ],
+          [
+            3,
+            0
+          ],
+          [
+            4,
+            0
+          ],
+          [
+            5,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.73,
+        "v": 0.61,
+        "tiles": [
+          [
+            5,
+            1
+          ],
+          [
+            5,
+            2
+          ]
+        ]
+      }
     ],
     "loose": [],
     "hint": "An end card can help another meld while the rest of its run stays green.",
@@ -1083,8 +1540,44 @@ const LEVELS=[
     "name": "Borrow from a Set",
     "skill": "A fourth card can help another meld",
     "groups": [
-      {"axis":"v","u":0.28,"v":0.48,"tiles":[[7,0],[7,1],[7,2],[7,3]]},
-      {"axis":"h","u":0.69,"v":0.47,"tiles":[[8,1],[9,1]]}
+      {
+        "axis": "v",
+        "u": 0.28,
+        "v": 0.48,
+        "tiles": [
+          [
+            7,
+            0
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            7,
+            2
+          ],
+          [
+            7,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.69,
+        "v": 0.47,
+        "tiles": [
+          [
+            8,
+            1
+          ],
+          [
+            9,
+            1
+          ]
+        ]
+      }
     ],
     "loose": [],
     "hint": "One card can leave this four-card set and begin a run.",
@@ -1097,8 +1590,56 @@ const LEVELS=[
     "name": "Split the Run",
     "skill": "Pull the middle to split a run",
     "groups": [
-      {"axis":"h","u":0.5,"v":0.3,"tiles":[[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[8,0]]},
-      {"axis":"v","u":0.5,"v":0.77,"tiles":[[5,1],[5,2]]}
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.3,
+        "tiles": [
+          [
+            2,
+            0
+          ],
+          [
+            3,
+            0
+          ],
+          [
+            4,
+            0
+          ],
+          [
+            5,
+            0
+          ],
+          [
+            6,
+            0
+          ],
+          [
+            7,
+            0
+          ],
+          [
+            8,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.5,
+        "v": 0.77,
+        "tiles": [
+          [
+            5,
+            1
+          ],
+          [
+            5,
+            2
+          ]
+        ]
+      }
     ],
     "loose": [],
     "hint": "A long run can become two smaller runs. Each finished part still needs three cards.",
@@ -1111,10 +1652,70 @@ const LEVELS=[
     "name": "Green Can Change",
     "skill": "Green melds can turn red while you work",
     "groups": [
-      {"axis":"v","u":0.2,"v":0.51,"tiles":[[7,0],[7,1],[7,2]]},
-      {"axis":"h","u":0.57,"v":0.3,"tiles":[[5,0],[6,0]]},
-      {"axis":"h","u":0.76,"v":0.5,"tiles":[[8,1],[9,1]]},
-      {"axis":"h","u":0.56,"v":0.77,"tiles":[[8,2],[9,2]]}
+      {
+        "axis": "v",
+        "u": 0.2,
+        "v": 0.51,
+        "tiles": [
+          [
+            7,
+            0
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            7,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.57,
+        "v": 0.3,
+        "tiles": [
+          [
+            5,
+            0
+          ],
+          [
+            6,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.76,
+        "v": 0.5,
+        "tiles": [
+          [
+            8,
+            1
+          ],
+          [
+            9,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.56,
+        "v": 0.77,
+        "tiles": [
+          [
+            8,
+            2
+          ],
+          [
+            9,
+            2
+          ]
+        ]
+      }
     ],
     "loose": [],
     "hint": "A green set is a resource. You can take it apart and build new melds.",
@@ -1127,10 +1728,70 @@ const LEVELS=[
     "name": "Every Card Can Move",
     "skill": "Runs and sets can become each other",
     "groups": [
-      {"axis":"h","u":0.5,"v":0.3,"tiles":[[5,0],[6,0],[7,0]]},
-      {"axis":"v","u":0.25,"v":0.68,"tiles":[[5,1],[5,2]]},
-      {"axis":"v","u":0.5,"v":0.68,"tiles":[[6,1],[6,3]]},
-      {"axis":"v","u":0.75,"v":0.68,"tiles":[[7,2],[7,3]]}
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.3,
+        "tiles": [
+          [
+            5,
+            0
+          ],
+          [
+            6,
+            0
+          ],
+          [
+            7,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.25,
+        "v": 0.68,
+        "tiles": [
+          [
+            5,
+            1
+          ],
+          [
+            5,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.5,
+        "v": 0.68,
+        "tiles": [
+          [
+            6,
+            1
+          ],
+          [
+            6,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.75,
+        "v": 0.68,
+        "tiles": [
+          [
+            7,
+            2
+          ],
+          [
+            7,
+            3
+          ]
+        ]
+      }
     ],
     "loose": [],
     "hint": "Look for matching numbers across the table. The green run can supply more than one set.",
@@ -1144,15 +1805,152 @@ const LEVELS=[
     "skill": "Borrow, split and build a new arrangement",
     "hint": "A middle 5 can help the set. Keep an eye on the fragments it leaves.",
     "groups": [
-      {"axis":"h","u":0.3,"v":0.24,"tiles":[[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[8,0]]},
-      {"axis":"h","u":0.3,"v":0.52,"tiles":[[3,1],[4,1],[5,1],[6,1],[7,1],[8,1]]},
-      {"axis":"v","u":0.8,"v":0.38,"tiles":[[7,0],[7,1],[7,2],[7,3]]},
-      {"axis":"h","u":0.65,"v":0.76,"tiles":[[8,2],[9,2],[10,2]]},
-      {"axis":"v","u":0.54,"v":0.45,"tiles":[[5,2],[5,3]]},
-      {"axis":"h","u":0.24,"v":0.8,"tiles":[[1,1],[2,1]]}
+      {
+        "axis": "h",
+        "u": 0.3,
+        "v": 0.24,
+        "tiles": [
+          [
+            2,
+            0
+          ],
+          [
+            3,
+            0
+          ],
+          [
+            4,
+            0
+          ],
+          [
+            5,
+            0
+          ],
+          [
+            6,
+            0
+          ],
+          [
+            7,
+            0
+          ],
+          [
+            8,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.3,
+        "v": 0.52,
+        "tiles": [
+          [
+            3,
+            1
+          ],
+          [
+            4,
+            1
+          ],
+          [
+            5,
+            1
+          ],
+          [
+            6,
+            1
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            8,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.8,
+        "v": 0.38,
+        "tiles": [
+          [
+            7,
+            0
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            7,
+            2
+          ],
+          [
+            7,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.65,
+        "v": 0.76,
+        "tiles": [
+          [
+            8,
+            2
+          ],
+          [
+            9,
+            2
+          ],
+          [
+            10,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.54,
+        "v": 0.45,
+        "tiles": [
+          [
+            5,
+            2
+          ],
+          [
+            5,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.24,
+        "v": 0.8,
+        "tiles": [
+          [
+            1,
+            1
+          ],
+          [
+            2,
+            1
+          ]
+        ]
+      }
     ],
     "loose": [
-      {"n":6,"c":2,"u":0.86,"v":0.82}
+      {
+        "n": 6,
+        "c": 2,
+        "u": 0.86,
+        "v": 0.82
+      }
     ]
   },
   {
@@ -1163,16 +1961,220 @@ const LEVELS=[
     "skill": "Follow what each borrowed card leaves behind",
     "hint": "The spade run needs a 6 and a 7. Which melds could lend them?",
     "groups": [
-      {"axis":"h","u":0.28,"v":0.22,"tiles":[[3,2],[4,2],[5,2],[6,2],[7,2],[8,2],[9,2]]},
-      {"axis":"h","u":0.28,"v":0.48,"tiles":[[5,1],[6,1],[7,1],[8,1],[9,1],[10,1]]},
-      {"axis":"v","u":0.62,"v":0.25,"tiles":[[4,0],[4,1],[4,3]]},
-      {"axis":"v","u":0.76,"v":0.25,"tiles":[[3,0],[3,1],[3,3]]},
-      {"axis":"v","u":0.89,"v":0.28,"tiles":[[6,0],[6,3]]},
-      {"axis":"h","u":0.57,"v":0.72,"tiles":[[7,3],[8,3],[9,3],[10,3]]},
-      {"axis":"v","u":0.89,"v":0.69,"tiles":[[7,0],[7,1],[7,2],[7,3]]},
-      {"axis":"h","u":0.24,"v":0.78,"tiles":[[5,0],[8,0],[9,0]]},
-      {"axis":"h","u":0.5,"v":0.48,"tiles":[[3,2],[4,2]]},
-      {"axis":"h","u":0.68,"v":0.48,"tiles":[[5,3],[6,3]]}
+      {
+        "axis": "h",
+        "u": 0.28,
+        "v": 0.22,
+        "tiles": [
+          [
+            3,
+            2
+          ],
+          [
+            4,
+            2
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            6,
+            2
+          ],
+          [
+            7,
+            2
+          ],
+          [
+            8,
+            2
+          ],
+          [
+            9,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.28,
+        "v": 0.48,
+        "tiles": [
+          [
+            5,
+            1
+          ],
+          [
+            6,
+            1
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            8,
+            1
+          ],
+          [
+            9,
+            1
+          ],
+          [
+            10,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.62,
+        "v": 0.25,
+        "tiles": [
+          [
+            4,
+            0
+          ],
+          [
+            4,
+            1
+          ],
+          [
+            4,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.76,
+        "v": 0.25,
+        "tiles": [
+          [
+            3,
+            0
+          ],
+          [
+            3,
+            1
+          ],
+          [
+            3,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.89,
+        "v": 0.28,
+        "tiles": [
+          [
+            6,
+            0
+          ],
+          [
+            6,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.57,
+        "v": 0.72,
+        "tiles": [
+          [
+            7,
+            3
+          ],
+          [
+            8,
+            3
+          ],
+          [
+            9,
+            3
+          ],
+          [
+            10,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.89,
+        "v": 0.69,
+        "tiles": [
+          [
+            7,
+            0
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            7,
+            2
+          ],
+          [
+            7,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.24,
+        "v": 0.78,
+        "tiles": [
+          [
+            5,
+            0
+          ],
+          [
+            8,
+            0
+          ],
+          [
+            9,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.48,
+        "tiles": [
+          [
+            3,
+            2
+          ],
+          [
+            4,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.68,
+        "v": 0.48,
+        "tiles": [
+          [
+            5,
+            3
+          ],
+          [
+            6,
+            3
+          ]
+        ]
+      }
     ],
     "loose": []
   },
@@ -1184,20 +2186,271 @@ const LEVELS=[
     "skill": "Find your own route across the table",
     "hint": "A green meld can be useful as a source of cards, too.",
     "groups": [
-      {"axis":"h","u":0.27,"v":0.21,"tiles":[[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[8,0]]},
-      {"axis":"h","u":0.29,"v":0.46,"tiles":[[4,1],[5,1],[6,1],[7,1],[8,1],[9,1],[10,1]]},
-      {"axis":"h","u":0.28,"v":0.73,"tiles":[[4,2],[5,2],[6,2],[7,2],[8,2],[9,2]]},
-      {"axis":"h","u":0.69,"v":0.25,"tiles":[[7,3],[8,3],[9,3],[10,3],[11,3],[12,3],[13,3]]},
-      {"axis":"v","u":0.91,"v":0.58,"tiles":[[11,0],[11,1],[11,2],[11,3]]},
-      {"axis":"v","u":0.52,"v":0.66,"tiles":[[5,0],[5,1],[5,3]]},
-      {"axis":"v","u":0.66,"v":0.66,"tiles":[[8,0],[8,2]]},
-      {"axis":"v","u":0.78,"v":0.67,"tiles":[[2,1],[2,3]]},
-      {"axis":"v","u":0.89,"v":0.87,"tiles":[[13,0],[13,1]]},
-      {"axis":"v","u":0.08,"v":0.77,"tiles":[[1,1],[1,3]]},
-      {"axis":"h","u":0.63,"v":0.9,"tiles":[[2,2],[3,2]]}
+      {
+        "axis": "h",
+        "u": 0.27,
+        "v": 0.21,
+        "tiles": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            0
+          ],
+          [
+            3,
+            0
+          ],
+          [
+            4,
+            0
+          ],
+          [
+            5,
+            0
+          ],
+          [
+            6,
+            0
+          ],
+          [
+            7,
+            0
+          ],
+          [
+            8,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.29,
+        "v": 0.46,
+        "tiles": [
+          [
+            4,
+            1
+          ],
+          [
+            5,
+            1
+          ],
+          [
+            6,
+            1
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            8,
+            1
+          ],
+          [
+            9,
+            1
+          ],
+          [
+            10,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.28,
+        "v": 0.73,
+        "tiles": [
+          [
+            4,
+            2
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            6,
+            2
+          ],
+          [
+            7,
+            2
+          ],
+          [
+            8,
+            2
+          ],
+          [
+            9,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.69,
+        "v": 0.25,
+        "tiles": [
+          [
+            7,
+            3
+          ],
+          [
+            8,
+            3
+          ],
+          [
+            9,
+            3
+          ],
+          [
+            10,
+            3
+          ],
+          [
+            11,
+            3
+          ],
+          [
+            12,
+            3
+          ],
+          [
+            13,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.91,
+        "v": 0.58,
+        "tiles": [
+          [
+            11,
+            0
+          ],
+          [
+            11,
+            1
+          ],
+          [
+            11,
+            2
+          ],
+          [
+            11,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.52,
+        "v": 0.66,
+        "tiles": [
+          [
+            5,
+            0
+          ],
+          [
+            5,
+            1
+          ],
+          [
+            5,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.66,
+        "v": 0.66,
+        "tiles": [
+          [
+            8,
+            0
+          ],
+          [
+            8,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.78,
+        "v": 0.67,
+        "tiles": [
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.89,
+        "v": 0.87,
+        "tiles": [
+          [
+            13,
+            0
+          ],
+          [
+            13,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.08,
+        "v": 0.77,
+        "tiles": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.63,
+        "v": 0.9,
+        "tiles": [
+          [
+            2,
+            2
+          ],
+          [
+            3,
+            2
+          ]
+        ]
+      }
     ],
     "loose": [
-      {"n":6,"c":3,"u":0.42,"v":0.88}
+      {
+        "n": 6,
+        "c": 3,
+        "u": 0.42,
+        "v": 0.88
+      }
     ]
   },
   {
@@ -1208,26 +2461,3775 @@ const LEVELS=[
     "skill": "52 cards. Make the whole table green.",
     "hint": "Look for a small gap, then follow the consequences of filling it.",
     "groups": [
-      {"axis":"h","u":0.21,"v":0.19,"tiles":[[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0]]},
-      {"axis":"h","u":0.6,"v":0.19,"tiles":[[8,1],[9,1],[11,1],[13,1],[1,1]]},
-      {"axis":"h","u":0.25,"v":0.44,"tiles":[[7,2],[8,2],[9,2],[10,2],[11,2],[12,2],[13,2],[1,2]]},
-      {"axis":"h","u":0.65,"v":0.45,"tiles":[[2,3],[3,3],[4,3],[5,3],[6,3],[7,3],[8,3]]},
-      {"axis":"v","u":0.89,"v":0.21,"tiles":[[11,0],[11,3]]},
-      {"axis":"v","u":0.89,"v":0.65,"tiles":[[7,0],[7,1],[7,2],[7,3]]},
-      {"axis":"v","u":0.12,"v":0.77,"tiles":[[10,0],[10,1],[10,3]]},
-      {"axis":"v","u":0.25,"v":0.78,"tiles":[[12,0],[12,1],[12,3]]},
-      {"axis":"v","u":0.38,"v":0.76,"tiles":[[3,1],[3,2]]},
-      {"axis":"v","u":0.5,"v":0.77,"tiles":[[9,0],[9,3]]},
-      {"axis":"h","u":0.66,"v":0.69,"tiles":[[6,1],[8,1]]},
-      {"axis":"v","u":0.63,"v":0.87,"tiles":[[1,2],[1,3]]},
-      {"axis":"h","u":0.77,"v":0.88,"tiles":[[5,2],[6,2]]},
-      {"axis":"h","u":0.41,"v":0.58,"tiles":[[11,2],[12,2]]}
+      {
+        "axis": "h",
+        "u": 0.21,
+        "v": 0.19,
+        "tiles": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            0
+          ],
+          [
+            3,
+            0
+          ],
+          [
+            4,
+            0
+          ],
+          [
+            5,
+            0
+          ],
+          [
+            6,
+            0
+          ],
+          [
+            7,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.6,
+        "v": 0.19,
+        "tiles": [
+          [
+            8,
+            1
+          ],
+          [
+            9,
+            1
+          ],
+          [
+            11,
+            1
+          ],
+          [
+            13,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.44,
+        "tiles": [
+          [
+            7,
+            2
+          ],
+          [
+            8,
+            2
+          ],
+          [
+            9,
+            2
+          ],
+          [
+            10,
+            2
+          ],
+          [
+            11,
+            2
+          ],
+          [
+            12,
+            2
+          ],
+          [
+            13,
+            2
+          ],
+          [
+            1,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.65,
+        "v": 0.45,
+        "tiles": [
+          [
+            2,
+            3
+          ],
+          [
+            3,
+            3
+          ],
+          [
+            4,
+            3
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            6,
+            3
+          ],
+          [
+            7,
+            3
+          ],
+          [
+            8,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.89,
+        "v": 0.21,
+        "tiles": [
+          [
+            11,
+            0
+          ],
+          [
+            11,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.89,
+        "v": 0.65,
+        "tiles": [
+          [
+            7,
+            0
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            7,
+            2
+          ],
+          [
+            7,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.12,
+        "v": 0.77,
+        "tiles": [
+          [
+            10,
+            0
+          ],
+          [
+            10,
+            1
+          ],
+          [
+            10,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.25,
+        "v": 0.78,
+        "tiles": [
+          [
+            12,
+            0
+          ],
+          [
+            12,
+            1
+          ],
+          [
+            12,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.38,
+        "v": 0.76,
+        "tiles": [
+          [
+            3,
+            1
+          ],
+          [
+            3,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.5,
+        "v": 0.77,
+        "tiles": [
+          [
+            9,
+            0
+          ],
+          [
+            9,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.66,
+        "v": 0.69,
+        "tiles": [
+          [
+            6,
+            1
+          ],
+          [
+            8,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.63,
+        "v": 0.87,
+        "tiles": [
+          [
+            1,
+            2
+          ],
+          [
+            1,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.77,
+        "v": 0.88,
+        "tiles": [
+          [
+            5,
+            2
+          ],
+          [
+            6,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.41,
+        "v": 0.58,
+        "tiles": [
+          [
+            11,
+            2
+          ],
+          [
+            12,
+            2
+          ]
+        ]
+      }
     ],
     "loose": [
-      {"n":2,"c":1,"u":0.05,"v":0.46}
+      {
+        "n": 2,
+        "c": 1,
+        "u": 0.05,
+        "v": 0.46
+      }
     ],
-    "completion": {"heading":"Chapter Two complete!","sub":"Fifty-two cards, all green. The whole table is yours."},
+    "completion": {
+      "heading": "Chapter Two complete!",
+      "sub": "Fifty-two cards, all green. The whole table is yours."
+    },
     "entryLabel": "ENTER THE FULL TABLE →"
+  },
+  {
+    "id": "rmx-032",
+    "revision": 1,
+    "chapter": 3,
+    "name": "Loose Ends",
+    "skill": "Reconnect misplaced cards across a full table.",
+    "hint": "Start with a red meld that is only one card away from making sense.",
+    "groups": [
+      {
+        "axis": "v",
+        "u": 0.06,
+        "v": 0.28,
+        "tiles": [
+          [
+            6,
+            0
+          ],
+          [
+            6,
+            1
+          ],
+          [
+            6,
+            2
+          ],
+          [
+            6,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.06,
+        "v": 0.72,
+        "tiles": [
+          [
+            8,
+            0
+          ],
+          [
+            8,
+            1
+          ],
+          [
+            2,
+            2
+          ],
+          [
+            8,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.94,
+        "v": 0.28,
+        "tiles": [
+          [
+            13,
+            0
+          ],
+          [
+            13,
+            1
+          ],
+          [
+            13,
+            2
+          ],
+          [
+            13,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.12,
+        "tiles": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            0
+          ],
+          [
+            3,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.12,
+        "tiles": [
+          [
+            4,
+            0
+          ],
+          [
+            5,
+            0
+          ],
+          [
+            7,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.12,
+        "tiles": [
+          [
+            9,
+            0
+          ],
+          [
+            10,
+            0
+          ],
+          [
+            11,
+            0
+          ],
+          [
+            12,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.37,
+        "tiles": [
+          [
+            1,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            3,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.37,
+        "tiles": [
+          [
+            4,
+            1
+          ],
+          [
+            5,
+            1
+          ],
+          [
+            7,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.37,
+        "tiles": [
+          [
+            9,
+            1
+          ],
+          [
+            10,
+            1
+          ],
+          [
+            11,
+            1
+          ],
+          [
+            12,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.63,
+        "tiles": [
+          [
+            1,
+            2
+          ],
+          [
+            3,
+            2
+          ],
+          [
+            11,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.63,
+        "tiles": [
+          [
+            4,
+            2
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            7,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.63,
+        "tiles": [
+          [
+            8,
+            2
+          ],
+          [
+            9,
+            2
+          ],
+          [
+            10,
+            2
+          ],
+          [
+            12,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.88,
+        "tiles": [
+          [
+            1,
+            3
+          ],
+          [
+            2,
+            3
+          ],
+          [
+            3,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.88,
+        "tiles": [
+          [
+            4,
+            3
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            7,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.88,
+        "tiles": [
+          [
+            9,
+            3
+          ],
+          [
+            10,
+            3
+          ],
+          [
+            11,
+            3
+          ],
+          [
+            12,
+            3
+          ]
+        ]
+      }
+    ],
+    "loose": [],
+    "entryLabel": "START CHAPTER THREE →"
+  },
+  {
+    "id": "rmx-033",
+    "revision": 1,
+    "chapter": 3,
+    "name": "Second Chances",
+    "skill": "Duplicates create more than one believable home.",
+    "hint": "Look at the whole table before committing a duplicate card to its first obvious home.",
+    "groups": [
+      {
+        "axis": "v",
+        "u": 0.06,
+        "v": 0.28,
+        "tiles": [
+          [
+            7,
+            0
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            7,
+            2
+          ],
+          [
+            7,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.06,
+        "v": 0.72,
+        "tiles": [
+          [
+            9,
+            0
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            9,
+            1
+          ],
+          [
+            9,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.12,
+        "tiles": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            0
+          ],
+          [
+            3,
+            0
+          ],
+          [
+            4,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.12,
+        "tiles": [
+          [
+            5,
+            0
+          ],
+          [
+            6,
+            0
+          ],
+          [
+            8,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.12,
+        "tiles": [
+          [
+            10,
+            0
+          ],
+          [
+            11,
+            0
+          ],
+          [
+            12,
+            0
+          ],
+          [
+            13,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.37,
+        "tiles": [
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            2
+          ],
+          [
+            3,
+            1
+          ],
+          [
+            4,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.37,
+        "tiles": [
+          [
+            5,
+            1
+          ],
+          [
+            6,
+            1
+          ],
+          [
+            8,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.37,
+        "tiles": [
+          [
+            10,
+            1
+          ],
+          [
+            11,
+            1
+          ],
+          [
+            12,
+            1
+          ],
+          [
+            13,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.63,
+        "tiles": [
+          [
+            1,
+            2
+          ],
+          [
+            3,
+            2
+          ],
+          [
+            4,
+            2
+          ],
+          [
+            9,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.63,
+        "tiles": [
+          [
+            5,
+            2
+          ],
+          [
+            6,
+            2
+          ],
+          [
+            8,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.63,
+        "tiles": [
+          [
+            10,
+            2
+          ],
+          [
+            11,
+            2
+          ],
+          [
+            12,
+            2
+          ],
+          [
+            13,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.88,
+        "tiles": [
+          [
+            1,
+            3
+          ],
+          [
+            2,
+            3
+          ],
+          [
+            3,
+            3
+          ],
+          [
+            4,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.88,
+        "tiles": [
+          [
+            5,
+            3
+          ],
+          [
+            6,
+            3
+          ],
+          [
+            8,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.88,
+        "tiles": [
+          [
+            10,
+            3
+          ],
+          [
+            11,
+            3
+          ],
+          [
+            12,
+            3
+          ],
+          [
+            13,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.94,
+        "v": 0.28,
+        "tiles": [
+          [
+            7,
+            0
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            7,
+            2
+          ],
+          [
+            7,
+            3
+          ]
+        ]
+      }
+    ],
+    "loose": []
+  },
+  {
+    "id": "rmx-034",
+    "revision": 1,
+    "chapter": 3,
+    "name": "Trade Places",
+    "skill": "Some green cards are useful somewhere else.",
+    "hint": "One green set is hiding cards that belong back in the runs around it.",
+    "groups": [
+      {
+        "axis": "v",
+        "u": 0.06,
+        "v": 0.28,
+        "tiles": [
+          [
+            4,
+            0
+          ],
+          [
+            4,
+            1
+          ],
+          [
+            4,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.06,
+        "v": 0.72,
+        "tiles": [
+          [
+            9,
+            1
+          ],
+          [
+            3,
+            2
+          ],
+          [
+            9,
+            2
+          ],
+          [
+            9,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.12,
+        "tiles": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            0
+          ],
+          [
+            3,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.12,
+        "tiles": [
+          [
+            5,
+            0
+          ],
+          [
+            6,
+            0
+          ],
+          [
+            8,
+            0
+          ],
+          [
+            11,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.12,
+        "tiles": [
+          [
+            10,
+            0
+          ],
+          [
+            11,
+            0
+          ],
+          [
+            12,
+            0
+          ],
+          [
+            13,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.37,
+        "tiles": [
+          [
+            1,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            3,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.37,
+        "tiles": [
+          [
+            5,
+            1
+          ],
+          [
+            6,
+            1
+          ],
+          [
+            8,
+            1
+          ],
+          [
+            11,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.37,
+        "tiles": [
+          [
+            10,
+            1
+          ],
+          [
+            11,
+            1
+          ],
+          [
+            12,
+            1
+          ],
+          [
+            13,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.63,
+        "tiles": [
+          [
+            1,
+            2
+          ],
+          [
+            2,
+            2
+          ],
+          [
+            13,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.63,
+        "tiles": [
+          [
+            5,
+            2
+          ],
+          [
+            6,
+            2
+          ],
+          [
+            8,
+            2
+          ],
+          [
+            11,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.63,
+        "tiles": [
+          [
+            8,
+            3
+          ],
+          [
+            10,
+            2
+          ],
+          [
+            11,
+            2
+          ],
+          [
+            12,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.88,
+        "tiles": [
+          [
+            1,
+            3
+          ],
+          [
+            2,
+            3
+          ],
+          [
+            3,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.88,
+        "tiles": [
+          [
+            5,
+            3
+          ],
+          [
+            6,
+            3
+          ],
+          [
+            7,
+            3
+          ],
+          [
+            9,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.88,
+        "tiles": [
+          [
+            10,
+            3
+          ],
+          [
+            11,
+            3
+          ],
+          [
+            12,
+            3
+          ],
+          [
+            13,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.94,
+        "v": 0.28,
+        "tiles": [
+          [
+            7,
+            0
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            7,
+            2
+          ]
+        ]
+      }
+    ],
+    "loose": []
+  },
+  {
+    "id": "rmx-035",
+    "revision": 1,
+    "chapter": 3,
+    "name": "Two Ends",
+    "skill": "Aces still work at either end on a busy table.",
+    "hint": "Check both ends of the long runs before deciding which repair to make first.",
+    "groups": [
+      {
+        "axis": "v",
+        "u": 0.06,
+        "v": 0.28,
+        "tiles": [
+          [
+            6,
+            0
+          ],
+          [
+            6,
+            1
+          ],
+          [
+            6,
+            2
+          ],
+          [
+            6,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.06,
+        "v": 0.72,
+        "tiles": [
+          [
+            8,
+            0
+          ],
+          [
+            8,
+            1
+          ],
+          [
+            8,
+            2
+          ],
+          [
+            8,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.12,
+        "tiles": [
+          [
+            2,
+            0
+          ],
+          [
+            2,
+            3
+          ],
+          [
+            3,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.12,
+        "tiles": [
+          [
+            4,
+            0
+          ],
+          [
+            5,
+            0
+          ],
+          [
+            7,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.12,
+        "tiles": [
+          [
+            9,
+            0
+          ],
+          [
+            10,
+            0
+          ],
+          [
+            11,
+            0
+          ],
+          [
+            12,
+            0
+          ],
+          [
+            13,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.37,
+        "tiles": [
+          [
+            1,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            3,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.37,
+        "tiles": [
+          [
+            4,
+            1
+          ],
+          [
+            5,
+            1
+          ],
+          [
+            7,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.37,
+        "tiles": [
+          [
+            9,
+            1
+          ],
+          [
+            10,
+            1
+          ],
+          [
+            11,
+            1
+          ],
+          [
+            12,
+            1
+          ],
+          [
+            13,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.63,
+        "tiles": [
+          [
+            1,
+            0
+          ],
+          [
+            1,
+            2
+          ],
+          [
+            2,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.63,
+        "tiles": [
+          [
+            4,
+            2
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            7,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.63,
+        "tiles": [
+          [
+            9,
+            2
+          ],
+          [
+            10,
+            2
+          ],
+          [
+            11,
+            2
+          ],
+          [
+            12,
+            2
+          ],
+          [
+            13,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.88,
+        "tiles": [
+          [
+            1,
+            3
+          ],
+          [
+            2,
+            3
+          ],
+          [
+            3,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.88,
+        "tiles": [
+          [
+            4,
+            3
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            7,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.88,
+        "tiles": [
+          [
+            9,
+            3
+          ],
+          [
+            10,
+            3
+          ],
+          [
+            11,
+            3
+          ],
+          [
+            12,
+            3
+          ],
+          [
+            13,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.94,
+        "v": 0.28,
+        "tiles": [
+          [
+            2,
+            0
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            2
+          ],
+          [
+            3,
+            2
+          ]
+        ]
+      }
+    ],
+    "loose": []
+  },
+  {
+    "id": "rmx-036",
+    "revision": 1,
+    "chapter": 3,
+    "name": "Crossroads",
+    "skill": "Runs and sets compete for the same useful ranks.",
+    "hint": "When two destinations look plausible, inspect what each move leaves behind.",
+    "groups": [
+      {
+        "axis": "v",
+        "u": 0.06,
+        "v": 0.28,
+        "tiles": [
+          [
+            8,
+            0
+          ],
+          [
+            8,
+            1
+          ],
+          [
+            8,
+            2
+          ],
+          [
+            8,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.06,
+        "v": 0.72,
+        "tiles": [
+          [
+            10,
+            0
+          ],
+          [
+            10,
+            1
+          ],
+          [
+            10,
+            2
+          ],
+          [
+            10,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.12,
+        "tiles": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            0
+          ],
+          [
+            3,
+            0
+          ],
+          [
+            4,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.12,
+        "tiles": [
+          [
+            5,
+            0
+          ],
+          [
+            6,
+            0
+          ],
+          [
+            7,
+            0
+          ],
+          [
+            9,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.12,
+        "tiles": [
+          [
+            11,
+            0
+          ],
+          [
+            12,
+            0
+          ],
+          [
+            13,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.37,
+        "tiles": [
+          [
+            1,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            3,
+            1
+          ],
+          [
+            4,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.37,
+        "tiles": [
+          [
+            5,
+            1
+          ],
+          [
+            6,
+            1
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            9,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.37,
+        "tiles": [
+          [
+            11,
+            1
+          ],
+          [
+            12,
+            1
+          ],
+          [
+            13,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.63,
+        "tiles": [
+          [
+            1,
+            2
+          ],
+          [
+            2,
+            2
+          ],
+          [
+            3,
+            2
+          ],
+          [
+            4,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.63,
+        "tiles": [
+          [
+            5,
+            2
+          ],
+          [
+            6,
+            2
+          ],
+          [
+            7,
+            2
+          ],
+          [
+            9,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.63,
+        "tiles": [
+          [
+            7,
+            2
+          ],
+          [
+            11,
+            2
+          ],
+          [
+            12,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.88,
+        "tiles": [
+          [
+            3,
+            3
+          ],
+          [
+            4,
+            3
+          ],
+          [
+            13,
+            2
+          ],
+          [
+            1,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.88,
+        "tiles": [
+          [
+            5,
+            3
+          ],
+          [
+            6,
+            3
+          ],
+          [
+            7,
+            3
+          ],
+          [
+            9,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.88,
+        "tiles": [
+          [
+            2,
+            3
+          ],
+          [
+            12,
+            3
+          ],
+          [
+            13,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.94,
+        "v": 0.28,
+        "tiles": [
+          [
+            7,
+            0
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            7,
+            3
+          ],
+          [
+            11,
+            3
+          ]
+        ]
+      }
+    ],
+    "loose": []
+  },
+  {
+    "id": "rmx-037",
+    "revision": 1,
+    "chapter": 3,
+    "name": "Long Division",
+    "skill": "Long runs can hide the cards needed elsewhere.",
+    "hint": "A healthy-looking green meld can still be the right place to borrow from.",
+    "groups": [
+      {
+        "axis": "v",
+        "u": 0.06,
+        "v": 0.28,
+        "tiles": [
+          [
+            4,
+            1
+          ],
+          [
+            2,
+            2
+          ],
+          [
+            4,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.06,
+        "v": 0.72,
+        "tiles": [
+          [
+            6,
+            0
+          ],
+          [
+            6,
+            1
+          ],
+          [
+            6,
+            2
+          ],
+          [
+            6,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.94,
+        "v": 0.28,
+        "tiles": [
+          [
+            13,
+            0
+          ],
+          [
+            13,
+            1
+          ],
+          [
+            13,
+            2
+          ],
+          [
+            13,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.12,
+        "tiles": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            0
+          ],
+          [
+            3,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.12,
+        "tiles": [
+          [
+            5,
+            0
+          ],
+          [
+            7,
+            0
+          ],
+          [
+            8,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.12,
+        "tiles": [
+          [
+            9,
+            0
+          ],
+          [
+            10,
+            0
+          ],
+          [
+            11,
+            0
+          ],
+          [
+            12,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.37,
+        "tiles": [
+          [
+            1,
+            1
+          ],
+          [
+            3,
+            1
+          ],
+          [
+            9,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.37,
+        "tiles": [
+          [
+            5,
+            1
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            8,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.37,
+        "tiles": [
+          [
+            4,
+            0
+          ],
+          [
+            10,
+            1
+          ],
+          [
+            11,
+            1
+          ],
+          [
+            12,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.63,
+        "tiles": [
+          [
+            1,
+            2
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            3,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.63,
+        "tiles": [
+          [
+            5,
+            2
+          ],
+          [
+            7,
+            2
+          ],
+          [
+            8,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.63,
+        "tiles": [
+          [
+            9,
+            2
+          ],
+          [
+            10,
+            2
+          ],
+          [
+            11,
+            2
+          ],
+          [
+            12,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.88,
+        "tiles": [
+          [
+            1,
+            3
+          ],
+          [
+            2,
+            3
+          ],
+          [
+            3,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.88,
+        "tiles": [
+          [
+            5,
+            3
+          ],
+          [
+            7,
+            3
+          ],
+          [
+            8,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.88,
+        "tiles": [
+          [
+            9,
+            3
+          ],
+          [
+            10,
+            3
+          ],
+          [
+            11,
+            3
+          ],
+          [
+            12,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.94,
+        "v": 0.72,
+        "tiles": [
+          [
+            6,
+            0
+          ],
+          [
+            6,
+            1
+          ],
+          [
+            6,
+            2
+          ],
+          [
+            6,
+            3
+          ]
+        ]
+      }
+    ],
+    "loose": []
+  },
+  {
+    "id": "rmx-038",
+    "revision": 1,
+    "chapter": 3,
+    "name": "Double Vision",
+    "skill": "Identical cards can sit inside different chains of repairs.",
+    "hint": "Two identical cards are interchangeable. Follow the melds, not the physical copy.",
+    "groups": [
+      {
+        "axis": "v",
+        "u": 0.06,
+        "v": 0.28,
+        "tiles": [
+          [
+            5,
+            0
+          ],
+          [
+            5,
+            1
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            5,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.06,
+        "v": 0.72,
+        "tiles": [
+          [
+            9,
+            0
+          ],
+          [
+            9,
+            1
+          ],
+          [
+            9,
+            2
+          ],
+          [
+            9,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.12,
+        "tiles": [
+          [
+            1,
+            0
+          ],
+          [
+            3,
+            0
+          ],
+          [
+            3,
+            3
+          ],
+          [
+            4,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.12,
+        "tiles": [
+          [
+            7,
+            0
+          ],
+          [
+            8,
+            0
+          ],
+          [
+            11,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.12,
+        "tiles": [
+          [
+            10,
+            0
+          ],
+          [
+            11,
+            0
+          ],
+          [
+            12,
+            0
+          ],
+          [
+            13,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.37,
+        "tiles": [
+          [
+            1,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            3,
+            1
+          ],
+          [
+            4,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.37,
+        "tiles": [
+          [
+            7,
+            1
+          ],
+          [
+            8,
+            1
+          ],
+          [
+            11,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.37,
+        "tiles": [
+          [
+            10,
+            1
+          ],
+          [
+            11,
+            1
+          ],
+          [
+            12,
+            1
+          ],
+          [
+            13,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.63,
+        "tiles": [
+          [
+            1,
+            2
+          ],
+          [
+            2,
+            2
+          ],
+          [
+            4,
+            2
+          ],
+          [
+            10,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.63,
+        "tiles": [
+          [
+            7,
+            2
+          ],
+          [
+            8,
+            2
+          ],
+          [
+            11,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.63,
+        "tiles": [
+          [
+            3,
+            2
+          ],
+          [
+            11,
+            2
+          ],
+          [
+            12,
+            2
+          ],
+          [
+            13,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.88,
+        "tiles": [
+          [
+            1,
+            3
+          ],
+          [
+            2,
+            3
+          ],
+          [
+            4,
+            3
+          ],
+          [
+            10,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.88,
+        "tiles": [
+          [
+            6,
+            3
+          ],
+          [
+            7,
+            3
+          ],
+          [
+            8,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.88,
+        "tiles": [
+          [
+            2,
+            0
+          ],
+          [
+            11,
+            3
+          ],
+          [
+            12,
+            3
+          ],
+          [
+            13,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.94,
+        "v": 0.28,
+        "tiles": [
+          [
+            7,
+            0
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            7,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.94,
+        "v": 0.72,
+        "tiles": [
+          [
+            6,
+            0
+          ],
+          [
+            6,
+            1
+          ],
+          [
+            6,
+            2
+          ]
+        ]
+      }
+    ],
+    "loose": []
+  },
+  {
+    "id": "rmx-039",
+    "revision": 1,
+    "chapter": 3,
+    "name": "Cascade",
+    "skill": "One repair unlocks another across the table.",
+    "hint": "Follow the chain: a card freed from one meld may be exactly what another one needs.",
+    "groups": [
+      {
+        "axis": "v",
+        "u": 0.06,
+        "v": 0.28,
+        "tiles": [
+          [
+            7,
+            0
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            7,
+            2
+          ],
+          [
+            7,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.06,
+        "v": 0.72,
+        "tiles": [
+          [
+            9,
+            0
+          ],
+          [
+            9,
+            1
+          ],
+          [
+            9,
+            2
+          ],
+          [
+            9,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.12,
+        "tiles": [
+          [
+            1,
+            0
+          ],
+          [
+            3,
+            0
+          ],
+          [
+            12,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.12,
+        "tiles": [
+          [
+            4,
+            0
+          ],
+          [
+            5,
+            0
+          ],
+          [
+            6,
+            0
+          ],
+          [
+            8,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.12,
+        "tiles": [
+          [
+            2,
+            0
+          ],
+          [
+            10,
+            0
+          ],
+          [
+            12,
+            0
+          ],
+          [
+            13,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.37,
+        "tiles": [
+          [
+            1,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            3,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.37,
+        "tiles": [
+          [
+            4,
+            1
+          ],
+          [
+            5,
+            1
+          ],
+          [
+            6,
+            1
+          ],
+          [
+            8,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.37,
+        "tiles": [
+          [
+            10,
+            1
+          ],
+          [
+            11,
+            0
+          ],
+          [
+            12,
+            1
+          ],
+          [
+            13,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.63,
+        "tiles": [
+          [
+            1,
+            2
+          ],
+          [
+            2,
+            2
+          ],
+          [
+            3,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.63,
+        "tiles": [
+          [
+            4,
+            2
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            6,
+            2
+          ],
+          [
+            8,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.63,
+        "tiles": [
+          [
+            10,
+            2
+          ],
+          [
+            11,
+            2
+          ],
+          [
+            12,
+            2
+          ],
+          [
+            13,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.88,
+        "tiles": [
+          [
+            1,
+            3
+          ],
+          [
+            2,
+            3
+          ],
+          [
+            3,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.88,
+        "tiles": [
+          [
+            4,
+            3
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            6,
+            3
+          ],
+          [
+            8,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.88,
+        "tiles": [
+          [
+            10,
+            3
+          ],
+          [
+            11,
+            3
+          ],
+          [
+            12,
+            3
+          ],
+          [
+            13,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.94,
+        "v": 0.28,
+        "tiles": [
+          [
+            6,
+            0
+          ],
+          [
+            6,
+            1
+          ],
+          [
+            6,
+            2
+          ],
+          [
+            6,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.94,
+        "v": 0.72,
+        "tiles": [
+          [
+            12,
+            0
+          ],
+          [
+            11,
+            1
+          ],
+          [
+            12,
+            1
+          ],
+          [
+            12,
+            3
+          ]
+        ]
+      }
+    ],
+    "loose": []
+  },
+  {
+    "id": "rmx-040",
+    "revision": 1,
+    "chapter": 3,
+    "name": "Full Remix",
+    "skill": "Treat every meld as part of one shared pool.",
+    "hint": "Do not protect green melds automatically. Borrow what the table needs.",
+    "groups": [
+      {
+        "axis": "v",
+        "u": 0.06,
+        "v": 0.28,
+        "tiles": [
+          [
+            4,
+            0
+          ],
+          [
+            4,
+            1
+          ],
+          [
+            4,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.06,
+        "v": 0.72,
+        "tiles": [
+          [
+            6,
+            0
+          ],
+          [
+            6,
+            1
+          ],
+          [
+            6,
+            2
+          ],
+          [
+            6,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.12,
+        "tiles": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            0
+          ],
+          [
+            3,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.12,
+        "tiles": [
+          [
+            5,
+            0
+          ],
+          [
+            7,
+            0
+          ],
+          [
+            8,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.12,
+        "tiles": [
+          [
+            3,
+            1
+          ],
+          [
+            9,
+            0
+          ],
+          [
+            11,
+            0
+          ],
+          [
+            12,
+            0
+          ],
+          [
+            13,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.37,
+        "tiles": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            3
+          ],
+          [
+            2,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.37,
+        "tiles": [
+          [
+            5,
+            1
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            8,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.37,
+        "tiles": [
+          [
+            9,
+            1
+          ],
+          [
+            10,
+            1
+          ],
+          [
+            12,
+            1
+          ],
+          [
+            13,
+            1
+          ],
+          [
+            1,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.63,
+        "tiles": [
+          [
+            2,
+            2
+          ],
+          [
+            3,
+            2
+          ],
+          [
+            10,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.63,
+        "tiles": [
+          [
+            5,
+            2
+          ],
+          [
+            7,
+            2
+          ],
+          [
+            8,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.63,
+        "tiles": [
+          [
+            9,
+            2
+          ],
+          [
+            10,
+            2
+          ],
+          [
+            11,
+            2
+          ],
+          [
+            12,
+            2
+          ],
+          [
+            13,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.88,
+        "tiles": [
+          [
+            2,
+            3
+          ],
+          [
+            3,
+            3
+          ],
+          [
+            11,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.88,
+        "tiles": [
+          [
+            5,
+            3
+          ],
+          [
+            7,
+            3
+          ],
+          [
+            8,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.88,
+        "tiles": [
+          [
+            9,
+            3
+          ],
+          [
+            10,
+            3
+          ],
+          [
+            11,
+            3
+          ],
+          [
+            12,
+            3
+          ],
+          [
+            13,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.94,
+        "v": 0.28,
+        "tiles": [
+          [
+            9,
+            0
+          ],
+          [
+            9,
+            1
+          ],
+          [
+            9,
+            2
+          ],
+          [
+            9,
+            3
+          ]
+        ]
+      }
+    ],
+    "loose": []
+  },
+  {
+    "id": "rmx-041",
+    "revision": 1,
+    "chapter": 3,
+    "name": "Thirty",
+    "skill": "Several repairs are intertwined in this milestone table.",
+    "hint": "There is no single starting point. Improve one meld, then follow what the move frees.",
+    "groups": [
+      {
+        "axis": "v",
+        "u": 0.06,
+        "v": 0.28,
+        "tiles": [
+          [
+            6,
+            0
+          ],
+          [
+            6,
+            1
+          ],
+          [
+            6,
+            2
+          ],
+          [
+            6,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.06,
+        "v": 0.72,
+        "tiles": [
+          [
+            11,
+            0
+          ],
+          [
+            11,
+            1
+          ],
+          [
+            11,
+            2
+          ],
+          [
+            11,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.12,
+        "tiles": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            0
+          ],
+          [
+            3,
+            0
+          ],
+          [
+            4,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.12,
+        "tiles": [
+          [
+            5,
+            0
+          ],
+          [
+            7,
+            0
+          ],
+          [
+            8,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.12,
+        "tiles": [
+          [
+            9,
+            0
+          ],
+          [
+            10,
+            0
+          ],
+          [
+            12,
+            0
+          ],
+          [
+            13,
+            0
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.37,
+        "tiles": [
+          [
+            1,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            3,
+            1
+          ],
+          [
+            7,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.37,
+        "tiles": [
+          [
+            5,
+            1
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            8,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.37,
+        "tiles": [
+          [
+            9,
+            1
+          ],
+          [
+            10,
+            1
+          ],
+          [
+            12,
+            1
+          ],
+          [
+            13,
+            1
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.63,
+        "tiles": [
+          [
+            2,
+            2
+          ],
+          [
+            2,
+            3
+          ],
+          [
+            3,
+            2
+          ],
+          [
+            4,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.63,
+        "tiles": [
+          [
+            5,
+            2
+          ],
+          [
+            7,
+            2
+          ],
+          [
+            8,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.63,
+        "tiles": [
+          [
+            9,
+            2
+          ],
+          [
+            10,
+            2
+          ],
+          [
+            12,
+            2
+          ],
+          [
+            13,
+            2
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.25,
+        "v": 0.88,
+        "tiles": [
+          [
+            1,
+            3
+          ],
+          [
+            3,
+            3
+          ],
+          [
+            4,
+            1
+          ],
+          [
+            4,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.5,
+        "v": 0.88,
+        "tiles": [
+          [
+            5,
+            3
+          ],
+          [
+            7,
+            3
+          ],
+          [
+            8,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "h",
+        "u": 0.75,
+        "v": 0.88,
+        "tiles": [
+          [
+            9,
+            3
+          ],
+          [
+            10,
+            3
+          ],
+          [
+            12,
+            3
+          ],
+          [
+            13,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.94,
+        "v": 0.28,
+        "tiles": [
+          [
+            7,
+            0
+          ],
+          [
+            7,
+            1
+          ],
+          [
+            1,
+            2
+          ],
+          [
+            7,
+            3
+          ]
+        ]
+      },
+      {
+        "axis": "v",
+        "u": 0.94,
+        "v": 0.72,
+        "tiles": [
+          [
+            11,
+            0
+          ],
+          [
+            11,
+            1
+          ],
+          [
+            11,
+            2
+          ],
+          [
+            11,
+            3
+          ]
+        ]
+      }
+    ],
+    "loose": [],
+    "completion": {
+      "heading": "Chapter Three complete!",
+      "sub": "Ten full tables remixed. You are ready for whatever comes next."
+    }
   }
 ];
 // IDs are permanent, not stage numbers: never renumber them when reordering
@@ -3403,7 +8405,7 @@ window.addEventListener('hashchange',()=>{
 });
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.5.6 · Roadmap Notes';
+  const APP_VERSION='0.7.0 · Chapter Three';
   const themeMeta=document.querySelector('meta[name="theme-color"]');
   if(themeMeta) themeMeta.setAttribute('content','#15182d');
   document.title='Remixa';
