@@ -860,7 +860,7 @@ html,body{-webkit-text-size-adjust:100%;}
   <button type="button" class="rot-icon" id="portraitReload" aria-label="Reload Remixa" title="Reload Remixa">↻</button>
   <strong>Rotate your phone</strong>
   <p>Remixa feels best in landscape, where there's room to play.</p>
-  <div class="rotate-build">Build 0.7.2 · One Card Over</div>
+  <div class="rotate-build">Build 0.7.3 · One Card Over</div>
   <div class="rotate-roadmap"><strong>Roadmap</strong><ul>
     <li>Frozen / locked hand cards.</li>
     <li>Daily challenges, streaks and leaderboards.</li>
@@ -6342,6 +6342,9 @@ const settings=Object.freeze({tile:58,corner:4,gap:2,spring:180,magnet:55});
 const board=$('board'), groupsLayer=$('groupLayer'), tilesLayer=$('tileLayer'), raisedLayer=$('raisedLayer'), dragLayer=$('dragLayer'), meldGrip=$('meldGrip');
 let tiles=[],groups=[],active=null,hover=null,history=[],level=0,won=false,nextID=1,nextGroup=1;
 let currentView='home';
+// Pointer state is ephemeral. A press never changes or snapshots the table.
+let boardGesture=null;
+const DRAG_SLOP=7; // CSS pixels, independent of display pixel density
 let moves=0,selectedId=null,movingGroup=null,winRecord=false,scoreSource='completed-run';
 let actualTile=58,boardW=1,boardH=1,adaptiveTileCap=Infinity;
 // A purely visual collision preview; puzzle positions remain untouched until drop.
@@ -6480,9 +6483,7 @@ function selectGroup(id){
   layout();
   saveProgress();
 }
-board.addEventListener('pointerdown',e=>{
-  if(e.target===board && !active && !movingGroup && selectedId!==null)selectGroup(null);
-});
+
 
 const clamp=(v,a,b)=>Math.min(Math.max(v,a),Math.max(a,b));
 const colorAt=c=>COLORS[c%COLORS.length];
@@ -6673,7 +6674,6 @@ function tileNew(num,col) {
   t.el.setAttribute('aria-label', `${rankLabel(num)} of ${suit.name}`);
   t.el.style.setProperty('--tile-color',colorAt(col));
   t.el.dataset.id=t.id;
-  t.el.addEventListener('pointerdown',ev=>pointerDown(ev,t));
   tiles.push(t);
   return t;
 }
@@ -7092,8 +7092,7 @@ function saveProgress() {
   }
 }
 function pauseAndSave() {
-  if(movingGroup)finishMeldMove(null,true);
-  if(active)cancelDrag();
+  abortBoardGesture();
   saveProgress();
 }
 document.addEventListener('visibilitychange',()=>{
@@ -7208,8 +7207,7 @@ for(const type of ['pointerdown','keydown'])document.addEventListener(type,()=>{
 function loadLevel(i,{fresh=false}={}) {
   const destination=(i+LEVELS.length)%LEVELS.length,initialLoad=!progressReady;
   const leavingGame=currentView==='game';
-  if(movingGroup)finishMeldMove(null,true);
-  if(active)cancelDrag();
+  abortBoardGesture();
   if(leavingGame&&progressReady&&won&&destination!==level){
     recordBest(moves,level,scoreSource);
     retireAttempt(level);
@@ -7265,6 +7263,7 @@ function loadLevel(i,{fresh=false}={}) {
   // into that temporary shape before the player turns their phone.
   if(!matchMedia('(orientation: portrait)').matches)reflowGroups(selectedId);
   layout(true);
+  if(!matchMedia('(orientation: portrait)').matches){knownBoardWidth=boardW;knownBoardHeight=boardH;}
   updateScore();
   if(won)renderWin();
   if(nudgeCards())startNudge();
@@ -7908,13 +7907,10 @@ function meldMoveAim(point,start,offset,extent){
   return point+offset*clamp(distance/reach,0,1);
 }
 function beginMeldMove(e){
-  if(won||active||movingGroup||e.button>0 ||
-     $('lab').classList.contains('show'))return;
   const g=groups.find(p=>p.id===selectedId&&p.tiles.length>1);
   if(!g)return;
-  e.preventDefault();e.stopPropagation();
   resetHoverIntent();
-  const box=renderedMeldBox(g),br=board.getBoundingClientRect(),grip=meldGrip.getBoundingClientRect();
+  const box=e.meldBox,br=board.getBoundingClientRect(),grip=e.gripRect;
   movingGroup={
     id:g.id,pointerId:e.pointerId,
     before:snapshot(),colors:new Map(groups.map(p=>[p.id,isValid(p)])),count:g.tiles.length,
@@ -7930,9 +7926,6 @@ function beginMeldMove(e){
   // An edge-clamped open meld may have floated inward. Pick it up from
   // that visible centre; a cancelled or unmoved grip restores its old home.
   g.u=box.x/boardW;g.v=box.y/boardH;
-  if(meldGrip.setPointerCapture){
-    try{meldGrip.setPointerCapture(e.pointerId);}catch(_){}
-  }
   layout(false,true);
 }
 function moveMeld(e){
@@ -7997,12 +7990,6 @@ function finishMeldMove(e,cancel=false){
   layout();
   saveProgress();
 }
-meldGrip.addEventListener('pointerdown',beginMeldMove);
-window.addEventListener('pointermove',moveMeld,{passive:false});
-window.addEventListener('pointerup',e=>finishMeldMove(e),{passive:false});
-window.addEventListener('pointercancel',e=>finishMeldMove(e,true));
-window.addEventListener('blur',()=>finishMeldMove(null,true));
-
 // Keep a lifted card in its source while it is being reordered. Extraction
 // starts only once most of that card clears the original expanded outline.
 function hasPulledClearOfMeld(a,x,y) {
@@ -8057,17 +8044,11 @@ function extractPendingMeld() {
     else{g.el.remove();groups.splice(idx,1);}
   }
 }
-function pointerDown(e,t) {
-  if(won||active||movingGroup||$('lab').classList.contains('show')||e.button>0)return;
+function beginCardDrag(e,t) {
+  // Promoted only after a deliberate movement. Use the originally struck
+  // card and its *visible* pickup rectangle, even during a spring animation.
   resetHoverIntent();
-  e.preventDefault();
-  dismissOpeningHint();
-  const owner=groups.find(g=>g.tiles.includes(t));
-  if(owner&&!isOpen(owner.id)&&owner.tiles.length>1){
-    selectGroup(owner.id);
-    return;
-  }
-  const old=snapshot(),rect=t.el.getBoundingClientRect();
+  const old=snapshot(),rect=e.tileRect;
   const colors=new Map(groups.map(g=>[g.id,isValid(g)]));
   let pendingMeld=null;
   {
@@ -8110,8 +8091,6 @@ function pointerDown(e,t) {
   hover=null;
   dragLayer.appendChild(t.el);
   t.el.classList.add('dragging');
-  moveDrag(e);
-  layout();
 }
 function cardDragPoint(a,clientX,clientY,rect=board.getBoundingClientRect()){
   // The held card's visible centre is also its drop aim. Pickup offsets
@@ -8168,7 +8147,7 @@ function pointerUp(e) {
   e.preventDefault();
   const a=active,t=a.tile,br=board.getBoundingClientRect();
   const {x,y,inside}=cardDragPoint(a,e.clientX,e.clientY,br);
-  if(Math.hypot(e.clientX-a.startX,e.clientY-a.startY)<7){cancelDrag();return;}
+  if(Math.hypot(e.clientX-a.startX,e.clientY-a.startY)<DRAG_SLOP){cancelDrag();return;}
   if(!inside){cancelDrag();return;}
   let g;
   if(a.pendingMeld&&!hasPulledClearOfMeld(a,x,y)){
@@ -8271,13 +8250,103 @@ function renderWin() {
     $('nextWin').textContent=next?(next.entryLabel||'NEXT LEVEL →'):'PLAY AGAIN →';
     $('win').classList.add('show');
 }
-window.addEventListener('pointermove',moveDrag,{passive:false});
-window.addEventListener('pointerup',pointerUp,{passive:false});
-window.addEventListener('pointercancel',e=>{if(active&&e.pointerId===active.pointerId)cancelDrag();});
-window.addEventListener('blur',cancelDrag);
-function undo() {
+// Resolve what is painted at the touch point, not the browser's expanded
+// touch target or the meld's future spring destination. Only run on press.
+// A raised panel occludes the cards underneath, including in its small gaps.
+function containsPoint(r,x,y){return x>=r.left&&x<r.right&&y>=r.top&&y<r.bottom;}
+function visibleMeldAt(x,y){
+  const hitGroup=g=>{
+    for(let i=g.tiles.length-1;i>=0;i--){
+      const tile=g.tiles[i],tileRect=tile.el.getBoundingClientRect();
+      if(containsPoint(tileRect,x,y))return {group:g,tile,tileRect};
+    }
+    return null;
+  };
+  const raised=groups.find(g=>g.id===selectedId&&g.tiles.length>1);
+  if(raised){
+    const hit=hitGroup(raised);
+    if(hit)return hit;
+    if(containsPoint(raised.el.getBoundingClientRect(),x,y))return {group:raised};
+  }
+  // At rest, all compact cards paint above all compact panels.
+  for(let i=groups.length-1;i>=0;i--){
+    if(groups[i]===raised)continue;
+    const hit=hitGroup(groups[i]);if(hit)return hit;
+  }
+  for(let i=groups.length-1;i>=0;i--){
+    const group=groups[i];
+    if(group!==raised&&containsPoint(group.el.getBoundingClientRect(),x,y))return {group};
+  }
+  return null;
+}
+function releaseBoardPointer(id){
+  try{if(board.hasPointerCapture(id))board.releasePointerCapture(id);}catch(_){}
+}
+function abortBoardGesture(){
+  // Clear the owner first so implicit/explicit capture loss is idempotent.
+  const p=boardGesture;boardGesture=null;
   if(movingGroup)finishMeldMove(null,true);
   if(active)cancelDrag();
+  if(p)releaseBoardPointer(p.pointerId);
+}
+function pressBoard(e){
+  if(currentView!=='game'||won||e.isPrimary===false||e.button!==0)return;
+  if(boardGesture){
+    // A fresh primary press of the same device cannot be part of the old
+    // gesture. Recover even if the OS swallowed its end notification.
+    if(e.pointerType!==boardGesture.pointerType)return;
+    abortBoardGesture();
+  }
+  e.preventDefault();
+  const x=e.clientX,y=e.clientY,hit=visibleMeldAt(x,y);
+  const selected=groups.find(g=>g.id===selectedId&&g.tiles.length>1);
+  const gripRect=selected&&meldGrip.classList.contains('visible')?meldGrip.getBoundingClientRect():null;
+  const grip=gripRect&&containsPoint(gripRect,x,y);
+  const p={pointerId:e.pointerId,pointerType:e.pointerType,clientX:x,clientY:y,
+    hit,kind:grip?'grip':hit?.tile&&(hit.group===selected||hit.group.tiles.length===1)?'card':'tap',
+    tileRect:hit?.tileRect,gripRect,meldBox:grip?renderedMeldBox(selected):null,moved:false};
+  boardGesture=p;
+  // The board never gets reparented. Tile/panel nodes move between layers.
+  try{board.setPointerCapture(e.pointerId);}catch(_){}
+}
+function moveBoard(e){
+  const p=boardGesture;if(!p||p.pointerId!==e.pointerId)return;
+  if(e.pointerType==='mouse'&&!(e.buttons&1)){abortBoardGesture();return;}
+  if(!p.moved){
+    if(Math.hypot(e.clientX-p.clientX,e.clientY-p.clientY)<DRAG_SLOP)return;
+    p.moved=true;
+    if(p.kind==='grip')beginMeldMove(p);
+    else if(p.kind==='card')beginCardDrag(p,p.hit.tile);
+  }
+  if(active)moveDrag(e);
+  else if(movingGroup)moveMeld(e);
+}
+function releaseBoard(e){
+  const p=boardGesture;if(!p||p.pointerId!==e.pointerId)return;
+  boardGesture=null;
+  try{
+    if(active)pointerUp(e);
+    else if(movingGroup)finishMeldMove(e);
+    else if(!p.moved&&Math.hypot(e.clientX-p.clientX,e.clientY-p.clientY)<DRAG_SLOP){
+      const g=p.hit?.group;
+      // A tap can switch, close or open a meld, but never pick up a card.
+      // On an overlapping grip, a plain tap can reach the neighbour below;
+      // only a grip *drag* is allowed to move or join the selected group.
+      const next=g&&g.tiles.length>1&&g.id!==selectedId?g.id:null;
+      if(next!==selectedId)selectGroup(next);
+    }
+  }finally{releaseBoardPointer(p.pointerId);}
+}
+board.addEventListener('pointerdown',pressBoard,{passive:false});
+window.addEventListener('pointermove',moveBoard,{passive:false});
+window.addEventListener('pointerup',releaseBoard,{passive:false});
+window.addEventListener('pointercancel',e=>{if(boardGesture?.pointerId===e.pointerId)abortBoardGesture();});
+board.addEventListener('lostpointercapture',e=>{
+  if(e.target===board&&boardGesture?.pointerId===e.pointerId&&!board.hasPointerCapture(e.pointerId))abortBoardGesture();
+});
+window.addEventListener('blur',abortBoardGesture);
+function undo() {
+  abortBoardGesture();
   if(!history.length)return;
   restore(history.pop());layout();saveProgress();
 }
@@ -8328,8 +8397,7 @@ function renderStageCatalog(){
 }
 function showHome(){
   if(currentView==='game'){
-    if(movingGroup)finishMeldMove(null,true);
-    if(active)cancelDrag();
+    abortBoardGesture();
     if(won){recordBest(moves,level,scoreSource);retireAttempt(level);}
     else saveProgress();
   }
@@ -8348,6 +8416,16 @@ let boardFitFrame=0,boardFitTimeout=0,knownBoardWidth=0,knownBoardHeight=0;
 function scheduleBoardFit(){
   refreshNudge();
   if(boardFitFrame)cancelAnimationFrame(boardFitFrame);
+  // ResizeObserver and the late Safari check can both fire with identical
+  // dimensions. A no-op fit must never interrupt a touch or reset the grip.
+  const fitIfChanged=()=>{
+    if(currentView!=='game'||matchMedia('(orientation: portrait)').matches)return;
+    const w=board.clientWidth,h=board.clientHeight;
+    if(w<180||h<130||(w===knownBoardWidth&&h===knownBoardHeight))return;
+    abortBoardGesture();
+    adaptiveTileCap=Infinity;knownBoardWidth=w;knownBoardHeight=h;
+    reflowGroups();layout(true);saveProgress();
+  };
   let stableFrames=0,priorW=-1,priorH=-1,tries=0;
   const tick=()=>{
     boardFitFrame=0;
@@ -8360,16 +8438,7 @@ function scheduleBoardFit(){
       boardFitFrame=requestAnimationFrame(tick);
       return;
     }
-    if(movingGroup)finishMeldMove(null,true);
-    if(active)cancelDrag();
-    if(Math.abs(w-knownBoardWidth)>1||Math.abs(h-knownBoardHeight)>1) {
-      // A portrait-sized tile cap must not carry over into landscape.
-      adaptiveTileCap=Infinity;
-      knownBoardWidth=w;knownBoardHeight=h;
-    }
-    reflowGroups();
-    layout(true);
-    saveProgress();
+    fitIfChanged();
   };
   boardFitFrame=requestAnimationFrame(tick);
   if(boardFitTimeout)clearTimeout(boardFitTimeout);
@@ -8377,18 +8446,11 @@ function scheduleBoardFit(){
   // animation; this final check catches a delayed toolbar/safe-area change.
   boardFitTimeout=setTimeout(()=>{
     boardFitTimeout=0;
-    if(board.clientWidth&&board.clientHeight&&!matchMedia('(orientation: portrait)').matches){
-      if(movingGroup)finishMeldMove(null,true);
-      if(active)cancelDrag();
-      adaptiveTileCap=Infinity;
-      reflowGroups();
-      layout(true);
-      saveProgress();
-    }
+    fitIfChanged();
   },320);
 }
 window.addEventListener('resize',scheduleBoardFit);
-window.addEventListener('orientationchange',scheduleBoardFit);
+window.addEventListener('orientationchange',()=>{abortBoardGesture();scheduleBoardFit();});
 if(window.visualViewport)window.visualViewport.addEventListener('resize',scheduleBoardFit);
 if(window.ResizeObserver)
   new ResizeObserver(scheduleBoardFit).observe(board);
@@ -8417,7 +8479,7 @@ window.addEventListener('hashchange',()=>{
 });
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.7.2 · One Card Over';
+  const APP_VERSION='0.7.3 · One Card Over';
   const themeMeta=document.querySelector('meta[name="theme-color"]');
   if(themeMeta) themeMeta.setAttribute('content','#15182d');
   document.title='Remixa';
