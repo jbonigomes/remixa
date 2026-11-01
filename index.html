@@ -36,6 +36,11 @@ button {border:0;cursor:pointer;color:inherit;touch-action:manipulation;}
 #board::before {content:"";pointer-events:none;position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 59px,#ffffff04 60px 61px);opacity:.45;}
 #groupLayer,#tileLayer,#raisedLayer {position:absolute;inset:0;pointer-events:none;}
 #groupLayer {z-index:1;} #tileLayer {z-index:2;}
+/* Native hit surfaces: the coloured panel owns border and gap taps. Its
+   container stays transparent to input. Stacking and the animated transforms
+   used to draw the cards are therefore also used by the browser for picking. */
+#board .group {pointer-events:auto;}
+#board .tile > *, #board .tile svg *, #board .group > * {pointer-events:none;}
 /* One focused meld, background AND cards, rises above every other meld. */
 #raisedLayer {z-index:6;isolation:isolate;}
 #raisedLayer .group {z-index:1;}
@@ -860,7 +865,7 @@ html,body{-webkit-text-size-adjust:100%;}
   <button type="button" class="rot-icon" id="portraitReload" aria-label="Reload Remixa" title="Reload Remixa">↻</button>
   <strong>Rotate your phone</strong>
   <p>Remixa feels best in landscape, where there's room to play.</p>
-  <div class="rotate-build">Build 0.7.3 · One Card Over</div>
+  <div class="rotate-build">Build 0.7.4 · One Card Over</div>
   <div class="rotate-roadmap"><strong>Roadmap</strong><ul>
     <li>Frozen / locked hand cards.</li>
     <li>Daily challenges, streaks and leaderboards.</li>
@@ -8083,7 +8088,7 @@ function beginCardDrag(e,t) {
     // a different insertion slot even when the player lets go at home.
     originX:rect.left+rect.width/2,
     originY:rect.top+rect.height/2,
-    before:old, colors, pendingMeld, startX:e.clientX, startY:e.clientY
+    before:old, colors, pendingMeld, startX:e.clientX, startY:e.clientY, slop:e.slop
   };
   // The drag class adds a grey group outline while preserving the paper,
   // rank and suit colours. Validation still changes only on release.
@@ -8147,7 +8152,7 @@ function pointerUp(e) {
   e.preventDefault();
   const a=active,t=a.tile,br=board.getBoundingClientRect();
   const {x,y,inside}=cardDragPoint(a,e.clientX,e.clientY,br);
-  if(Math.hypot(e.clientX-a.startX,e.clientY-a.startY)<DRAG_SLOP){cancelDrag();return;}
+  if(Math.hypot(e.clientX-a.startX,e.clientY-a.startY)<a.slop){cancelDrag();return;}
   if(!inside){cancelDrag();return;}
   let g;
   if(a.pendingMeld&&!hasPulledClearOfMeld(a,x,y)){
@@ -8250,32 +8255,28 @@ function renderWin() {
     $('nextWin').textContent=next?(next.entryLabel||'NEXT LEVEL →'):'PLAY AGAIN →';
     $('win').classList.add('show');
 }
-// Resolve what is painted at the touch point, not the browser's expanded
-// touch target or the meld's future spring destination. Only run on press.
-// A raised panel occludes the cards underneath, including in its small gaps.
-function containsPoint(r,x,y){return x>=r.left&&x<r.right&&y>=r.top&&y<r.bottom;}
-function visibleMeldAt(x,y){
-  const hitGroup=g=>{
-    for(let i=g.tiles.length-1;i>=0;i--){
-      const tile=g.tiles[i],tileRect=tile.el.getBoundingClientRect();
-      if(containsPoint(tileRect,x,y))return {group:g,tile,tileRect};
-    }
-    return null;
-  };
-  const raised=groups.find(g=>g.id===selectedId&&g.tiles.length>1);
-  if(raised){
-    const hit=hitGroup(raised);
+// The native press target is the card/panel that was hit BEFORE capture.
+// Never reinterpret a tap by comparing its clientY with every animated
+// rectangle: in nested or shifted viewports that second hit test can disagree.
+function hitFromSurface(node) {
+  const surface=node?.closest?.('.tile,.group');
+  if(!surface||!board.contains(surface))return null;
+  if(surface.classList.contains('group')){
+    const group=groups.find(g=>g.el===surface);
+    return group?{group}:null;
+  }
+  const tile=tiles.find(t=>t.el===surface);
+  const group=tile&&groups.find(g=>g.tiles.includes(tile));
+  return group?{group,tile}:null;
+}
+// A grip drag always owns the selected group. A stationary grip tap retains
+// the old pass-through behaviour when the grip covers a different meld.
+function hitUnderGrip(x,y) {
+  for(const element of document.elementsFromPoint(x,y)){
+    if(element===board)break;
+    if(element===meldGrip||meldGrip.contains(element))continue;
+    const hit=hitFromSurface(element);
     if(hit)return hit;
-    if(containsPoint(raised.el.getBoundingClientRect(),x,y))return {group:raised};
-  }
-  // At rest, all compact cards paint above all compact panels.
-  for(let i=groups.length-1;i>=0;i--){
-    if(groups[i]===raised)continue;
-    const hit=hitGroup(groups[i]);if(hit)return hit;
-  }
-  for(let i=groups.length-1;i>=0;i--){
-    const group=groups[i];
-    if(group!==raised&&containsPoint(group.el.getBoundingClientRect(),x,y))return {group};
   }
   return null;
 }
@@ -8298,23 +8299,27 @@ function pressBoard(e){
     abortBoardGesture();
   }
   e.preventDefault();
-  const x=e.clientX,y=e.clientY,hit=visibleMeldAt(x,y);
+  const x=e.clientX,y=e.clientY;
   const selected=groups.find(g=>g.id===selectedId&&g.tiles.length>1);
-  const gripRect=selected&&meldGrip.classList.contains('visible')?meldGrip.getBoundingClientRect():null;
-  const grip=gripRect&&containsPoint(gripRect,x,y);
-  const p={pointerId:e.pointerId,pointerType:e.pointerType,clientX:x,clientY:y,
-    hit,kind:grip?'grip':hit?.tile&&(hit.group===selected||hit.group.tiles.length===1)?'card':'tap',
-    tileRect:hit?.tileRect,gripRect,meldBox:grip?renderedMeldBox(selected):null,moved:false};
-  boardGesture=p;
-  // The board never gets reparented. Tile/panel nodes move between layers.
-  try{board.setPointerCapture(e.pointerId);}catch(_){}
+  const grip=!!selected&&meldGrip.classList.contains('visible')&&meldGrip.contains(e.target);
+  const hit=grip?hitUnderGrip(x,y):hitFromSurface(e.target);
+  const canDragCard=hit?.tile&&(hit.group===selected||hit.group.tiles.length===1);
+  boardGesture={pointerId:e.pointerId,pointerType:e.pointerType,clientX:x,clientY:y,
+    slop:e.pointerType==='touch'?11:DRAG_SLOP,
+    hit,kind:grip?'grip':canDragCard?'card':'tap',moved:false,
+    // Rectangle reads here are for the *drag pickup anchor*, never for selection.
+    tileRect:!grip&&canDragCard?hit.tile.el.getBoundingClientRect():null,
+    gripRect:grip?meldGrip.getBoundingClientRect():null,meldBox:grip?renderedMeldBox(selected):null};
+  // Do not change the native target midway through a simple tap. moveBoard
+  // transfers capture to the permanent board only when a real drag starts.
 }
 function moveBoard(e){
   const p=boardGesture;if(!p||p.pointerId!==e.pointerId)return;
   if(e.pointerType==='mouse'&&!(e.buttons&1)){abortBoardGesture();return;}
   if(!p.moved){
-    if(Math.hypot(e.clientX-p.clientX,e.clientY-p.clientY)<DRAG_SLOP)return;
+    if(Math.hypot(e.clientX-p.clientX,e.clientY-p.clientY)<p.slop)return;
     p.moved=true;
+    if(p.kind!=='tap')try{board.setPointerCapture(e.pointerId);}catch(_){}
     if(p.kind==='grip')beginMeldMove(p);
     else if(p.kind==='card')beginCardDrag(p,p.hit.tile);
   }
@@ -8327,7 +8332,7 @@ function releaseBoard(e){
   try{
     if(active)pointerUp(e);
     else if(movingGroup)finishMeldMove(e);
-    else if(!p.moved&&Math.hypot(e.clientX-p.clientX,e.clientY-p.clientY)<DRAG_SLOP){
+    else if(!p.moved&&Math.hypot(e.clientX-p.clientX,e.clientY-p.clientY)<p.slop){
       const g=p.hit?.group;
       // A tap can switch, close or open a meld, but never pick up a card.
       // On an overlapping grip, a plain tap can reach the neighbour below;
@@ -8479,7 +8484,7 @@ window.addEventListener('hashchange',()=>{
 });
 /* === Cozy Update behaviour and roadmap === */
 (function(){
-  const APP_VERSION='0.7.3 · One Card Over';
+  const APP_VERSION='0.7.4 · One Card Over';
   const themeMeta=document.querySelector('meta[name="theme-color"]');
   if(themeMeta) themeMeta.setAttribute('content','#15182d');
   document.title='Remixa';
